@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 1 in progress — Plan 01 complete, Plan 02 (task environment simulator) next.
+**Current focus:** Phase 1 complete — both plans done. Phase 2 (HGF models) next.
 
 ## Current Position
 
 Phase: 1 of 7 (Foundation)
-Plan: 1 of 2 in phase (01-01 complete)
-Status: In progress
-Last activity: 2026-04-04 — Completed 01-01-PLAN.md (project scaffold + config system)
+Plan: 2 of 2 in phase (01-01 + 01-02 complete)
+Status: Phase 1 complete
+Last activity: 2026-04-04 — Completed 01-02-PLAN.md (task environment simulator)
 
-Progress: [█░░░░░░░░░] ~7% (1 of ~14 plans complete)
+Progress: [██░░░░░░░░] ~14% (2 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -35,11 +35,14 @@ Progress: [█░░░░░░░░░] ~7% (1 of ~14 plans complete)
 | Single merged prl_analysis.yaml | Task + analysis params in one file for single source of truth | 01-01 |
 | Frozen dataclasses for all config types | Immutability prevents accidental mutation in downstream pipeline | 01-01 |
 | /env/ (root-anchored) in .gitignore | Prevents ignoring src/prl_hgf/env/ subpackage | 01-01 |
+| Phase n_trials 40 → 30 per phase | Plan spec: 3 sets × 4 phases × 30 + 3 × 20 transfer = 420 trials total | 01-02 |
+| TransferConfig as separate dataclass from PhaseConfig | Transfer has no name field; avoids unused required field | 01-02 |
+| pytest pythonpath includes "." (project root) | Root config.py must be importable during test collection | 01-02 |
 
 ### Pending Todos
 
-- Plan 01-02: Task environment simulator (trial sequence generation from config)
-- Consider creating project-specific .venv with Python 3.10 in Plan 02
+- Phase 2: HGF model implementation (2-level and 3-level binary HGF with softmax response)
+- Consider creating project-specific .venv with Python 3.10 (deferred from Phase 1)
 
 ### Blockers/Concerns
 
@@ -50,6 +53,6 @@ Progress: [█░░░░░░░░░] ~7% (1 of ~14 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-04-04T18:43:07Z
-Stopped at: Completed 01-01-PLAN.md — project scaffold + config system
-Resume file: None — begin 01-02-PLAN.md (task environment simulator)
+Last session: 2026-04-04T19:13:00Z
+Stopped at: Completed 01-02-PLAN.md — task environment simulator (Phase 1 complete)
+Resume file: None — begin Phase 2 (HGF models)

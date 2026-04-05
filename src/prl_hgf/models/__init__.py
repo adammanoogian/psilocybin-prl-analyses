@@ -24,6 +24,9 @@ Input/output helpers:
     :func:`prepare_input_data`, :func:`extract_beliefs`,
     :func:`extract_beliefs_3level`
 
+Response function:
+    :func:`softmax_stickiness_surprise`
+
 Node index constants:
     :data:`INPUT_NODES`, :data:`BELIEF_NODES`, :data:`VOLATILITY_NODE`,
     :data:`N_CUES`
@@ -44,6 +47,7 @@ from prl_hgf.models.hgf_3level import (
     build_3level_network,
     extract_beliefs_3level,
 )
+from prl_hgf.models.response import softmax_stickiness_surprise
 
 __all__ = [
     "build_2level_network",
@@ -51,6 +55,7 @@ __all__ = [
     "prepare_input_data",
     "extract_beliefs",
     "extract_beliefs_3level",
+    "softmax_stickiness_surprise",
     "INPUT_NODES",
     "BELIEF_NODES",
     "VOLATILITY_NODE",

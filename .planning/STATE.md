@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 2 (HGF models) in progress — plan 02-01 complete.
+**Current focus:** Phase 2 (HGF models) complete — both plans 02-01 and 02-02 done.
 
 ## Current Position
 
 Phase: 2 of 7 (Models)
-Plan: 1 of ~2 in phase (02-01 complete)
-Status: In progress
-Last activity: 2026-04-05 — Completed 02-01-PLAN.md (HGF model builders)
+Plan: 2 of 2 in phase (02-02 complete — phase complete)
+Status: Phase complete — ready for Phase 3 (Simulation)
+Last activity: 2026-04-05 — Completed 02-02-PLAN.md (response function)
 
-Progress: [███░░░░░░░] ~21% (3 of ~14 plans complete)
+Progress: [████░░░░░░] ~28% (4 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -41,10 +41,13 @@ Progress: [███░░░░░░░] ~21% (3 of ~14 plans complete)
 | net.edges is a tuple (positional), not a dict | pyhgf 0.2.8: node N accessed as net.edges[N] by position index | 02-01 |
 | extract_beliefs uses "mean" for continuous nodes and "expected_mean" for binary nodes | "mean" is log-odds posterior; "expected_mean" is sigmoid probability in [0,1] | 02-01 |
 | observed mask must use int dtype (not bool) | JAX tracing multiplies observed against PE; int required for correctness | 02-01 |
+| Response function uses expected_mean from binary INPUT_NODES (0,2,4) as mu1_k | Sigmoid-transformed P(reward\|cue k) in [0,1]; continuous-node log-odds not used in softmax | 02-02 |
+| First trial stickiness = 0 via sentinel prev_choice=-1 | jnp.concatenate([-1], choices[:-1]) ensures no stickiness on first trial | 02-02 |
+| jax.nn.log_softmax used (not manual formula) | Available in JAX 0.4+; cleaner and numerically stable | 02-02 |
+| Test fixtures for response tests use helper functions, not session-scoped fixtures | JAX network state is mutable after input_data(); fresh network prevents state leakage | 02-02 |
 
 ### Pending Todos
 
-- Phase 2 plan 02-02: softmax + stickiness response function (if planned)
 - Phase 3: HGF simulation of synthetic participants with known parameters
 - Phase 4: Single-subject MCMC fitting via PyMC (custom Op needed — HGFDistribution incompatible with multi-branch Network)
 - Consider creating project-specific .venv with Python 3.10 (deferred from Phase 1)
@@ -55,9 +58,10 @@ Progress: [███░░░░░░░] ~21% (3 of ~14 plans complete)
 - ω₃ parameter recovery expected to be challenging (known issue in literature)
 - System Python 3.13 incompatible with pyhgf 0.2.8 — all work must use ds_env or a Python 3.10 venv
 - JAX forward pass takes ~1s per call due to JIT compilation (first call per session); acceptable for simulation but may slow fitting iteration
+- `conda run -n ds_env python -c "..."` fails for multi-line scripts on Windows (conda 25.7.0); use a temp script file instead
 
 ## Session Continuity
 
-Last session: 2026-04-05T11:33:44Z
-Stopped at: Completed 02-01-PLAN.md — HGF model builders (Phase 2, plan 1)
-Resume file: None — continue Phase 2 with next plan (response function or simulation)
+Last session: 2026-04-05T11:45:11Z
+Stopped at: Completed 02-02-PLAN.md — softmax + stickiness response function (Phase 2, plan 2)
+Resume file: None — Phase 2 complete; start Phase 3 (simulation)

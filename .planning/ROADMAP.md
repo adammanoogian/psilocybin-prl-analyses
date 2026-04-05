@@ -8,7 +8,7 @@ Build a validated HGF-based analysis pipeline for the PRL pick_best_cue task. Th
 
 - [x] **Phase 1: Foundation** — Repo scaffold, dependencies, unified config, task environment simulator
 - [x] **Phase 2: Models** — 2-level and 3-level binary HGF networks in pyhgf, custom softmax+stickiness response function
-- [ ] **Phase 3: Simulation** — Agent simulator, batch synthetic data generation with group/session structure
+- [x] **Phase 3: Simulation** — Agent simulator, batch synthetic data generation with group/session structure
 - [ ] **Phase 4: Fitting** — Single-subject MCMC fitting via PyMC, batch fitting pipeline, diagnostics
 - [ ] **Phase 5: Validation & Comparison** — Parameter recovery, model comparison (random-effects BMS)
 - [ ] **Phase 6: Group Analysis** — Second-level statistics, group x session x phase effects, visualizations
@@ -50,8 +50,8 @@ Plans:
 **Requirements**: SIM-01, SIM-02, SIM-03, SIM-04, SIM-05, SIM-06
 **Plans:** 2 plans
 Plans:
-- [ ] 03-01-PLAN.md — Single-agent simulator with trial-by-trial HGF loop and parameter sampling
-- [ ] 03-02-PLAN.md — Batch simulation orchestration, group x session structure, pipeline script
+- [x] 03-01-PLAN.md — Single-agent simulator with trial-by-trial HGF loop and parameter sampling
+- [x] 03-02-PLAN.md — Batch simulation orchestration, group x session structure, pipeline script
 **Success Criteria**:
   1. A single simulated agent with high beta (=5) and correct omega_2 chooses the best cue >80% of the time during stable phases and shows transient accuracy drops after reversals
   2. Batch simulation generates 30 participants/group x 2 groups x 3 sessions = 180 synthetic datasets, each with full trial-level data and ground-truth parameters
@@ -159,7 +159,7 @@ prl-hgf-analysis/
 |-------|--------|-----------|
 | 1. Foundation | Complete | 2026-04-04 |
 | 2. Models | Complete | 2026-04-05 |
-| 3. Simulation | Planning complete | -- |
+| 3. Simulation | Complete | 2026-04-05 |
 | 4. Fitting | Not started | -- |
 | 5. Validation & Comparison | Not started | -- |
 | 6. Group Analysis | Not started | -- |

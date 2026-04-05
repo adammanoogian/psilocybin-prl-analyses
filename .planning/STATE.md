@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-04-04)
 ## Current Position
 
 Phase: 3 of 7 (Simulation)
-Plan: 1 of 2 in phase (03-01 complete)
-Status: In progress — Phase 3 plan 1 complete; ready for 03-02 (batch simulation)
-Last activity: 2026-04-05 — Completed 03-01-PLAN.md (agent simulator)
+Plan: 2 of 2 in phase (03-02 complete — Phase 3 complete)
+Status: In progress — Phase 3 complete; ready for Phase 4 (fitting)
+Last activity: 2026-04-05 — Completed 03-02-PLAN.md (batch simulation)
 
-Progress: [████░░░░░░] ~36% (5 of ~14 plans complete)
+Progress: [█████░░░░░] ~43% (6 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -49,13 +49,16 @@ Progress: [████░░░░░░] ~36% (5 of ~14 plans complete)
 | Prior beliefs read from net.attributes[INPUT_NODE]["expected_mean"] BEFORE input_data | Gives P(reward\|cue) as prior for choice generation at each trial; cleaner than reading node_trajectories | 03-01 |
 | Accuracy test threshold >= 0.80 (not strict >) | Single stochastic runs can hit exactly 80.0% at boundary; >= correctly represents ">80%" criterion | 03-01 |
 | Numpy (not JAX) for simulation softmax | No gradients needed in simulation path; avoids JAX overhead | 03-01 |
+| Seed array drawn upfront from master_seed before batch loop | Ensures reproducibility is not sensitive to loop order; changing n_participants_per_group does not alter earlier participant seeds | 03-02 |
+| JIT pre-warm in batch.py (not agent.py) | Keeps agent.py single-responsibility; warmup is a batch-level orchestration concern | 03-02 |
+| session_labels built as ["baseline"] + session_cfg.session_labels | Avoids hardcoding full 3-session list; derives non-baseline labels from YAML session_deltas config | 03-02 |
+| Same rng_sim used for sample_participant_params and simulate_agent | RNG state advances after parameter sampling, providing additional entropy for trial choices | 03-02 |
 
 ### Pending Todos
 
-- Phase 3 plan 2: Batch simulation (simulate_batch calling simulate_agent per participant-session, tidy CSV output)
 - Phase 4: Single-subject MCMC fitting via PyMC (custom Op needed — HGFDistribution incompatible with multi-branch Network)
 - Consider creating project-specific .venv with Python 3.10 (deferred from Phase 1)
-- Add JIT pre-warm in batch.py before participant loop (not in simulate_agent — keeps agent.py clean)
+- batch test suite is ~6-7 min per full run; consider excluding from CI fast runs with `-k "not slow"`
 
 ### Blockers/Concerns
 
@@ -67,6 +70,6 @@ Progress: [████░░░░░░] ~36% (5 of ~14 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-04-05T13:53:49Z
-Stopped at: Completed 03-01-PLAN.md — agent simulator (Phase 3, plan 1)
-Resume file: None — start 03-02 (batch simulation)
+Last session: 2026-04-05T14:10:41Z
+Stopped at: Completed 03-02-PLAN.md — batch simulation (Phase 3, plan 2; Phase 3 complete)
+Resume file: None — start Phase 4 (fitting)

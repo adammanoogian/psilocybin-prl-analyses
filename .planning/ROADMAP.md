@@ -48,6 +48,10 @@ Plans:
 **Goal**: Synthetic participants with known parameters produce realistic choice data, and batch simulation generates a complete group x session dataset ready for fitting.
 **Depends on**: Phase 2 (model definitions + response function)
 **Requirements**: SIM-01, SIM-02, SIM-03, SIM-04, SIM-05, SIM-06
+**Plans:** 2 plans
+Plans:
+- [ ] 03-01-PLAN.md — Single-agent simulator with trial-by-trial HGF loop and parameter sampling
+- [ ] 03-02-PLAN.md — Batch simulation orchestration, group x session structure, pipeline script
 **Success Criteria**:
   1. A single simulated agent with high beta (=5) and correct omega_2 chooses the best cue >80% of the time during stable phases and shows transient accuracy drops after reversals
   2. Batch simulation generates 30 participants/group x 2 groups x 3 sessions = 180 synthetic datasets, each with full trial-level data and ground-truth parameters
@@ -155,7 +159,7 @@ prl-hgf-analysis/
 |-------|--------|-----------|
 | 1. Foundation | Complete | 2026-04-04 |
 | 2. Models | Complete | 2026-04-05 |
-| 3. Simulation | Not started | -- |
+| 3. Simulation | Planning complete | -- |
 | 4. Fitting | Not started | -- |
 | 5. Validation & Comparison | Not started | -- |
 | 6. Group Analysis | Not started | -- |

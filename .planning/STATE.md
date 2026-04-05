@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 2 (HGF models) complete — both plans 02-01 and 02-02 done.
+**Current focus:** Phase 4 (Fitting) — 04-01 complete (core MCMC engine); ready for 04-02 (batch fitting).
 
 ## Current Position
 
-Phase: 3 of 7 (Simulation)
-Plan: 2 of 2 in phase (03-02 complete — Phase 3 complete)
-Status: In progress — Phase 3 complete; ready for Phase 4 (fitting)
-Last activity: 2026-04-05 — Completed 03-02-PLAN.md (batch simulation)
+Phase: 4 of 7 (Fitting)
+Plan: 1 of 2+ in phase (04-01 complete)
+Status: In progress — Phase 4 Plan 1 complete; ready for 04-02 (batch fitting)
+Last activity: 2026-04-05 — Completed 04-01-PLAN.md (core MCMC fitting engine)
 
-Progress: [█████░░░░░] ~43% (6 of ~14 plans complete)
+Progress: [███████░░░] ~50% (7 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -53,16 +53,23 @@ Progress: [█████░░░░░] ~43% (6 of ~14 plans complete)
 | JIT pre-warm in batch.py (not agent.py) | Keeps agent.py single-responsibility; warmup is a batch-level orchestration concern | 03-02 |
 | session_labels built as ["baseline"] + session_cfg.session_labels | Avoids hardcoding full 3-session list; derives non-baseline labels from YAML session_deltas config | 03-02 |
 | Same rng_sim used for sample_participant_params and simulate_agent | RNG state advances after parameter sampling, providing additional entropy for trial choices | 03-02 |
+| Two-Op split pattern (\_GradOp + \_LogpOp) wrapping JAX lax.scan | pyhgf pattern: forward Op delegates grad to separate GradOp; both instantiated once in factory scope | 04-01 |
+| Shallow-copy parameter injection (dict(base\_attrs) + dict(attrs[idx])) | deepcopy breaks JAX traceability; shallow copy preserves it for lax.scan gradient flow | 04-01 |
+| expected\_mean from binary INPUT\_NODES (0,2,4) for softmax mu1 | Sigmoid P(reward\|cue) in [0,1] is the correct quantity; continuous-node log-odds are NOT used | 04-01 |
+| NaN guard returns -jnp.inf (not +inf) in logp Op | logp semantic: -inf = reject proposal; +inf would be incorrect and confuse NUTS | 04-01 |
+| Kappa injected at both edge endpoints simultaneously | pyhgf stores coupling at both ends: node 6 volatility\_coupling\_children AND nodes 1,3,5 volatility\_coupling\_parents | 04-01 |
+| omega\_2 prior upper=0.0 mandatory; 3-level NaN boundary ~-1.2 | 3-level model (shared volatility node) produces NaN for omega\_2 >= ~-1.2; prior with mu=-3 keeps sampler safe | 04-01 |
+| cores=1 default on Windows for fit\_participant | JAX cross-process state issues on Windows; re-test cores=4 if batch runtime exceeds 8 hours | 04-01 |
 
 ### Pending Todos
 
-- Phase 4: Single-subject MCMC fitting via PyMC (custom Op needed — HGFDistribution incompatible with multi-branch Network)
+- Phase 4, Plan 2: Batch fitting loop across all 180 participant-sessions
 - Consider creating project-specific .venv with Python 3.10 (deferred from Phase 1)
 - batch test suite is ~6-7 min per full run; consider excluding from CI fast runs with `-k "not slow"`
 
 ### Blockers/Concerns
 
-- Phase 4 (fitting) will need a custom PyMC Op wrapping the multi-branch Network's logp — HGFDistribution cannot be used with custom Network (confirmed empirically)
+- 3-level model NaN boundary at omega_2 >= ~-1.2 (handled by prior upper=0.0, but initial PyMC point shows -inf in point_logps; NUTS handles gracefully)
 - ω₃ parameter recovery expected to be challenging (known issue in literature)
 - System Python 3.13 incompatible with pyhgf 0.2.8 — all work must use ds_env or a Python 3.10 venv
 - JAX forward pass takes ~1s per call due to JIT compilation (first call per session); acceptable for simulation but may slow fitting iteration
@@ -70,6 +77,6 @@ Progress: [█████░░░░░] ~43% (6 of ~14 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-04-05T14:10:41Z
-Stopped at: Completed 03-02-PLAN.md — batch simulation (Phase 3, plan 2; Phase 3 complete)
-Resume file: None — start Phase 4 (fitting)
+Last session: 2026-04-05T22:07:00Z
+Stopped at: Completed 04-01-PLAN.md — core MCMC fitting engine (Phase 4, plan 1)
+Resume file: None — continue with 04-02-PLAN.md (batch fitting)

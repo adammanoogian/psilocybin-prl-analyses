@@ -62,6 +62,10 @@ Plans:
 **Goal**: The PyMC fitting pipeline recovers posterior distributions for each free parameter on individual simulated participants, with clean MCMC diagnostics.
 **Depends on**: Phase 3 (simulated data to fit)
 **Requirements**: FIT-01, FIT-02, FIT-03, FIT-04, FIT-05, INF-04
+**Plans:** 2 plans
+Plans:
+- [ ] 04-01-PLAN.md — Custom PyTensor Ops, PyMC model factories, single-participant MCMC fitting
+- [ ] 04-02-PLAN.md — Batch fitting pipeline, pipeline script, unit and integration tests
 **Success Criteria**:
   1. Fitting a single simulated participant (2-level model, 4 chains x 1000 draws) converges: all R-hat < 1.05, ESS > 400 for omega_2, beta, zeta
   2. Posterior means are within 1 SD of the true generating parameters for omega_2 and beta on at least 80% of test fits
@@ -160,7 +164,7 @@ prl-hgf-analysis/
 | 1. Foundation | Complete | 2026-04-04 |
 | 2. Models | Complete | 2026-04-05 |
 | 3. Simulation | Complete | 2026-04-05 |
-| 4. Fitting | Not started | -- |
+| 4. Fitting | Planning complete | -- |
 | 5. Validation & Comparison | Not started | -- |
 | 6. Group Analysis | Not started | -- |
 | 7. GUI | Not started | -- |

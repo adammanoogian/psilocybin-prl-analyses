@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 1 complete — both plans done. Phase 2 (HGF models) next.
+**Current focus:** Phase 2 (HGF models) in progress — plan 02-01 complete.
 
 ## Current Position
 
-Phase: 1 of 7 (Foundation)
-Plan: 2 of 2 in phase (01-01 + 01-02 complete)
-Status: Phase 1 complete
-Last activity: 2026-04-04 — Completed 01-02-PLAN.md (task environment simulator)
+Phase: 2 of 7 (Models)
+Plan: 1 of ~2 in phase (02-01 complete)
+Status: In progress
+Last activity: 2026-04-05 — Completed 02-01-PLAN.md (HGF model builders)
 
-Progress: [██░░░░░░░░] ~14% (2 of ~14 plans complete)
+Progress: [███░░░░░░░] ~21% (3 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -38,21 +38,26 @@ Progress: [██░░░░░░░░] ~14% (2 of ~14 plans complete)
 | Phase n_trials 40 → 30 per phase | Plan spec: 3 sets × 4 phases × 30 + 3 × 20 transfer = 420 trials total | 01-02 |
 | TransferConfig as separate dataclass from PhaseConfig | Transfer has no name field; avoids unused required field | 01-02 |
 | pytest pythonpath includes "." (project root) | Root config.py must be importable during test collection | 01-02 |
+| net.edges is a tuple (positional), not a dict | pyhgf 0.2.8: node N accessed as net.edges[N] by position index | 02-01 |
+| extract_beliefs uses "mean" for continuous nodes and "expected_mean" for binary nodes | "mean" is log-odds posterior; "expected_mean" is sigmoid probability in [0,1] | 02-01 |
+| observed mask must use int dtype (not bool) | JAX tracing multiplies observed against PE; int required for correctness | 02-01 |
 
 ### Pending Todos
 
-- Phase 2: HGF model implementation (2-level and 3-level binary HGF with softmax response)
+- Phase 2 plan 02-02: softmax + stickiness response function (if planned)
+- Phase 3: HGF simulation of synthetic participants with known parameters
+- Phase 4: Single-subject MCMC fitting via PyMC (custom Op needed — HGFDistribution incompatible with multi-branch Network)
 - Consider creating project-specific .venv with Python 3.10 (deferred from Phase 1)
 
 ### Blockers/Concerns
 
-- pyhgf Network API for 3 parallel binary inputs with shared volatility parent needs verification (Phase 2)
-- JAX / PyMC version compatibility needs testing — install succeeded but no JAX code executed yet
+- Phase 4 (fitting) will need a custom PyMC Op wrapping the multi-branch Network's logp — HGFDistribution cannot be used with custom Network (confirmed empirically)
 - ω₃ parameter recovery expected to be challenging (known issue in literature)
 - System Python 3.13 incompatible with pyhgf 0.2.8 — all work must use ds_env or a Python 3.10 venv
+- JAX forward pass takes ~1s per call due to JIT compilation (first call per session); acceptable for simulation but may slow fitting iteration
 
 ## Session Continuity
 
-Last session: 2026-04-04T19:13:00Z
-Stopped at: Completed 01-02-PLAN.md — task environment simulator (Phase 1 complete)
-Resume file: None — begin Phase 2 (HGF models)
+Last session: 2026-04-05T11:33:44Z
+Stopped at: Completed 02-01-PLAN.md — HGF model builders (Phase 2, plan 1)
+Resume file: None — continue Phase 2 with next plan (response function or simulation)

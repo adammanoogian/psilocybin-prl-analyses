@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 4 (Fitting) — 04-01 complete (core MCMC engine); ready for 04-02 (batch fitting).
+**Current focus:** Phase 4 (Fitting) complete; ready for Phase 5 (parameter recovery).
 
 ## Current Position
 
-Phase: 4 of 7 (Fitting)
-Plan: 1 of 2+ in phase (04-01 complete)
-Status: In progress — Phase 4 Plan 1 complete; ready for 04-02 (batch fitting)
-Last activity: 2026-04-05 — Completed 04-01-PLAN.md (core MCMC fitting engine)
+Phase: 4 of 7 (Fitting) — COMPLETE
+Plan: 2 of 2 in phase (04-02 complete)
+Status: Phase 4 complete — core MCMC engine (04-01) and batch fitting (04-02) done
+Last activity: 2026-04-05 — Completed 04-02-PLAN.md (batch fitting pipeline + tests)
 
-Progress: [███████░░░] ~50% (7 of ~14 plans complete)
+Progress: [████████░░] ~57% (8 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -60,10 +60,15 @@ Progress: [███████░░░] ~50% (7 of ~14 plans complete)
 | Kappa injected at both edge endpoints simultaneously | pyhgf stores coupling at both ends: node 6 volatility\_coupling\_children AND nodes 1,3,5 volatility\_coupling\_parents | 04-01 |
 | omega\_2 prior upper=0.0 mandatory; 3-level NaN boundary ~-1.2 | 3-level model (shared volatility node) produces NaN for omega\_2 >= ~-1.2; prior with mu=-3 keeps sampler safe | 04-01 |
 | cores=1 default on Windows for fit\_participant | JAX cross-process state issues on Windows; re-test cores=4 if batch runtime exceeds 8 hours | 04-01 |
+| Per-participant seed = random_seed + flat_idx | Ensures reproducible independent seeds without upfront allocation; simple and auditable | 04-02 |
+| FittingConfig dataclass added to task_config.py | Pipeline script reads MCMC settings from config.fitting; keeps all params in one place | 04-02 |
+| NaN-filled fallback rows on fit failure | Failed participants appear in output with flagged=True; not silently dropped | 04-02 |
+| Session-scoped pytest fixture for simulated data | Amortizes expensive JAX JIT compile across 4 Op tests; 50-trial slice for speed | 04-02 |
 
 ### Pending Todos
 
-- Phase 4, Plan 2: Batch fitting loop across all 180 participant-sessions
+- Phase 5: Parameter recovery — fit all 180 simulated participants, assess recovery quality
+- Phase 5: Model comparison via random-effects BMS (Rigoux et al. 2014)
 - Consider creating project-specific .venv with Python 3.10 (deferred from Phase 1)
 - batch test suite is ~6-7 min per full run; consider excluding from CI fast runs with `-k "not slow"`
 
@@ -74,9 +79,10 @@ Progress: [███████░░░] ~50% (7 of ~14 plans complete)
 - System Python 3.13 incompatible with pyhgf 0.2.8 — all work must use ds_env or a Python 3.10 venv
 - JAX forward pass takes ~1s per call due to JIT compilation (first call per session); acceptable for simulation but may slow fitting iteration
 - `conda run -n ds_env python -c "..."` fails for multi-line scripts on Windows (conda 25.7.0); use a temp script file instead
+- Full 180-participant batch estimated at ~3.1 hours (2-level) or ~4.5 hours (3-level) sequential on CPU; monitor and consider cores=4 testing
 
 ## Session Continuity
 
-Last session: 2026-04-05T22:07:00Z
-Stopped at: Completed 04-01-PLAN.md — core MCMC fitting engine (Phase 4, plan 1)
-Resume file: None — continue with 04-02-PLAN.md (batch fitting)
+Last session: 2026-04-05T20:47:18Z
+Stopped at: Completed 04-02-PLAN.md — batch fitting pipeline + comprehensive test suite (Phase 4 complete)
+Resume file: None — continue with Phase 5 (parameter recovery)

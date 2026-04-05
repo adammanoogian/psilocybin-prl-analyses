@@ -7,7 +7,7 @@ Build a validated HGF-based analysis pipeline for the PRL pick_best_cue task. Th
 ## Phases
 
 - [x] **Phase 1: Foundation** — Repo scaffold, dependencies, unified config, task environment simulator
-- [ ] **Phase 2: Models** — 2-level and 3-level binary HGF networks in pyhgf, custom softmax+stickiness response function
+- [x] **Phase 2: Models** — 2-level and 3-level binary HGF networks in pyhgf, custom softmax+stickiness response function
 - [ ] **Phase 3: Simulation** — Agent simulator, batch synthetic data generation with group/session structure
 - [ ] **Phase 4: Fitting** — Single-subject MCMC fitting via PyMC, batch fitting pipeline, diagnostics
 - [ ] **Phase 5: Validation & Comparison** — Parameter recovery, model comparison (random-effects BMS)
@@ -36,8 +36,8 @@ Plans:
 **Requirements**: MOD-01, MOD-02, MOD-03, MOD-04, MOD-05, RSP-01, RSP-02, RSP-03, RSP-04
 **Plans:** 2 plans
 Plans:
-- [ ] 02-01-PLAN.md — 2-level and 3-level HGF model builders with forward pass and belief extraction
-- [ ] 02-02-PLAN.md — Softmax + stickiness response function with end-to-end integration tests
+- [x] 02-01-PLAN.md — 2-level and 3-level HGF model builders with forward pass and belief extraction
+- [x] 02-02-PLAN.md — Softmax + stickiness response function with end-to-end integration tests
 **Success Criteria**:
   1. The 2-level model creates 3 parallel binary HGF branches (3 input nodes, 3 continuous-state nodes), accepts a trial sequence, and produces belief trajectories mu_1 for each cue
   2. The 3-level model adds a shared volatility parent node and produces both mu_1 (per cue) and mu_2 (volatility) trajectories; the volatility trajectory responds visibly to reversal points
@@ -154,7 +154,7 @@ prl-hgf-analysis/
 | Phase | Status | Completed |
 |-------|--------|-----------|
 | 1. Foundation | Complete | 2026-04-04 |
-| 2. Models | Planned | -- |
+| 2. Models | Complete | 2026-04-05 |
 | 3. Simulation | Not started | -- |
 | 4. Fitting | Not started | -- |
 | 5. Validation & Comparison | Not started | -- |

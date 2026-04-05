@@ -9,7 +9,7 @@ Build a validated HGF-based analysis pipeline for the PRL pick_best_cue task. Th
 - [x] **Phase 1: Foundation** — Repo scaffold, dependencies, unified config, task environment simulator
 - [x] **Phase 2: Models** — 2-level and 3-level binary HGF networks in pyhgf, custom softmax+stickiness response function
 - [x] **Phase 3: Simulation** — Agent simulator, batch synthetic data generation with group/session structure
-- [ ] **Phase 4: Fitting** — Single-subject MCMC fitting via PyMC, batch fitting pipeline, diagnostics
+- [x] **Phase 4: Fitting** — Single-subject MCMC fitting via PyMC, batch fitting pipeline, diagnostics
 - [ ] **Phase 5: Validation & Comparison** — Parameter recovery, model comparison (random-effects BMS)
 - [ ] **Phase 6: Group Analysis** — Second-level statistics, group x session x phase effects, visualizations
 - [ ] **Phase 7: GUI** — Interactive Jupyter widget for parameter exploration and belief trajectory visualization
@@ -64,8 +64,8 @@ Plans:
 **Requirements**: FIT-01, FIT-02, FIT-03, FIT-04, FIT-05, INF-04
 **Plans:** 2 plans
 Plans:
-- [ ] 04-01-PLAN.md — Custom PyTensor Ops, PyMC model factories, single-participant MCMC fitting
-- [ ] 04-02-PLAN.md — Batch fitting pipeline, pipeline script, unit and integration tests
+- [x] 04-01-PLAN.md — Custom PyTensor Ops, PyMC model factories, single-participant MCMC fitting
+- [x] 04-02-PLAN.md — Batch fitting pipeline, pipeline script, unit and integration tests
 **Success Criteria**:
   1. Fitting a single simulated participant (2-level model, 4 chains x 1000 draws) converges: all R-hat < 1.05, ESS > 400 for omega_2, beta, zeta
   2. Posterior means are within 1 SD of the true generating parameters for omega_2 and beta on at least 80% of test fits
@@ -164,7 +164,7 @@ prl-hgf-analysis/
 | 1. Foundation | Complete | 2026-04-04 |
 | 2. Models | Complete | 2026-04-05 |
 | 3. Simulation | Complete | 2026-04-05 |
-| 4. Fitting | Planning complete | -- |
+| 4. Fitting | Complete | 2026-04-05 |
 | 5. Validation & Comparison | Not started | -- |
 | 6. Group Analysis | Not started | -- |
 | 7. GUI | Not started | -- |

@@ -118,11 +118,11 @@
 | SIM-04 | 3 | Complete |
 | SIM-05 | 3 | Complete |
 | SIM-06 | 3 | Complete |
-| FIT-01 | 4 | — |
-| FIT-02 | 4 | — |
-| FIT-03 | 4 | — |
-| FIT-04 | 4 | — |
-| FIT-05 | 4 | — |
+| FIT-01 | 4 | Complete |
+| FIT-02 | 4 | Complete |
+| FIT-03 | 4 | Complete |
+| FIT-04 | 4 | Complete |
+| FIT-05 | 4 | Complete |
 | REC-01 | 5 | — |
 | REC-02 | 5 | — |
 | REC-03 | 5 | — |
@@ -145,7 +145,7 @@
 | INF-01 | 1 | Complete |
 | INF-02 | 1 | Complete |
 | INF-03 | 1 | Complete |
-| INF-04 | 4 | — |
+| INF-04 | 4 | Complete |
 | INF-05 | 1 | Complete |
 
 **Coverage:** 49 v1 requirements across 7 phases.

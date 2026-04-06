@@ -24,6 +24,11 @@ from prl_hgf.analysis.group import (
     fit_group_model,
     summarize_group_models,
 )
+from prl_hgf.analysis.group_plots import (
+    plot_all_rainclouds,
+    plot_interaction,
+    plot_raincloud,
+)
 from prl_hgf.analysis.recovery import (
     build_recovery_df,
     compute_correlation_matrix,
@@ -49,4 +54,8 @@ __all__ = [
     # Effect sizes
     "compute_cohens_d",
     "compute_effect_sizes_table",
+    # Group plots
+    "plot_raincloud",
+    "plot_interaction",
+    "plot_all_rainclouds",
 ]

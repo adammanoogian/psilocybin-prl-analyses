@@ -117,8 +117,8 @@ def compute_subject_waic(
         )
 
     posterior = idata.posterior
-    n_chains = posterior.dims["chain"]
-    n_draws = posterior.dims["draw"]
+    n_chains = posterior.sizes["chain"]
+    n_draws = posterior.sizes["draw"]
 
     # Collect per-sample log-likelihood values into (n_chains, n_draws) array
     loglike_vals = np.empty((n_chains, n_draws), dtype=float)

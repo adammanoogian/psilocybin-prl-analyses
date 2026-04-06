@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 6 (Group Analysis) — Phase 5 Validation complete; all three plans delivered.
+**Current focus:** Phase 6 (Group Analysis) — 06-03 manuscript scaffold complete; 06-01 and 06-02 remaining.
 
 ## Current Position
 
-Phase: 5 of 7 (Validation) — COMPLETE
-Plan: 3 of 3 in phase (05-01, 05-02, 05-03 all complete)
-Status: Pipeline script complete — recovery analysis, BMS, WAIC routing, integration tests done
-Last activity: 2026-04-06 — Completed 05-03-PLAN.md (validation pipeline script)
+Phase: 6 of 7 (Group Analysis) — In progress
+Plan: 3 of 3 in phase completed (06-03 manuscript done; 06-01 group analysis script, 06-02 GUI pending)
+Status: Manuscript scaffold complete — Quarto arxiv-pdf project, inline stats, BMS in Results, omega_3 caveat
+Last activity: 2026-04-06 — Completed 06-03-PLAN.md (Quarto manuscript scaffold)
 
-Progress: [███████████░] ~79% (11 of ~14 plans complete)
+Progress: [████████████░] ~85% (12 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -77,6 +77,11 @@ Progress: [███████████░] ~79% (11 of ~14 plans complete)
 | Pipeline --skip-waic flag | WAIC is slow (30-60 min); recovery-only diagnostics are much faster | 05-03 |
 | bms_summary.csv includes group column | Stratified BMS produces per-group rows; group column distinguishes them in flat CSV | 05-03 |
 | Integration test uses 5 participants (1 flagged = P005) | Pearson r requires n >= 3; 4 valid unflagged participants satisfy the guard | 05-03 |
+| cache: false in _quarto.yml during active development | Quarto cache does not detect CSV changes; switch to true + --cache-refresh after results stabilise | 06-03 |
+| get_contrast() helper for safe DataFrame scalar extraction | Centralises try/except for inline stats; avoids repetition across 6+ inline expressions | 06-03 |
+| Manual raincloud (kde + scatter + box) instead of ptitprince import | Avoids hard runtime dependency at Quarto render time; renders without ptitprince installed | 06-03 |
+| 94% HDI for group-level credible intervals | McElreath 2020 convention; consistent with bambi model (06-01/06-02) | 06-03 |
+| mason2024 BibTeX entry marked TODO for page verification | Exact volume/page details to be confirmed before submission | 06-03 |
 
 ### Pending Todos
 
@@ -84,6 +89,8 @@ Progress: [███████████░] ~79% (11 of ~14 plans complete)
 - batch test suite is ~6-7 min per full run; consider excluding from CI fast runs with `-k "not slow"`
 - For WAIC: save .nc InferenceData files during Phase 4 fitting (fit_batch return_idata=True + netcdf export) to avoid re-fitting
 - Phase 6: Group-level mixed-effects analysis (group × session × phase) on real fitted data
+- manuscript/references.bib: mason2024 volume/page details need verification before submission
+- quarto-arxiv extension must be installed (quarto add quarto-ext/arxiv) before first arxiv-pdf render
 
 ### Blockers/Concerns
 
@@ -97,6 +104,6 @@ Progress: [███████████░] ~79% (11 of ~14 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-04-06T13:51:00Z
-Stopped at: Completed 05-03-PLAN.md — pipeline script, fit_batch idata support, integration tests
-Resume file: None — continue with Phase 6 (group analysis)
+Last session: 2026-04-06T16:18:49Z
+Stopped at: Completed 06-03-PLAN.md — Quarto manuscript scaffold (arxiv-pdf, inline stats, BMS, omega_3 caveat)
+Resume file: None — continue with Phase 6 plans 06-01 (group analysis script) and 06-02 (GUI)

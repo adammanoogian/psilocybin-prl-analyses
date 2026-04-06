@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 5 (Validation) — BMS module complete; pipeline script (05-03) next.
+**Current focus:** Phase 6 (Group Analysis) — Phase 5 Validation complete; all three plans delivered.
 
 ## Current Position
 
-Phase: 5 of 7 (Validation) — In progress
-Plan: 2 of 3 in phase (05-01, 05-02 complete)
-Status: BMS module complete — groupBMC wrapper, WAIC post-hoc, EP bar plot, and tests done
-Last activity: 2026-04-06 — Completed 05-02-PLAN.md (Bayesian model comparison module)
+Phase: 5 of 7 (Validation) — COMPLETE
+Plan: 3 of 3 in phase (05-01, 05-02, 05-03 all complete)
+Status: Pipeline script complete — recovery analysis, BMS, WAIC routing, integration tests done
+Last activity: 2026-04-06 — Completed 05-03-PLAN.md (validation pipeline script)
 
-Progress: [██████████░] ~71% (10 of ~14 plans complete)
+Progress: [███████████░] ~79% (11 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -73,13 +73,17 @@ Progress: [██████████░] ~71% (10 of ~14 plans complete)
 | bor extracted from bmc.F1()-bmc.F0() (not GroupBMCResult attribute) | GroupBMCResult does not expose bor; GroupBMC.get_result() computes it internally but does not store it | 05-02 |
 | Dataset.sizes used instead of Dataset.dims for chain/draw counts | xarray FutureWarning: dims will return a set in future; sizes always returns a mapping | 05-02 |
 | WAIC loglike_dim_0 is a single scalar per sample (not per-trial) | pm.Potential computes trial-sum logp; ArviZ warns but value is valid as model evidence | 05-02 |
+| return_idata=False default in fit_batch | Backward compatible with existing 04_fit_participants.py; True triggers tuple return | 05-03 |
+| Pipeline --skip-waic flag | WAIC is slow (30-60 min); recovery-only diagnostics are much faster | 05-03 |
+| bms_summary.csv includes group column | Stratified BMS produces per-group rows; group column distinguishes them in flat CSV | 05-03 |
+| Integration test uses 5 participants (1 flagged = P005) | Pearson r requires n >= 3; 4 valid unflagged participants satisfy the guard | 05-03 |
 
 ### Pending Todos
 
-- Phase 5: Pipeline script (05-03) integrating recovery analysis + BMS on batch fit output
 - Consider creating project-specific .venv with Python 3.10 (deferred from Phase 1)
 - batch test suite is ~6-7 min per full run; consider excluding from CI fast runs with `-k "not slow"`
-- compute_batch_waic requires idata storage in fitting pipeline — 05-03 must add .nc file saving
+- For WAIC: save .nc InferenceData files during Phase 4 fitting (fit_batch return_idata=True + netcdf export) to avoid re-fitting
+- Phase 6: Group-level mixed-effects analysis (group × session × phase) on real fitted data
 
 ### Blockers/Concerns
 
@@ -93,6 +97,6 @@ Progress: [██████████░] ~71% (10 of ~14 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-04-06T13:33:12Z
-Stopped at: Completed 05-02-PLAN.md — BMS module (bms.py, tests, groupBMC dependency)
-Resume file: None — continue with 05-03 (pipeline script for validation + model comparison)
+Last session: 2026-04-06T13:51:00Z
+Stopped at: Completed 05-03-PLAN.md — pipeline script, fit_batch idata support, integration tests
+Resume file: None — continue with Phase 6 (group analysis)

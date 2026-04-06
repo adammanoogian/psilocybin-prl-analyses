@@ -22,7 +22,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt  # noqa: E402
 
 from prl_hgf.analysis.effect_sizes import compute_cohens_d, compute_effect_sizes_table
-from prl_hgf.analysis.group import build_estimates_wide
+from prl_hgf.analysis.group import _contrast_row, build_estimates_wide
 from prl_hgf.analysis.group_plots import plot_interaction, plot_raincloud
 
 # ---------------------------------------------------------------------------
@@ -88,6 +88,57 @@ def fit_df() -> pd.DataFrame:
 def estimates_wide(fit_df: pd.DataFrame) -> pd.DataFrame:
     """Module-scoped wide-form estimates fixture (flagged excluded)."""
     return build_estimates_wide(fit_df, model="hgf_2level", exclude_flagged=True)
+
+
+# ---------------------------------------------------------------------------
+# Tests: _contrast_row schema (HDI column names + hdi_excludes_zero)
+# ---------------------------------------------------------------------------
+
+
+class TestContrastsSchema:
+    """Tests for _contrast_row output schema and hdi_excludes_zero logic."""
+
+    def test_contrast_row_has_hdi_percent_columns(self) -> None:
+        """_contrast_row returns hdi_3% and hdi_97% (percent-suffix convention)."""
+        row = _contrast_row(np.zeros(200), session="baseline")
+        assert "hdi_3%" in row, (
+            f"Expected 'hdi_3%' in row keys. Got: {list(row.keys())}"
+        )
+        assert "hdi_97%" in row, (
+            f"Expected 'hdi_97%' in row keys. Got: {list(row.keys())}"
+        )
+        assert "hdi_excludes_zero" in row, (
+            f"Expected 'hdi_excludes_zero' in row keys. Got: {list(row.keys())}"
+        )
+        # Old column names must NOT be present
+        assert "hdi_3" not in row, "Old column 'hdi_3' should not be present."
+        assert "hdi_97" not in row, "Old column 'hdi_97' should not be present."
+
+    def test_hdi_excludes_zero_true_when_positive(self) -> None:
+        """hdi_excludes_zero is True when all samples are clearly positive."""
+        # Constant +5 → HDI = [5, 5], strictly above zero
+        row = _contrast_row(np.full(500, 5.0), session="s1")
+        assert row["hdi_excludes_zero"] is True, (
+            f"Expected True for all-positive samples. Got: {row['hdi_excludes_zero']}"
+        )
+
+    def test_hdi_excludes_zero_false_when_spanning(self) -> None:
+        """hdi_excludes_zero is False when HDI spans zero."""
+        # Samples centred at zero span both sides
+        rng = np.random.default_rng(42)
+        samples = rng.normal(0, 1, size=2000)
+        row = _contrast_row(samples, session="s2")
+        assert row["hdi_excludes_zero"] is False, (
+            f"Expected False for zero-spanning samples. Got: {row['hdi_excludes_zero']}"
+        )
+
+    def test_hdi_excludes_zero_true_when_negative(self) -> None:
+        """hdi_excludes_zero is True when all samples are clearly negative."""
+        # Constant -3 → HDI = [-3, -3], strictly below zero
+        row = _contrast_row(np.full(500, -3.0), session="s3")
+        assert row["hdi_excludes_zero"] is True, (
+            f"Expected True for all-negative samples. Got: {row['hdi_excludes_zero']}"
+        )
 
 
 # ---------------------------------------------------------------------------

@@ -91,6 +91,8 @@ def get_contrast(param: str, col: str, default: float = float("nan")) -> float:
 omega2_mean = get_contrast("omega_2", "mean")
 omega2_lo = get_contrast("omega_2", "hdi_3%")
 omega2_hi = get_contrast("omega_2", "hdi_97%")
+# hdi_excludes_zero: True when the 94% HDI lies entirely above or below zero
+omega2_hdi_excludes_zero = bool(get_contrast("omega_2", "hdi_excludes_zero", default=False))
 
 # Pre-extract BMS winner exceedance probability
 if has_bms and not bms_summary.empty:
@@ -296,7 +298,11 @@ else:
 The group × session interaction on omega_2 yielded a posterior mean difference of
 `{python} f"{omega2_mean:.3f}" if has_results and not np.isnan(omega2_mean) else "N/A"`
 (94% HDI: [`{python} f"{omega2_lo:.3f}" if has_results and not np.isnan(omega2_lo) else "N/A"`,
-`{python} f"{omega2_hi:.3f}" if has_results and not np.isnan(omega2_hi) else "N/A"`]).
+`{python} f"{omega2_hi:.3f}" if has_results and not np.isnan(omega2_hi) else "N/A"`];
+HDI excludes zero: `{python} str(omega2_hdi_excludes_zero) if has_results else "N/A"`),
+providing
+`{python} "positive" if has_results and omega2_hdi_excludes_zero else "inconclusive"`
+Bayesian evidence for the primary hypothesis.
 
 ```{python}
 #| label: fig-omega2-raincloud

@@ -10,7 +10,7 @@ Build a validated HGF-based analysis pipeline for the PRL pick_best_cue task. Th
 - [x] **Phase 2: Models** — 2-level and 3-level binary HGF networks in pyhgf, custom softmax+stickiness response function
 - [x] **Phase 3: Simulation** — Agent simulator, batch synthetic data generation with group/session structure
 - [x] **Phase 4: Fitting** — Single-subject MCMC fitting via PyMC, batch fitting pipeline, diagnostics
-- [ ] **Phase 5: Validation & Comparison** — Parameter recovery, model comparison (random-effects BMS)
+- [x] **Phase 5: Validation & Comparison** — Parameter recovery, model comparison (random-effects BMS)
 - [ ] **Phase 6: Group Analysis** — Second-level statistics, group x session x phase effects, visualizations
 - [ ] **Phase 7: GUI** — Interactive Jupyter widget for parameter exploration and belief trajectory visualization
 
@@ -78,9 +78,9 @@ Plans:
 **Requirements**: REC-01, REC-02, REC-03, REC-04, CMP-01, CMP-02, CMP-03, CMP-04
 **Plans:** 3 plans
 Plans:
-- [ ] 05-01-PLAN.md — Parameter recovery analysis module (metrics, scatter plots, correlation matrix)
-- [ ] 05-02-PLAN.md — Bayesian model comparison module (WAIC for pm.Potential, groupBMC, EP bar plot)
-- [ ] 05-03-PLAN.md — Pipeline script, fit_batch idata support, integration tests
+- [x] 05-01-PLAN.md — Parameter recovery analysis module (metrics, scatter plots, correlation matrix)
+- [x] 05-02-PLAN.md — Bayesian model comparison module (WAIC for pm.Potential, groupBMC, EP bar plot)
+- [x] 05-03-PLAN.md — Pipeline script, fit_batch idata support, integration tests
 **Success Criteria**:
   1. Parameter recovery plots show r > 0.7 for omega_2, beta, zeta; omega_3 and kappa recovery quality is explicitly documented (expected: potentially r < 0.7 for omega_3)
   2. Parameter correlation matrix reveals no severe confounds (|r| > 0.8 between any two parameters triggers a documented concern)
@@ -170,7 +170,7 @@ prl-hgf-analysis/
 | 2. Models | Complete | 2026-04-05 |
 | 3. Simulation | Complete | 2026-04-05 |
 | 4. Fitting | Complete | 2026-04-05 |
-| 5. Validation & Comparison | Not started | -- |
+| 5. Validation & Comparison | Complete | 2026-04-06 |
 | 6. Group Analysis | Not started | -- |
 | 7. GUI | Not started | -- |
 

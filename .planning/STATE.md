@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 4 (Fitting) complete; ready for Phase 5 (parameter recovery).
+**Current focus:** Phase 5 (Validation) — parameter recovery analysis module complete; pipeline script next.
 
 ## Current Position
 
-Phase: 4 of 7 (Fitting) — COMPLETE
-Plan: 2 of 2 in phase (04-02 complete)
-Status: Phase 4 complete — core MCMC engine (04-01) and batch fitting (04-02) done
-Last activity: 2026-04-05 — Completed 04-02-PLAN.md (batch fitting pipeline + tests)
+Phase: 5 of 7 (Validation) — In progress
+Plan: 1 of 2 in phase (05-01 complete)
+Status: Recovery analysis module complete — metrics, plots, and tests done
+Last activity: 2026-04-06 — Completed 05-01-PLAN.md (parameter recovery analysis module)
 
-Progress: [████████░░] ~57% (8 of ~14 plans complete)
+Progress: [█████████░] ~64% (9 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -53,21 +53,25 @@ Progress: [████████░░] ~57% (8 of ~14 plans complete)
 | JIT pre-warm in batch.py (not agent.py) | Keeps agent.py single-responsibility; warmup is a batch-level orchestration concern | 03-02 |
 | session_labels built as ["baseline"] + session_cfg.session_labels | Avoids hardcoding full 3-session list; derives non-baseline labels from YAML session_deltas config | 03-02 |
 | Same rng_sim used for sample_participant_params and simulate_agent | RNG state advances after parameter sampling, providing additional entropy for trial choices | 03-02 |
-| Two-Op split pattern (\_GradOp + \_LogpOp) wrapping JAX lax.scan | pyhgf pattern: forward Op delegates grad to separate GradOp; both instantiated once in factory scope | 04-01 |
-| Shallow-copy parameter injection (dict(base\_attrs) + dict(attrs[idx])) | deepcopy breaks JAX traceability; shallow copy preserves it for lax.scan gradient flow | 04-01 |
-| expected\_mean from binary INPUT\_NODES (0,2,4) for softmax mu1 | Sigmoid P(reward\|cue) in [0,1] is the correct quantity; continuous-node log-odds are NOT used | 04-01 |
+| Two-Op split pattern (_GradOp + _LogpOp) wrapping JAX lax.scan | pyhgf pattern: forward Op delegates grad to separate GradOp; both instantiated once in factory scope | 04-01 |
+| Shallow-copy parameter injection (dict(base_attrs) + dict(attrs[idx])) | deepcopy breaks JAX traceability; shallow copy preserves it for lax.scan gradient flow | 04-01 |
+| expected_mean from binary INPUT_NODES (0,2,4) for softmax mu1 | Sigmoid P(reward\|cue) in [0,1] is the correct quantity; continuous-node log-odds are NOT used | 04-01 |
 | NaN guard returns -jnp.inf (not +inf) in logp Op | logp semantic: -inf = reject proposal; +inf would be incorrect and confuse NUTS | 04-01 |
-| Kappa injected at both edge endpoints simultaneously | pyhgf stores coupling at both ends: node 6 volatility\_coupling\_children AND nodes 1,3,5 volatility\_coupling\_parents | 04-01 |
-| omega\_2 prior upper=0.0 mandatory; 3-level NaN boundary ~-1.2 | 3-level model (shared volatility node) produces NaN for omega\_2 >= ~-1.2; prior with mu=-3 keeps sampler safe | 04-01 |
-| cores=1 default on Windows for fit\_participant | JAX cross-process state issues on Windows; re-test cores=4 if batch runtime exceeds 8 hours | 04-01 |
+| Kappa injected at both edge endpoints simultaneously | pyhgf stores coupling at both ends: node 6 volatility_coupling_children AND nodes 1,3,5 volatility_coupling_parents | 04-01 |
+| omega_2 prior upper=0.0 mandatory; 3-level NaN boundary ~-1.2 | 3-level model (shared volatility node) produces NaN for omega_2 >= ~-1.2; prior with mu=-3 keeps sampler safe | 04-01 |
+| cores=1 default on Windows for fit_participant | JAX cross-process state issues on Windows; re-test cores=4 if batch runtime exceeds 8 hours | 04-01 |
 | Per-participant seed = random_seed + flat_idx | Ensures reproducible independent seeds without upfront allocation; simple and auditable | 04-02 |
 | FittingConfig dataclass added to task_config.py | Pipeline script reads MCMC settings from config.fitting; keeps all params in one place | 04-02 |
 | NaN-filled fallback rows on fit failure | Failed participants appear in output with flagged=True; not silently dropped | 04-02 |
 | Session-scoped pytest fixture for simulated data | Amortizes expensive JAX JIT compile across 4 Op tests; 50-trial slice for speed | 04-02 |
+| zip(axes, params, strict=True) in plot loop | ruff B905 requires explicit strict= parameter; axes and params always same length by construction | 05-01 |
+| Fixture offset scale sd=1.0 for all params | With only 9 test participants, kappa needed adequate inter-subject spread vs 0.05 recovery noise | 05-01 |
+| Recovery DataFrame wide form: one row per participant-session | Enables direct column-wise comparison of true_* and fitted values | 05-01 |
+| compute_recovery_metrics skips parameters not in recovery_df | 2-level model omits omega_3 and kappa; graceful skip avoids KeyError | 05-01 |
 
 ### Pending Todos
 
-- Phase 5: Parameter recovery — fit all 180 simulated participants, assess recovery quality
+- Phase 5: Pipeline script (05-02) calling recovery analysis on batch fit output
 - Phase 5: Model comparison via random-effects BMS (Rigoux et al. 2014)
 - Consider creating project-specific .venv with Python 3.10 (deferred from Phase 1)
 - batch test suite is ~6-7 min per full run; consider excluding from CI fast runs with `-k "not slow"`
@@ -75,7 +79,7 @@ Progress: [████████░░] ~57% (8 of ~14 plans complete)
 ### Blockers/Concerns
 
 - 3-level model NaN boundary at omega_2 >= ~-1.2 (handled by prior upper=0.0, but initial PyMC point shows -inf in point_logps; NUTS handles gracefully)
-- ω₃ parameter recovery expected to be challenging (known issue in literature)
+- ω₃ parameter recovery expected to be challenging (known issue in literature) — caveat annotation added to scatter plots
 - System Python 3.13 incompatible with pyhgf 0.2.8 — all work must use ds_env or a Python 3.10 venv
 - JAX forward pass takes ~1s per call due to JIT compilation (first call per session); acceptable for simulation but may slow fitting iteration
 - `conda run -n ds_env python -c "..."` fails for multi-line scripts on Windows (conda 25.7.0); use a temp script file instead
@@ -83,6 +87,6 @@ Progress: [████████░░] ~57% (8 of ~14 plans complete)
 
 ## Session Continuity
 
-Last session: 2026-04-05T20:47:18Z
-Stopped at: Completed 04-02-PLAN.md — batch fitting pipeline + comprehensive test suite (Phase 4 complete)
-Resume file: None — continue with Phase 5 (parameter recovery)
+Last session: 2026-04-06T13:18:28Z
+Stopped at: Completed 05-01-PLAN.md — parameter recovery analysis module (recovery.py, plots.py, tests)
+Resume file: None — continue with 05-02 (pipeline script for parameter recovery)

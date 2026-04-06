@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 5 (Validation) — parameter recovery analysis module complete; pipeline script next.
+**Current focus:** Phase 5 (Validation) — BMS module complete; pipeline script (05-03) next.
 
 ## Current Position
 
 Phase: 5 of 7 (Validation) — In progress
-Plan: 1 of 2 in phase (05-01 complete)
-Status: Recovery analysis module complete — metrics, plots, and tests done
-Last activity: 2026-04-06 — Completed 05-01-PLAN.md (parameter recovery analysis module)
+Plan: 2 of 3 in phase (05-01, 05-02 complete)
+Status: BMS module complete — groupBMC wrapper, WAIC post-hoc, EP bar plot, and tests done
+Last activity: 2026-04-06 — Completed 05-02-PLAN.md (Bayesian model comparison module)
 
-Progress: [█████████░] ~64% (9 of ~14 plans complete)
+Progress: [██████████░] ~71% (10 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -68,13 +68,18 @@ Progress: [█████████░] ~64% (9 of ~14 plans complete)
 | Fixture offset scale sd=1.0 for all params | With only 9 test participants, kappa needed adequate inter-subject spread vs 0.05 recovery noise | 05-01 |
 | Recovery DataFrame wide form: one row per participant-session | Enables direct column-wise comparison of true_* and fitted values | 05-01 |
 | compute_recovery_metrics skips parameters not in recovery_df | 2-level model omits omega_3 and kappa; graceful skip avoids KeyError | 05-01 |
+| groupBMC 1.0 package used (not from-scratch VB fallback) | pip install groupBMC succeeded; implements Rigoux et al. 2014 VB algorithm exactly | 05-02 |
+| GroupBMC(L) called with L transposed to (n_models, n_subjects) | groupBMC API requires (n_models, n_subjects); internal representation uses (n_subjects, n_models) | 05-02 |
+| bor extracted from bmc.F1()-bmc.F0() (not GroupBMCResult attribute) | GroupBMCResult does not expose bor; GroupBMC.get_result() computes it internally but does not store it | 05-02 |
+| Dataset.sizes used instead of Dataset.dims for chain/draw counts | xarray FutureWarning: dims will return a set in future; sizes always returns a mapping | 05-02 |
+| WAIC loglike_dim_0 is a single scalar per sample (not per-trial) | pm.Potential computes trial-sum logp; ArviZ warns but value is valid as model evidence | 05-02 |
 
 ### Pending Todos
 
-- Phase 5: Pipeline script (05-02) calling recovery analysis on batch fit output
-- Phase 5: Model comparison via random-effects BMS (Rigoux et al. 2014)
+- Phase 5: Pipeline script (05-03) integrating recovery analysis + BMS on batch fit output
 - Consider creating project-specific .venv with Python 3.10 (deferred from Phase 1)
 - batch test suite is ~6-7 min per full run; consider excluding from CI fast runs with `-k "not slow"`
+- compute_batch_waic requires idata storage in fitting pipeline — 05-03 must add .nc file saving
 
 ### Blockers/Concerns
 
@@ -84,9 +89,10 @@ Progress: [█████████░] ~64% (9 of ~14 plans complete)
 - JAX forward pass takes ~1s per call due to JIT compilation (first call per session); acceptable for simulation but may slow fitting iteration
 - `conda run -n ds_env python -c "..."` fails for multi-line scripts on Windows (conda 25.7.0); use a temp script file instead
 - Full 180-participant batch estimated at ~3.1 hours (2-level) or ~4.5 hours (3-level) sequential on CPU; monitor and consider cores=4 testing
+- WAIC batch runtime: 180 participants × 2 models × 4 chains × 1000 draws = 1.44M logp evaluations; budget 30-60 min total
 
 ## Session Continuity
 
-Last session: 2026-04-06T13:18:28Z
-Stopped at: Completed 05-01-PLAN.md — parameter recovery analysis module (recovery.py, plots.py, tests)
-Resume file: None — continue with 05-02 (pipeline script for parameter recovery)
+Last session: 2026-04-06T13:33:12Z
+Stopped at: Completed 05-02-PLAN.md — BMS module (bms.py, tests, groupBMC dependency)
+Resume file: None — continue with 05-03 (pipeline script for validation + model comparison)

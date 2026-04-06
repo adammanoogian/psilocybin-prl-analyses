@@ -109,6 +109,10 @@ Plans:
 **Goal**: An interactive Jupyter widget allows real-time exploration of how HGF parameters affect belief trajectories, learning rates, and choice probabilities on the PRL task environment.
 **Depends on**: Phase 2 (models) + Phase 1 (environment)
 **Requirements**: GUI-01, GUI-02, GUI-03, GUI-04, GUI-05, GUI-06
+**Plans:** 2 plans
+Plans:
+- [ ] 07-01-PLAN.md — ParamExplorer module with belief caching, batch forward pass, sliders, presets, model toggle, and unit tests
+- [ ] 07-02-PLAN.md — Interactive notebook wrapper and human verification of full GUI experience
 **Success Criteria**:
   1. Opening the GUI notebook in VSCode shows sliders for omega_2, omega_3, kappa, beta, zeta and a multi-panel plot
   2. Moving any slider updates the plot within <2 seconds (fast enough for interactive exploration)

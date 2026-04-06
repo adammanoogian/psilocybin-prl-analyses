@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-04)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 6 (Group Analysis) — 06-03 manuscript scaffold complete; 06-01 and 06-02 remaining.
+**Current focus:** Phase 6 (Group Analysis) — 06-01 group analysis engine complete; 06-02 GUI remaining.
 
 ## Current Position
 
 Phase: 6 of 7 (Group Analysis) — In progress
-Plan: 3 of 3 in phase completed (06-03 manuscript done; 06-01 group analysis script, 06-02 GUI pending)
-Status: Manuscript scaffold complete — Quarto arxiv-pdf project, inline stats, BMS in Results, omega_3 caveat
-Last activity: 2026-04-06 — Completed 06-03-PLAN.md (Quarto manuscript scaffold)
+Plan: 1 of 3 in phase complete (06-01 group analysis engine done; 06-02 GUI pending)
+Status: Group analysis engine complete — bambi mixed-effects, posterior contrasts, Cohen's d, partial eta-sq
+Last activity: 2026-04-06 — Completed 06-01-PLAN.md (group analysis engine)
 
-Progress: [████████████░] ~85% (12 of ~14 plans complete)
+Progress: [███████████░░] ~79% (11 of ~14 plans complete)
 
 ## Accumulated Context
 
@@ -82,6 +82,9 @@ Progress: [████████████░] ~85% (12 of ~14 plans comple
 | Manual raincloud (kde + scatter + box) instead of ptitprince import | Avoids hard runtime dependency at Quarto render time; renders without ptitprince installed | 06-03 |
 | 94% HDI for group-level credible intervals | McElreath 2020 convention; consistent with bambi model (06-01/06-02) | 06-03 |
 | mason2024 BibTeX entry marked TODO for page verification | Exact volume/page details to be confirmed before submission | 06-03 |
+| bambi 0.15.0 used (not 0.17.2) | Python 3.10 ds_env incompatible with bambi 0.17.2 (requires Python >=3.11); 0.15.0 has identical API | 06-01 |
+| Dynamic posterior variable discovery in extract_posterior_contrasts | Bambi embeds category levels in variable names; regex parsing avoids fragility from hardcoded names | 06-01 |
+| Partial eta-squared from d^2/(d^2+4) formula | Two-group formula; does not require full ANOVA residual structure | 06-01 |
 
 ### Pending Todos
 
@@ -104,6 +107,6 @@ Progress: [████████████░] ~85% (12 of ~14 plans comple
 
 ## Session Continuity
 
-Last session: 2026-04-06T16:18:49Z
-Stopped at: Completed 06-03-PLAN.md — Quarto manuscript scaffold (arxiv-pdf, inline stats, BMS, omega_3 caveat)
-Resume file: None — continue with Phase 6 plans 06-01 (group analysis script) and 06-02 (GUI)
+Last session: 2026-04-06T16:33:16Z
+Stopped at: Completed 06-01-PLAN.md — group analysis engine (bambi mixed-effects, posterior contrasts, effect sizes)
+Resume file: None — continue with Phase 6 plan 06-02 (GUI)

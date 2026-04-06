@@ -19,6 +19,7 @@ DOCS_DIR = PROJECT_ROOT / "docs"
 NOTEBOOKS_DIR = PROJECT_ROOT / "notebooks"
 RESULTS_DIR = PROJECT_ROOT / "results"
 VALIDATION_DIR = RESULTS_DIR / "validation"
+GROUP_ANALYSIS_DIR = RESULTS_DIR / "group_analysis"
 
 for _directory in [OUTPUT_DIR, FIGURES_DIR, DOCS_DIR]:
     _directory.mkdir(parents=True, exist_ok=True)

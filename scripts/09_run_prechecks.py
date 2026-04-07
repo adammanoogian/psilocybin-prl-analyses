@@ -2,8 +2,9 @@
 
 Runs PRE-01 (50-participant parameter recovery on baseline sessions),
 PRE-02 (confound matrix), PRE-03 (eligibility table), and PRE-06 (MCMC
-convergence gating). Outputs eligibility CSV and recovery metrics CSV to
-``results/power/prechecks/`` by default.
+convergence gating). Optionally runs the PRE-04/PRE-05 trial count sweep
+when ``--sweep`` is passed. Outputs eligibility CSV and recovery metrics CSV
+to ``results/power/prechecks/`` by default.
 
 Usage
 -----
@@ -12,6 +13,8 @@ Run from the project root::
     conda run -n ds_env python scripts/09_run_prechecks.py
     conda run -n ds_env python scripts/09_run_prechecks.py --n-participants 30
     conda run -n ds_env python scripts/09_run_prechecks.py --model hgf_2level
+    conda run -n ds_env python scripts/09_run_prechecks.py --sweep
+    conda run -n ds_env python scripts/09_run_prechecks.py --sweep --sweep-grid 200 300 420
 
 Options
 -------
@@ -24,15 +27,23 @@ Options
     Master RNG seed for reproducibility. Default 42.
 --output-dir PATH
     Directory for output files. Default ``results/power/prechecks/``.
+--sweep
+    Run the trial count sweep (PRE-04/PRE-05) after the main precheck.
+--sweep-grid INT [INT ...]
+    Trial counts to evaluate in the sweep. Default: 150 200 250 300 420.
+--n-per-group-sweep INT
+    Participants per group for the sweep. Default 30.
 
 Output
 ------
 ``results/power/prechecks/`` (or ``--output-dir``) directory with:
 
-* ``power_eligible_params.csv``      — eligibility table (parameter, r, status, reason)
-* ``recovery_metrics_precheck.csv``  — per-parameter r, p, bias, RMSE, n
-* ``recovery_scatter_precheck_*.png`` — scatter plots (true vs recovered)
+* ``power_eligible_params.csv``         — eligibility table
+* ``recovery_metrics_precheck.csv``     — per-parameter r, p, bias, RMSE, n
+* ``recovery_scatter_precheck_*.png``   — scatter plots (true vs recovered)
 * ``correlation_matrix_precheck_*.png`` — inter-parameter heatmap
+* ``trial_sweep_results.csv``           — long-form sweep results (--sweep only)
+* ``trial_sweep_recovery_r.png``        — VIZ-01 recovery vs trial count (--sweep only)
 """
 
 from __future__ import annotations
@@ -49,11 +60,16 @@ _PROJECT_ROOT = Path(__file__).resolve().parents[1]
 if str(_PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(_PROJECT_ROOT))
 
+import matplotlib.pyplot as plt  # noqa: E402
+
 from config import RESULTS_DIR  # noqa: E402
 from prl_hgf.env.task_config import load_config  # noqa: E402
 from prl_hgf.power.precheck import (  # noqa: E402
     build_eligibility_table,
+    find_minimum_trial_count,
+    plot_trial_sweep,
     run_recovery_precheck,
+    run_trial_sweep,
 )
 
 _DEFAULT_OUTPUT_DIR = RESULTS_DIR / "power" / "prechecks"
@@ -99,6 +115,30 @@ def _parse_args() -> argparse.Namespace:
         default=_DEFAULT_OUTPUT_DIR,
         dest="output_dir",
         help=f"Directory for output files (default: {_DEFAULT_OUTPUT_DIR}).",
+    )
+    parser.add_argument(
+        "--sweep",
+        action="store_true",
+        default=False,
+        help=(
+            "Run the PRE-04/PRE-05 trial count sweep after the main precheck. "
+            "Uses reduced MCMC settings (2 chains, 500 draws, 500 tune)."
+        ),
+    )
+    parser.add_argument(
+        "--sweep-grid",
+        nargs="+",
+        type=int,
+        default=[150, 200, 250, 300, 420],
+        dest="sweep_grid",
+        help="Trial counts to evaluate in the sweep (default: 150 200 250 300 420).",
+    )
+    parser.add_argument(
+        "--n-per-group-sweep",
+        type=int,
+        default=30,
+        dest="n_per_group_sweep",
+        help="Participants per group for the trial count sweep (default: 30).",
     )
     return parser.parse_args()
 
@@ -219,6 +259,62 @@ def main() -> None:
     print(f"  Convergence exclusions    : {result.n_flagged}/{result.n_total}")
     print(f"\nAll outputs saved to: {args.output_dir}")
     print("=" * 70)
+
+    # --- 8. Optional trial count sweep (PRE-04/PRE-05)
+    if args.sweep:
+        _run_trial_sweep(args, config, eligibility_df, output_dir=args.output_dir)
+
+
+def _run_trial_sweep(args, config, eligibility_df, output_dir: Path) -> None:
+    """Run PRE-04/PRE-05 trial count sweep and print minimum trial count."""
+    print("\n" + "=" * 70)
+    print("PRE-04/PRE-05: Trial Count Sweep")
+    print("=" * 70)
+    print(f"  sweep_grid      : {args.sweep_grid}")
+    print(f"  n_per_group     : {args.n_per_group_sweep}")
+    print(
+        "  MCMC settings  : 2 chains, 500 draws, 500 tune "
+        "(reduced; adequate for recovery)"
+    )
+    print()
+
+    sweep_results = run_trial_sweep(
+        config,
+        trial_grid=args.sweep_grid,
+        n_per_group=args.n_per_group_sweep,
+        output_dir=output_dir,
+    )
+
+    # VIZ-01 sweep plot
+    sweep_plot_path = output_dir / "trial_sweep_recovery_r.png"
+    fig = plot_trial_sweep(sweep_results, save_path=sweep_plot_path)
+    plt.close(fig)
+    print(f"\nSaved: {sweep_plot_path}")
+
+    # Eligible params from main precheck (power-eligible status only)
+    eligible_params = eligibility_df.loc[
+        eligibility_df["status"] == "power-eligible", "parameter"
+    ].tolist()
+
+    min_trials = find_minimum_trial_count(
+        sweep_results,
+        eligible_params=eligible_params if eligible_params else None,
+    )
+
+    if min_trials is not None:
+        print(
+            f"Minimum trial count for all power-eligible parameters: {min_trials}"
+        )
+    else:
+        print(
+            "WARNING: No trial count satisfies r >= 0.7 for all power-eligible "
+            "parameters"
+        )
+
+    print(
+        "NOTE: Sweep used reduced MCMC settings (2 chains, 500 draws, 500 tune). "
+        "Main precheck used full settings."
+    )
 
 
 if __name__ == "__main__":

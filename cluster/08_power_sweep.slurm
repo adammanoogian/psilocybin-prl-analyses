@@ -11,7 +11,7 @@
 #   sbatch cluster/08_power_sweep.slurm
 #
 #   # Full power sweep (override array at submission time):
-#   sbatch --array=0-99%50 cluster/08_power_sweep.slurm
+#   sbatch --array=0-4199%50 cluster/08_power_sweep.slurm
 #
 #   # Dry-run (writes placeholder parquet rows, no MCMC):
 #   sbatch --export=DRY_RUN=1 cluster/08_power_sweep.slurm
@@ -29,7 +29,7 @@
 #SBATCH --partition=gpu
 #SBATCH --cpus-per-task=4
 # Default: 10-job smoke test. Override at submission for full runs:
-#   sbatch --array=0-99%50 cluster/08_power_sweep.slurm
+#   sbatch --array=0-4199%50 cluster/08_power_sweep.slurm
 #SBATCH --array=0-9%50
 
 # =============================================================================
@@ -112,6 +112,9 @@ echo ""
 python scripts/08_run_power_iteration.py \
     --task-id "${SLURM_ARRAY_TASK_ID}" \
     --job-id "${SLURM_ARRAY_JOB_ID}" \
+    --fit-chains 2 \
+    --fit-draws 500 \
+    --fit-tune 500 \
     ${DRY_RUN_FLAG}
 
 EXIT_CODE=$?

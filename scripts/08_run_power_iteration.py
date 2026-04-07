@@ -40,7 +40,7 @@ def parse_args() -> argparse.Namespace:
     -------
     argparse.Namespace
         Parsed arguments with attributes: task_id, job_id, dry_run,
-        output_dir.
+        fit_chains, fit_draws, fit_tune, output_dir.
     """
     parser = argparse.ArgumentParser(
         description="Run one power analysis iteration (SLURM array task).",
@@ -66,6 +66,24 @@ def parse_args() -> argparse.Namespace:
             "Write a placeholder parquet row instead of running the full "
             "pipeline. Used to verify infrastructure without MCMC."
         ),
+    )
+    parser.add_argument(
+        "--fit-chains",
+        type=int,
+        default=2,
+        help="Number of MCMC chains for power sweep fits.",
+    )
+    parser.add_argument(
+        "--fit-draws",
+        type=int,
+        default=500,
+        help="Posterior draws per chain.",
+    )
+    parser.add_argument(
+        "--fit-tune",
+        type=int,
+        default=500,
+        help="Tuning steps per chain.",
     )
     parser.add_argument(
         "--output-dir",

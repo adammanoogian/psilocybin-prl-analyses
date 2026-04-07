@@ -92,12 +92,12 @@ Plans:
   3. The Power B figure shows P(correct BMS) vs N with a reference line at 75%
   4. The 4-panel publication figure (precheck recovery + Power A + Power B + sensitivity heatmap) is saved as both PDF and PNG and is self-contained for grant/preregistration use
   5. results/power/recommendation.md states a concrete recommended N/group and trial count with supporting BF evidence, exclusion rate summary, and the omega_3 upper-bound caveat
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 11-01: power/curves.py + scripts/09_aggregate_power.py — aggregation with missing-cell warnings, P(BF>threshold) computation (VIZ-02, VIZ-03)
-- [ ] 11-02: scripts/10_plot_power_curves.py — VIZ-01 (precheck), VIZ-02, VIZ-03, VIZ-04 (4-panel PDF+PNG)
-- [ ] 11-03: scripts/11_write_recommendation.py — REC-01 Markdown report with recommended N, trial count, evidence table
+- [ ] 11-01-PLAN.md — power/curves.py + scripts/09_aggregate_power.py: aggregation, P(BF>threshold) & P(BMS correct) computation, 8+ unit tests
+- [ ] 11-02-PLAN.md — scripts/10_plot_power_curves.py: Power A, Power B, sensitivity heatmap, 4-panel publication figure (PDF+PNG), 6+ tests
+- [ ] 11-03-PLAN.md — scripts/11_write_recommendation.py: recommendation.md with N/group, trial count, evidence table, caveats, 7+ tests
 
 ---
 

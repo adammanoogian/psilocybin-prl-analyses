@@ -14,6 +14,12 @@ perform file I/O (YAML loading is isolated to :func:`load_power_config`).
 from __future__ import annotations
 
 from prl_hgf.power.config import PowerConfig, load_power_config, make_power_config
+from prl_hgf.power.precheck import (
+    PrecheckResult,
+    build_eligibility_table,
+    make_trial_config,
+    run_recovery_precheck,
+)
 from prl_hgf.power.schema import POWER_SCHEMA, write_parquet_row
 from prl_hgf.power.seeds import make_child_rng
 
@@ -24,4 +30,8 @@ __all__ = [
     "make_child_rng",
     "POWER_SCHEMA",
     "write_parquet_row",
+    "PrecheckResult",
+    "make_trial_config",
+    "run_recovery_precheck",
+    "build_eligibility_table",
 ]

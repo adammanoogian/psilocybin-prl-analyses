@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.1 Power Analysis — Phase 10 verified, Phase 11 next
+**Current focus:** Milestone v1.1 Power Analysis — Phase 11 aggregation and publication underway
 
 ## Current Position
 
-Phase: 10 - Core Power Modules + Sweep (complete, verified)
-Plan: 3/3 complete
-Status: Phase 10 verified (20/20 must-haves pass, 22/22 tests)
-Last activity: 2026-04-07 — Phase 10 complete and verified
+Phase: 11 - Aggregation and Publication (in progress)
+Plan: 1/3 complete
+Status: In progress
+Last activity: 2026-04-07 — Completed 11-01-PLAN.md (power aggregation + curve computation)
 
-[==================> ] Phases 10/11 complete (v1.0 shipped; v1.1 Phases 8-10 done)
+[===================> ] v1.1 in progress (v1.0 shipped; Phases 8-10 done; Phase 11 plan 1/3 complete)
 
 ## Performance Metrics
 
@@ -52,6 +52,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | run_trial_sweep passes min_n=0 to build_recovery_df | Small trial counts may lose many participants to convergence failures; downstream callers apply own filter | 09-02 |
 | find_minimum_trial_count excludes omega_3 from all-must-pass by default | Consistent with locked exploratory decision; omega_3 never gates the trial count requirement | 09-02 |
 | seed+idx seeding per grid point in run_trial_sweep | Fresh independent participants at each trial count; no between-condition correlation in recovery estimates | 09-02 |
+| compute_power_b deduplicates on (n_per_group, iteration) before mean | Each SLURM task writes 3 parquet rows (one per sweep_type) with identical BMS values; dedup prevents triple-counting | 11-01 |
+| bf_threshold parameter on compute_power_a is documentary; uses pre-computed bf_exceeds bool column directly | No re-thresholding at aggregation time — threshold is baked into schema at write time | 11-01 |
 
 ### Pending Todos
 
@@ -75,7 +77,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-07T16:47:30Z
-Stopped at: Completed 09-02-PLAN.md
+Last session: 2026-04-07T21:03:25Z
+Stopped at: Completed 11-01-PLAN.md
 Resume file: None
-Next action: Begin Phase 10 (power sweep)
+Next action: Begin Phase 11 Plan 02 (power figures)

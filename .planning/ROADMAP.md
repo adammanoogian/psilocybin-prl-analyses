@@ -60,8 +60,8 @@ Plans:
 **Plans**: 2 plans
 
 Plans:
-- [ ] 09-01-PLAN.md — power/precheck.py: make_trial_config, run_recovery_precheck, build_eligibility_table, convergence gating, pipeline script + 8 unit tests
-- [ ] 09-02-PLAN.md — Trial count sweep (run_trial_sweep, plot_trial_sweep, find_minimum_trial_count), VIZ-01 precheck figure, --sweep CLI flag + 7 unit tests
+- [x] 09-01-PLAN.md — power/precheck.py: make_trial_config, run_recovery_precheck, build_eligibility_table, convergence gating, pipeline script + 9 unit tests
+- [x] 09-02-PLAN.md — Trial count sweep (run_trial_sweep, plot_trial_sweep, find_minimum_trial_count), VIZ-01 precheck figure, --sweep CLI flag + 7 unit tests
 
 ### Phase 10: Core Power Modules and Sweep
 
@@ -114,6 +114,6 @@ Plans:
 | 6 - Group Analysis | v1.0 | 5/5 | Complete | 2026-04-06 |
 | 7 - GUI | v1.0 | 2/2 | Complete | 2026-04-07 |
 | 8 - Config + Infrastructure | v1.1 | 2/2 | Complete | 2026-04-07 |
-| 9 - Prechecks | v1.1 | 0/2 | Not started | - |
+| 9 - Prechecks | v1.1 | 2/2 | Complete | 2026-04-07 |
 | 10 - Core Power Modules + Sweep | v1.1 | 0/4 | Not started | - |
 | 11 - Aggregation + Publication | v1.1 | 0/3 | Not started | - |

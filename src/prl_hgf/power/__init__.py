@@ -20,6 +20,7 @@ from prl_hgf.power.contrasts import (
     compute_jzs_bf,
     compute_linear_trend_contrast,
 )
+from prl_hgf.power.curves import aggregate_parquets, compute_power_a, compute_power_b
 from prl_hgf.power.grid import decode_task_id, total_grid_size
 from prl_hgf.power.iteration import build_arrays_from_sim, run_power_iteration
 from prl_hgf.power.precheck import (
@@ -50,4 +51,7 @@ __all__ = [
     "compute_all_contrasts",
     "build_arrays_from_sim",
     "run_power_iteration",
+    "aggregate_parquets",
+    "compute_power_a",
+    "compute_power_b",
 ]

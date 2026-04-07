@@ -14,6 +14,13 @@ perform file I/O (YAML loading is isolated to :func:`load_power_config`).
 from __future__ import annotations
 
 from prl_hgf.power.config import PowerConfig, load_power_config, make_power_config
+from prl_hgf.power.contrasts import (
+    compute_all_contrasts,
+    compute_did_contrast,
+    compute_jzs_bf,
+    compute_linear_trend_contrast,
+)
+from prl_hgf.power.grid import decode_task_id, total_grid_size
 from prl_hgf.power.precheck import (
     PrecheckResult,
     build_eligibility_table,
@@ -34,4 +41,8 @@ __all__ = [
     "make_trial_config",
     "run_recovery_precheck",
     "build_eligibility_table",
+    "compute_jzs_bf",
+    "compute_did_contrast",
+    "compute_linear_trend_contrast",
+    "compute_all_contrasts",
 ]

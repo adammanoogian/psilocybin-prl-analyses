@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 ## Current Position
 
 Phase: 8 - Config + Infrastructure (in progress)
-Plan: 1 of 3
+Plan: 2 of 3
 Status: In progress
-Last activity: 2026-04-07 — Completed 08-01-PLAN.md (power config factory + PowerConfig)
+Last activity: 2026-04-07 — Completed 08-02-PLAN.md (seeds, schema, SLURM template, entry point)
 
-[==========>         ] Phase 8 Plan 1/3 complete (v1.0 shipped; v1.1 in progress)
+[============>       ] Phase 8 Plan 2/3 complete (v1.0 shipped; v1.1 in progress)
 
 ## Performance Metrics
 
@@ -43,6 +43,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | power/ package wraps existing pipeline; no existing module modified | Eliminates regression risk; all existing functions called unchanged | v1.1 roadmap |
 | make_power_config shifts psilocybin omega_2_deltas only; placebo unchanged | Study hypothesis: psilocybin increases learning rate; placebo is inert control | 08-01 |
 | load_power_config reads only power: YAML key; does not re-parse task/simulation/fitting | Clean separation of concerns; existing load_config unaffected | 08-01 |
+| write_parquet_row rejects missing AND extra columns | Strict schema enforcement prevents silent drift as Phase 10 adds real pipeline results | 08-02 |
+| --output-dir flag on entry point for test isolation | Integration tests write to tmp_path, not results/; keeps test suite clean | 08-02 |
 
 ### Pending Todos
 
@@ -66,7 +68,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-07T15:22:47Z
-Stopped at: Completed 08-01-PLAN.md
+Last session: 2026-04-07T15:37:54Z
+Stopped at: Completed 08-02-PLAN.md
 Resume file: None
-Next action: Execute 08-02-PLAN.md
+Next action: Execute 08-03-PLAN.md

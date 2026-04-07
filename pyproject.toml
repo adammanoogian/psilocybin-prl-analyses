@@ -25,6 +25,7 @@ dependencies = [
     "groupBMC>=1.0",
     "bambi>=0.13.0",
     "pingouin>=0.5.5",
+    "pyarrow>=14.0",
     "ptitprince>=0.3.1",
 ]
 
@@ -75,6 +76,7 @@ module = [
     "numpy.*", "pandas.*", "scipy.*", "matplotlib.*", "seaborn.*",
     "jax.*", "jaxlib.*", "pymc.*", "arviz.*", "pyhgf.*",
     "ipywidgets.*", "bambi.*", "pingouin.*", "ptitprince.*",
+    "pyarrow.*",
 ]
 ignore_missing_imports = true
 

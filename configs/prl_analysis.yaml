@@ -245,3 +245,14 @@ analysis:
 
   # Minimum recovery correlation to consider parameter interpretable
   recovery_r_threshold: 0.7
+
+# ---------------------------------------------------------------------------
+# Power analysis parameters (BFDA)
+# ---------------------------------------------------------------------------
+power:
+  n_per_group_grid: [10, 15, 20, 25, 30, 40, 50]
+  effect_size_grid: [0.0, 0.3, 0.5, 0.8, 1.0, 1.5]
+  n_iterations: 100
+  master_seed: 20240101
+  n_jobs: 100
+  bf_threshold: 10.0

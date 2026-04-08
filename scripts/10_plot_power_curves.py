@@ -780,7 +780,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--precheck-dir",
         type=Path,
-        default=_cfg.RESULTS_DIR / "power",
+        default=_cfg.RESULTS_DIR / "power" / "prechecks",
         help="Directory containing trial_sweep_results.csv from Phase 9.",
     )
     parser.add_argument(

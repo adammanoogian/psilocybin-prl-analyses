@@ -279,7 +279,7 @@ def _section_trial_count(precheck_sweep_df: pd.DataFrame | None) -> str:
 
             **Status: pending**
 
-            Trial sweep results not found. Run ``09_run_prechecks.py --trial-sweep``
+            Trial sweep results not found. Run ``09_run_prechecks.py --sweep``
             to generate ``trial_sweep_results.csv``.
             """)
 
@@ -660,10 +660,11 @@ def parse_args() -> argparse.Namespace:
         default=default_power_dir,
         help="Directory containing power_master.csv, power_a_summary.csv, power_b_summary.csv.",
     )
+    default_precheck_dir = _cfg.RESULTS_DIR / "power" / "prechecks"
     parser.add_argument(
         "--precheck-dir",
         type=Path,
-        default=default_power_dir,
+        default=default_precheck_dir,
         help="Directory containing trial_sweep_results.csv and power_eligible_params.csv.",
     )
     parser.add_argument(

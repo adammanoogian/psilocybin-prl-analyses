@@ -28,7 +28,11 @@ from prl_hgf.power.grid import (
     sbf_grid_size,
     total_grid_size,
 )
-from prl_hgf.power.iteration import build_arrays_from_sim, run_power_iteration
+from prl_hgf.power.iteration import (
+    build_arrays_from_sim,
+    run_power_iteration,
+    run_sbf_iteration,
+)
 from prl_hgf.power.precheck import (
     PrecheckResult,
     build_eligibility_table,
@@ -62,6 +66,7 @@ __all__ = [
     "compute_all_contrasts",
     "build_arrays_from_sim",
     "run_power_iteration",
+    "run_sbf_iteration",
     "aggregate_parquets",
     "compute_power_a",
     "compute_power_b",

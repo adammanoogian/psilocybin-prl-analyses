@@ -2,15 +2,23 @@
 
 Orchestrates a single power sweep cell: generates synthetic data, fits both
 HGF model variants, computes Bayes Factor contrasts, runs random-effects BMS,
-and extracts parameter recovery diagnostics.  Returns three result dicts (one
-per contrast type) conforming to :data:`~prl_hgf.power.schema.POWER_SCHEMA`.
+and extracts parameter recovery diagnostics.  Returns result dicts (one per
+contrast type) conforming to :data:`~prl_hgf.power.schema.POWER_SCHEMA`.
+
+Two iteration strategies are provided:
+
+- :func:`run_power_iteration` — fixed-grid BFDA: one (N, d, iter) cell per
+  call. Fits at exactly the requested N.
+- :func:`run_sbf_iteration` — Sequential Bayes Factor: simulates at max N,
+  fits once, then subsamples posteriors at each N level. 3.8x fewer MCMC
+  fits.
 
 Memory strategy
 ---------------
-The BMS path fits both 2-level and 3-level models but only keeps one
-``idata`` dict in memory at a time.  :func:`_compute_bms_power` processes
-3-level WAIC first, explicitly deletes ``idata_3level``, then processes
-2-level WAIC.  This limits peak memory to one model's posterior samples.
+The legacy BMS path (:func:`_compute_bms_power`) processes idata
+incrementally and deletes 3-level idata after computing its WAIC to limit
+peak memory.  The SBF path (:func:`_compute_waic_table`) keeps both idata
+dicts alive until all N levels are processed, then deletes them.
 """
 
 from __future__ import annotations
@@ -27,7 +35,7 @@ from prl_hgf.power.config import PowerConfig, make_power_config
 from prl_hgf.power.contrasts import compute_all_contrasts
 from prl_hgf.simulation.batch import simulate_batch
 
-__all__ = ["run_power_iteration", "build_arrays_from_sim"]
+__all__ = ["run_power_iteration", "run_sbf_iteration", "build_arrays_from_sim"]
 
 log = logging.getLogger(__name__)
 
@@ -409,5 +417,317 @@ def run_power_iteration(
                 "mean_rhat": mean_rhat,
             }
         )
+
+    return results
+
+
+# ---------------------------------------------------------------------------
+# SBF WAIC helpers (compute once, subsample many)
+# ---------------------------------------------------------------------------
+
+
+def _compute_waic_table(
+    sim_df: pd.DataFrame,
+    idata_3level: dict[tuple, object],
+    idata_2level: dict[tuple, object],
+) -> pd.DataFrame:
+    """Compute per-(participant, model) WAIC values for all participants.
+
+    Unlike :func:`_compute_bms_power`, this function does **not** delete any
+    idata dicts — the caller retains ownership for subsampling across N levels.
+
+    Parameters
+    ----------
+    sim_df : pandas.DataFrame
+        Trial-level simulation DataFrame.
+    idata_3level : dict[tuple, object]
+        Mapping ``(participant_id, group, session) -> InferenceData``
+        for the 3-level model.
+    idata_2level : dict[tuple, object]
+        Mapping ``(participant_id, group, session) -> InferenceData``
+        for the 2-level model.
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``participant_id``, ``model``, ``elpd_waic``.  WAIC is
+        averaged across sessions per (participant_id, model).
+    """
+    keys = (
+        sim_df[["participant_id", "group", "session"]]
+        .drop_duplicates()
+        .values.tolist()
+    )
+
+    waic_rows: list[dict] = []
+
+    for model_name, idata_dict in [
+        ("hgf_3level", idata_3level),
+        ("hgf_2level", idata_2level),
+    ]:
+        for pid, grp, sess in keys:
+            idata = idata_dict.get((pid, grp, sess))
+            if idata is None:
+                continue
+
+            mask = (
+                (sim_df["participant_id"] == pid)
+                & (sim_df["group"] == grp)
+                & (sim_df["session"] == sess)
+            )
+            subset = sim_df.loc[mask].sort_values("trial")
+            input_arr, obs_arr, choices_arr = build_arrays_from_sim(subset)
+
+            try:
+                elpd = compute_subject_waic(
+                    input_arr, obs_arr, choices_arr, idata, model_name
+                )
+                waic_rows.append(
+                    {
+                        "participant_id": pid,
+                        "model": model_name,
+                        "elpd_waic": elpd,
+                    }
+                )
+            except Exception:
+                log.exception(
+                    "WAIC failed for %s (%s/%s) model=%s",
+                    pid, grp, sess, model_name,
+                )
+
+    if not waic_rows:
+        return pd.DataFrame(
+            columns=["participant_id", "model", "elpd_waic"]
+        )
+
+    waic_df = pd.DataFrame(waic_rows)
+
+    # Average across sessions per (participant_id, model)
+    avg = (
+        waic_df.groupby(["participant_id", "model"])["elpd_waic"]
+        .mean()
+        .reset_index()
+    )
+    return avg
+
+
+def _bms_from_waic_table(
+    waic_avg: pd.DataFrame,
+    participant_ids: list,
+) -> tuple[float, bool]:
+    """Run BMS on a subset of participants from a pre-computed WAIC table.
+
+    Parameters
+    ----------
+    waic_avg : pandas.DataFrame
+        Session-averaged WAIC table with columns ``participant_id``,
+        ``model``, ``elpd_waic`` (output of :func:`_compute_waic_table`).
+    participant_ids : list
+        Participant IDs to include in the BMS.
+
+    Returns
+    -------
+    tuple[float, bool]
+        ``(xp_3level, bms_correct)`` where ``bms_correct`` is True when
+        ``xp_3level > 0.75``.
+    """
+    sub = waic_avg[waic_avg["participant_id"].isin(participant_ids)]
+
+    model_names = ["hgf_2level", "hgf_3level"]
+    pivot = sub.pivot(
+        index="participant_id", columns="model", values="elpd_waic"
+    )
+    missing_models = [m for m in model_names if m not in pivot.columns]
+    if missing_models:
+        log.warning("BMS: models %s missing from WAIC results", missing_models)
+        return 0.5, False
+
+    pivot = pivot[model_names].dropna()
+    if len(pivot) < 3:
+        return 0.5, False
+
+    matrix = pivot.to_numpy(dtype=float)
+    bms_result = run_group_bms(matrix, model_names)
+
+    # Index 1 = hgf_3level (model_names order is [2level, 3level])
+    xp_3level = float(bms_result["xp"][1])
+    return xp_3level, xp_3level > 0.75
+
+
+# ---------------------------------------------------------------------------
+# SBF iteration: simulate at max N, fit once, subsample at each N
+# ---------------------------------------------------------------------------
+
+
+def run_sbf_iteration(
+    base_config: object,
+    effect_size_delta: float,
+    iteration: int,
+    child_seed: int,
+    n_per_group_grid: list[int],
+    power_config: PowerConfig,
+    n_chains: int = 2,
+    n_draws: int = 500,
+    n_tune: int = 500,
+    sampler: str = "pymc",
+) -> list[dict]:
+    """Run one SBF iteration: simulate at max N, fit once, subsample at each N.
+
+    This is 3.8x more efficient than the fixed-grid approach because MCMC
+    fitting is performed only once at ``max(n_per_group_grid)`` and then
+    posteriors are subsampled for each smaller N level.
+
+    Steps
+    -----
+    1. Simulate ``max(n_per_group_grid)`` participants per group (both
+       groups, 3 sessions).
+    2. Fit 3-level model to ALL participants.
+    3. Fit 2-level model to ALL participants.
+    4. Compute WAIC table once for all participants (both models).
+    5. For each N in ``sorted(n_per_group_grid)``:
+
+       a. Subsample: take first N participant_ids per group from sim_df.
+       b. Compute BF contrasts on subsampled fit_df_3.
+       c. Compute BMS power from pre-computed WAIC table.
+       d. Extract diagnostics (recovery_r, mean_rhat) from subsampled
+          fit_df_3.
+       e. Append result rows.
+
+    6. Return all result rows (3 contrast types x len(n_per_group_grid)
+       N-levels).
+
+    Parameters
+    ----------
+    base_config : AnalysisConfig
+        Base analysis configuration loaded from YAML.
+    effect_size_delta : float
+        Interaction effect size (psilocybin minus placebo) for omega_2.
+    iteration : int
+        Iteration index within this grid cell.
+    child_seed : int
+        RNG seed for this specific iteration.
+    n_per_group_grid : list[int]
+        Sample sizes per group to evaluate via subsampling.
+    power_config : PowerConfig
+        Power analysis grid configuration (provides ``bf_threshold``).
+    n_chains : int, optional
+        Number of MCMC chains.  Default ``2``.
+    n_draws : int, optional
+        Posterior draws per chain.  Default ``500``.
+    n_tune : int, optional
+        Tuning steps per chain.  Default ``500``.
+    sampler : str, optional
+        MCMC backend: ``"pymc"`` (default) or ``"numpyro"``.
+
+    Returns
+    -------
+    list[dict]
+        ``3 * len(n_per_group_grid)`` dicts conforming to
+        :data:`~prl_hgf.power.schema.POWER_SCHEMA` (13 columns each).
+    """
+    max_n = max(n_per_group_grid)
+
+    # Step 1: Build frozen config at max N
+    cfg = make_power_config(
+        base_config, max_n, effect_size_delta, child_seed
+    )
+
+    # Step 2: Simulate at max N
+    sim_df = simulate_batch(cfg)
+
+    # Step 3: Fit 3-level model to ALL participants
+    fit_df_3, idata_3level = fit_batch(
+        sim_df,
+        "hgf_3level",
+        return_idata=True,
+        random_seed=child_seed,
+        cores=1,
+        n_chains=n_chains,
+        n_draws=n_draws,
+        n_tune=n_tune,
+        sampler=sampler,
+    )
+
+    # Step 4: Fit 2-level model to ALL participants
+    fit_df_2, idata_2level = fit_batch(
+        sim_df,
+        "hgf_2level",
+        return_idata=True,
+        random_seed=child_seed + 1,
+        cores=1,
+        n_chains=n_chains,
+        n_draws=n_draws,
+        n_tune=n_tune,
+        sampler=sampler,
+    )
+
+    # Step 5: Compute WAIC table once (does NOT delete idata)
+    waic_table = _compute_waic_table(sim_df, idata_3level, idata_2level)
+
+    # Build sorted participant_id lists per group
+    pid_by_group: dict[str, list] = {}
+    for grp in sim_df["group"].unique():
+        pids = sorted(
+            sim_df.loc[sim_df["group"] == grp, "participant_id"].unique()
+        )
+        pid_by_group[grp] = pids
+
+    # Step 6: Subsample at each N level
+    results: list[dict] = []
+    trial_count = cfg.task.n_trials_total
+
+    for n_per_group in sorted(n_per_group_grid):
+        # Select first N participants per group
+        selected_pids: list = []
+        for grp, pids in pid_by_group.items():
+            selected_pids.extend(pids[:n_per_group])
+        selected_set = set(selected_pids)
+
+        # Filter fit_df and sim_df to selected participants
+        sub_fit_3 = fit_df_3[
+            fit_df_3["participant_id"].isin(selected_set)
+        ]
+        sub_sim = sim_df[sim_df["participant_id"].isin(selected_set)]
+
+        # (a) BF contrasts on subsampled fit_df_3
+        contrast_results = compute_all_contrasts(
+            sub_fit_3,
+            parameter="omega_2",
+            bf_threshold=power_config.bf_threshold,
+        )
+
+        # (b) BMS from pre-computed WAIC table
+        bms_xp, bms_correct = _bms_from_waic_table(
+            waic_table, list(selected_set)
+        )
+
+        # (c) Diagnostics from subsampled data
+        recovery_r, n_divergences, mean_rhat = _extract_diagnostics(
+            sub_sim, sub_fit_3
+        )
+
+        # (d) Build result rows
+        for contrast in contrast_results:
+            results.append(
+                {
+                    "sweep_type": contrast["sweep_type"],
+                    "effect_size": effect_size_delta,
+                    "n_per_group": n_per_group,
+                    "trial_count": trial_count,
+                    "iteration": iteration,
+                    "parameter": "omega_2",
+                    "bf_value": contrast["bf_value"],
+                    "bf_exceeds": contrast["bf_exceeds"],
+                    "bms_xp": bms_xp,
+                    "bms_correct": bms_correct,
+                    "recovery_r": recovery_r,
+                    "n_divergences": n_divergences,
+                    "mean_rhat": mean_rhat,
+                }
+            )
+
+    # Clean up idata to free memory
+    del idata_3level
+    del idata_2level
 
     return results

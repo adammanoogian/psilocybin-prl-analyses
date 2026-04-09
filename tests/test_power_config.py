@@ -55,7 +55,7 @@ def test_make_power_config_returns_frozen_config(base: AnalysisConfig) -> None:
 def test_make_power_config_applies_effect_size_delta(
     base: AnalysisConfig,
 ) -> None:
-    """Psilocybin omega_2_deltas shift by effect_size_delta; placebo unchanged.
+    """Psilocybin omega_2_deltas = placebo + delta (interaction); placebo unchanged.
 
     Parameters
     ----------
@@ -67,14 +67,14 @@ def test_make_power_config_applies_effect_size_delta(
         base, n_per_group=20, effect_size_delta=delta, master_seed=1
     )
 
-    base_psi = base.simulation.session_deltas["psilocybin"]
-    result_psi = result.simulation.session_deltas["psilocybin"]
-    for orig, shifted in zip(
-        base_psi.omega_2_deltas, result_psi.omega_2_deltas, strict=True
-    ):
-        assert shifted == pytest.approx(orig + delta)
-
+    # effect_size_delta is the interaction: psi_delta = placebo_delta + d
     base_pla = base.simulation.session_deltas["placebo"]
+    result_psi = result.simulation.session_deltas["psilocybin"]
+    for plc_d, shifted in zip(
+        base_pla.omega_2_deltas, result_psi.omega_2_deltas, strict=True
+    ):
+        assert shifted == pytest.approx(plc_d + delta)
+
     result_pla = result.simulation.session_deltas["placebo"]
     assert result_pla.omega_2_deltas == pytest.approx(base_pla.omega_2_deltas)
 

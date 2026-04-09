@@ -153,8 +153,15 @@ def make_power_config(
     """Return a frozen AnalysisConfig with overridden sample size and effect.
 
     Applies ``n_per_group`` and ``master_seed`` to the simulation config and
-    shifts the psilocybin group's ``omega_2_deltas`` by ``effect_size_delta``
-    using :func:`dataclasses.replace` — no mutation of ``base`` occurs.
+    sets the psilocybin group's ``omega_2_deltas`` to the placebo deltas plus
+    ``effect_size_delta`` using :func:`dataclasses.replace` — no mutation of
+    ``base`` occurs.
+
+    ``effect_size_delta`` is the *interaction effect* (psilocybin minus
+    placebo), not an additive bonus on top of existing psilocybin deltas.
+    Concretely, psilocybin delta_k = placebo delta_k + effect_size_delta for
+    each session k, so the difference-in-differences equals
+    ``effect_size_delta`` exactly.
 
     This function performs no file I/O. All YAML loading must happen before
     calling this function (e.g. via :func:`~prl_hgf.env.task_config.load_config`).
@@ -166,8 +173,10 @@ def make_power_config(
     n_per_group : int
         Override for ``simulation.n_participants_per_group``.
     effect_size_delta : float
-        Additive shift applied to each element of the psilocybin group's
-        ``omega_2_deltas``. The placebo group is left unchanged.
+        Interaction effect size (psilocybin minus placebo) applied to
+        omega_2_deltas.  The psilocybin deltas are computed as
+        ``placebo_delta + effect_size_delta`` for each session, so the DiD
+        interaction equals ``effect_size_delta`` exactly.
     master_seed : int
         Override for ``simulation.master_seed``.
 
@@ -190,12 +199,15 @@ def make_power_config(
     """
     sim: SimulationConfig = base.simulation
 
+    # Use placebo deltas as the baseline; psilocybin = placebo + interaction
+    placebo_deltas = sim.session_deltas["placebo"].omega_2_deltas
+
     # Build new session_deltas dict without mutating the original
     new_deltas: dict[str, SessionConfig] = {}
     for group_name, sess in sim.session_deltas.items():
         if group_name == "psilocybin":
             shifted_omega_2 = [
-                d + effect_size_delta for d in sess.omega_2_deltas
+                plc_d + effect_size_delta for plc_d in placebo_deltas
             ]
             new_deltas[group_name] = dataclasses.replace(
                 sess, omega_2_deltas=shifted_omega_2

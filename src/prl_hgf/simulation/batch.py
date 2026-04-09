@@ -191,6 +191,7 @@ def simulate_batch(
                             "true_beta": params["beta"],
                             "true_zeta": params["zeta"],
                             "model": "hgf_3level",
+                            "diverged": result.diverged,
                         }
                     )
 

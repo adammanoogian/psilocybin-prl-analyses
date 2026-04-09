@@ -69,11 +69,15 @@ class SimulationResult:
         ``net.attributes[node]["expected_mean"]`` *before* the trial's
         belief update.  Useful for verifying that the agent correctly
         tracks the reward-generating process.
+    diverged : bool
+        ``True`` if the HGF state produced NaN beliefs during the session.
+        Remaining trials after divergence use uniform random choice.
     """
 
     choices: list[int]
     rewards: list[int]
     beliefs: list[tuple[float, float, float]]
+    diverged: bool = False
 
 
 # ---------------------------------------------------------------------------
@@ -229,8 +233,19 @@ def simulate_agent(
     rewards: list[int] = []
     beliefs: list[tuple[float, float, float]] = []
     prev_choice: int = -1  # sentinel: no stickiness on the first trial
+    diverged = False
 
     for trial in trials:
+        if diverged:
+            # HGF state is broken — use uniform random for remaining trials
+            choice = int(rng.choice(3))
+            reward = generate_reward(choice, trial.cue_probs, rng)
+            choices.append(choice)
+            rewards.append(reward)
+            beliefs.append((float("nan"), float("nan"), float("nan")))
+            prev_choice = choice
+            continue
+
         # --- Step 1: Read PRIOR beliefs before this trial's update ---
         p_reward = np.array(
             [
@@ -239,6 +254,24 @@ def simulate_agent(
                 float(net.attributes[INPUT_NODES[2]]["expected_mean"]),  # cue 2
             ]
         )
+
+        # --- Step 1b: Check for NaN beliefs (HGF diverged) ---
+        if np.any(np.isnan(p_reward)):
+            import logging as _logging
+
+            _logging.getLogger(__name__).warning(
+                "HGF beliefs diverged to NaN on trial %d — "
+                "using uniform random choice for remaining trials",
+                len(choices),
+            )
+            diverged = True
+            choice = int(rng.choice(3))
+            reward = generate_reward(choice, trial.cue_probs, rng)
+            choices.append(choice)
+            rewards.append(reward)
+            beliefs.append((float("nan"), float("nan"), float("nan")))
+            prev_choice = choice
+            continue
 
         # --- Step 2: Softmax with stickiness (numpy, no JAX) ---
         stick = np.zeros(3)
@@ -270,4 +303,6 @@ def simulate_agent(
 
         prev_choice = choice
 
-    return SimulationResult(choices=choices, rewards=rewards, beliefs=beliefs)
+    return SimulationResult(
+        choices=choices, rewards=rewards, beliefs=beliefs, diverged=diverged,
+    )

@@ -13,9 +13,9 @@
 # Note: CUDA module is NOT required. JAX pip packages bundle their own CUDA
 # runtime libraries. GPU access works via the cluster's NVIDIA kernel driver.
 #
-# Visualisation packages (matplotlib, seaborn, ipywidgets, ptitprince) are
-# excluded — use --skip-plots on cluster scripts. For full analysis with plots,
-# use the local ds_env environment.
+# Headless plotting (Agg backend) included for post-processing figures on
+# cluster. GUI packages (ipywidgets, ipympl, ptitprince) are excluded —
+# use the local ds_env environment for interactive exploration.
 
 name: prl_gpu
 channels:
@@ -29,6 +29,7 @@ dependencies:
   - pandas>=2.0.0
   - numpy>=2.0.0
   - scipy>=1.10.0
+  - matplotlib>=3.7
   - pyyaml>=6.0
 
   # Note: Do NOT install cuda-nvcc or other CUDA packages via conda.

@@ -9,7 +9,17 @@
 #   bash cluster/00_setup_env_gpu.sh           # Fresh install or interactive update
 #   bash cluster/00_setup_env_gpu.sh --update  # Force update existing env (no delete)
 #   bash cluster/00_setup_env_gpu.sh --fresh   # Delete and recreate from scratch
+#   bash cluster/00_setup_env_gpu.sh --pull    # Git pull before setup (non-interactive update)
 #   bash cluster/00_setup_env_gpu.sh --help    # Show this help
+#
+# Quick start on M3 (first time):
+#   cd /scratch/fc37/$USER
+#   git clone git@github.com:adammanoogian/psilocybin-prl-analyses.git
+#   cd psilocybin-prl-analyses
+#   bash cluster/00_setup_env_gpu.sh
+#
+# Subsequent sessions:
+#   bash cluster/00_setup_env_gpu.sh --pull
 #
 # Note: CUDA module is NOT required. JAX's pip packages bundle their own CUDA
 # runtime libraries (cuSPARSE, cuBLAS, cuDNN, etc.). GPU access works via the
@@ -22,6 +32,7 @@ set -e  # Exit on error
 
 # Parse arguments
 MODE="interactive"
+GIT_PULL=false
 while [[ $# -gt 0 ]]; do
     case $1 in
         --update|-u)
@@ -32,15 +43,27 @@ while [[ $# -gt 0 ]]; do
             MODE="fresh"
             shift
             ;;
+        --pull|-p)
+            GIT_PULL=true
+            # Default to non-interactive update when --pull is used alone
+            if [[ "$MODE" == "interactive" ]]; then
+                MODE="update"
+            fi
+            shift
+            ;;
         --help|-h)
             echo "Usage: bash cluster/00_setup_env_gpu.sh [OPTIONS]"
             echo ""
             echo "Options:"
             echo "  --update, -u    Update existing environment (no delete)"
             echo "  --fresh, -f     Delete and recreate environment"
+            echo "  --pull, -p      Git pull latest before setup (implies --update)"
             echo "  --help, -h      Show this help message"
             echo ""
             echo "Default: Interactive mode (prompts for action if env exists)"
+            echo ""
+            echo "Quick start:"
+            echo "  bash cluster/00_setup_env_gpu.sh --pull    # pull + update env"
             exit 0
             ;;
         *)
@@ -60,6 +83,15 @@ cd "$(dirname "$0")/.."
 PROJECT_ROOT="$(pwd)"
 echo "Project: $PROJECT_ROOT"
 echo "Mode: $MODE"
+
+# Git pull if requested
+if [[ "$GIT_PULL" == true ]]; then
+    echo ""
+    echo "Pulling latest from origin/main..."
+    git fetch origin
+    git pull --ff-only origin main
+    echo "HEAD: $(git log --oneline -1)"
+fi
 
 # Load miniforge3 (DO NOT load cuda module - JAX bundles CUDA libraries)
 echo ""

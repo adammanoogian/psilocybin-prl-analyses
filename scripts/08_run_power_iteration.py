@@ -22,8 +22,10 @@ the full simulate-fit pipeline.
 from __future__ import annotations
 
 import argparse
+import json
 import logging
 import sys
+import time
 from pathlib import Path
 
 # Ensure project root is on sys.path so imports work on cluster
@@ -75,6 +77,16 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--benchmark",
+        action="store_true",
+        default=False,
+        help=(
+            "Benchmark mode: time JAX compilation/caching, then fit a "
+            "single participant to measure post-cache per-fit time. "
+            "Writes timing results to stdout and a benchmark JSON file."
+        ),
+    )
+    parser.add_argument(
         "--fit-chains",
         type=int,
         default=2,
@@ -111,6 +123,191 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+def _run_benchmark(
+    base_config: object,
+    power_config: object,
+    output_dir: Path,
+    args: argparse.Namespace,
+) -> None:
+    """Time JAX compilation and a single real MCMC fit.
+
+    Measures three phases:
+
+    1. JAX JIT compilation / cache load (via ``fit_batch._prewarm_jit``).
+    2. Simulation of a small cohort (N=10 per group, baseline only).
+    3. A single-participant MCMC fit (post-compilation).
+
+    Writes a JSON report to ``output_dir / benchmark.json`` and prints
+    a human-readable summary to stdout.
+
+    Parameters
+    ----------
+    base_config : AnalysisConfig
+        Base analysis configuration loaded from YAML.
+    power_config : PowerConfig
+        Power analysis grid configuration.
+    output_dir : Path
+        Directory for the benchmark JSON output.
+    args : argparse.Namespace
+        Parsed CLI arguments (provides fit-chains, fit-draws, etc.).
+    """
+    from prl_hgf.fitting.batch import _prewarm_jit
+    from prl_hgf.fitting.single import fit_participant
+    from prl_hgf.power.config import make_power_config
+    from prl_hgf.simulation.batch import simulate_batch
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results = {}
+
+    print("=" * 60)
+    print("BENCHMARK MODE")
+    print("=" * 60)
+
+    # --- Phase 1: JAX JIT compilation for both models ---
+    for model_name in ("hgf_3level", "hgf_2level"):
+        print(f"\nPhase 1: JIT compilation ({model_name})...")
+        t0 = time.perf_counter()
+        _prewarm_jit(model_name)
+        dt = time.perf_counter() - t0
+        key = f"jit_compile_{model_name}_s"
+        results[key] = round(dt, 2)
+        print(f"  {model_name} JIT: {dt:.2f}s")
+
+    # --- Phase 2: Simulate a small cohort ---
+    print("\nPhase 2: Simulate cohort (N=10/group, 3 sessions)...")
+    n_bench = 10
+    d_bench = power_config.effect_size_grid[0]
+    cfg = make_power_config(base_config, n_bench, d_bench, 99999)
+
+    t0 = time.perf_counter()
+    sim_df = simulate_batch(cfg)
+    dt_sim = time.perf_counter() - t0
+    results["simulate_n10_s"] = round(dt_sim, 2)
+
+    n_participant_sessions = sim_df.groupby(
+        ["participant_id", "group", "session"]
+    ).ngroups
+    print(f"  Simulated {n_participant_sessions} participant-sessions in {dt_sim:.2f}s")
+
+    # --- Phase 3: Fit ONE participant-session (post-cache) per model ---
+    import numpy as np
+
+    first_key = (
+        sim_df[["participant_id", "group", "session"]]
+        .drop_duplicates()
+        .iloc[0]
+    )
+    pid, grp, sess = first_key["participant_id"], first_key["group"], first_key["session"]
+    subset = sim_df[
+        (sim_df["participant_id"] == pid)
+        & (sim_df["group"] == grp)
+        & (sim_df["session"] == sess)
+    ].sort_values("trial")
+
+    n_trials = len(subset)
+    choices = subset["cue_chosen"].to_numpy(dtype=int)
+    rewards = subset["reward"].to_numpy(dtype=float)
+    input_arr = np.zeros((n_trials, 3), dtype=float)
+    observed_arr = np.zeros((n_trials, 3), dtype=int)
+    for t in range(n_trials):
+        input_arr[t, choices[t]] = rewards[t]
+        observed_arr[t, choices[t]] = 1
+
+    for model_name in ("hgf_3level", "hgf_2level"):
+        print(f"\nPhase 3: Fit 1 participant ({model_name}, "
+              f"{args.fit_chains} chains × {args.fit_draws} draws)...")
+        t0 = time.perf_counter()
+        fit_participant(
+            input_data_arr=input_arr,
+            observed_arr=observed_arr,
+            choices_arr=choices,
+            participant_id=pid,
+            group=grp,
+            session=sess,
+            model_name=model_name,
+            n_chains=args.fit_chains,
+            n_draws=args.fit_draws,
+            n_tune=args.fit_tune,
+            target_accept=0.9,
+            random_seed=42,
+            cores=1,
+            sampler=args.sampler,
+        )
+        dt_fit = time.perf_counter() - t0
+        key = f"fit_single_{model_name}_s"
+        results[key] = round(dt_fit, 2)
+        print(f"  {model_name} single fit: {dt_fit:.2f}s")
+
+    # --- Projections ---
+    fit_3 = results["fit_single_hgf_3level_s"]
+    fit_2 = results["fit_single_hgf_2level_s"]
+    fit_both = fit_3 + fit_2
+
+    # Current design: sum of 12*N across all N grid values × 3d × 200 iter
+    n_grid = power_config.n_per_group_grid
+    d_grid = power_config.effect_size_grid
+    n_iter = power_config.n_iterations
+    fits_per_d_iter = sum(2 * n * 3 * 2 for n in n_grid)  # 2 groups × 3 sessions × 2 models
+    total_fits = fits_per_d_iter * len(d_grid) * n_iter
+    total_hours = (total_fits * fit_both / 2) / 3600  # /2 because fit_both is for 2 models
+
+    # Cumulative design: fit at max N only, subsample rest
+    max_n = max(n_grid)
+    fits_cumul_per_d_iter = 2 * max_n * 3 * 2  # both models, both groups, 3 sessions
+    total_fits_cumul = fits_cumul_per_d_iter * len(d_grid) * n_iter
+    total_hours_cumul = (total_fits_cumul * fit_both / 2) / 3600
+
+    results["projection_current_design"] = {
+        "total_fits": total_fits,
+        "total_gpu_hours": round(total_hours, 1),
+        "per_chunk_hours": round(total_hours / power_config.n_chunks, 1),
+    }
+    results["projection_cumulative_design"] = {
+        "total_fits": total_fits_cumul,
+        "total_gpu_hours": round(total_hours_cumul, 1),
+        "per_chunk_hours": round(total_hours_cumul / power_config.n_chunks, 1),
+    }
+    results["grid"] = {
+        "n_per_group": n_grid,
+        "effect_sizes": d_grid,
+        "n_iterations": n_iter,
+        "n_chunks": power_config.n_chunks,
+    }
+    results["mcmc_settings"] = {
+        "chains": args.fit_chains,
+        "draws": args.fit_draws,
+        "tune": args.fit_tune,
+        "sampler": args.sampler,
+    }
+
+    # --- Report ---
+    print("\n" + "=" * 60)
+    print("BENCHMARK RESULTS")
+    print("=" * 60)
+    print(f"  JIT compile (3-level): {results['jit_compile_hgf_3level_s']:.2f}s")
+    print(f"  JIT compile (2-level): {results['jit_compile_hgf_2level_s']:.2f}s")
+    print(f"  Simulate (N=10):       {results['simulate_n10_s']:.2f}s")
+    print(f"  Single fit (3-level):  {fit_3:.2f}s")
+    print(f"  Single fit (2-level):  {fit_2:.2f}s")
+    print(f"  Both models / participant-session: {fit_both:.2f}s")
+    print()
+    print("PROJECTIONS (current grid design):")
+    print(f"  Total MCMC fits:       {total_fits:,}")
+    print(f"  Estimated GPU-hours:   {total_hours:.1f}h")
+    print(f"  Per chunk ({power_config.n_chunks} chunks): {total_hours / power_config.n_chunks:.1f}h")
+    print()
+    print("PROJECTIONS (cumulative design — fit max N, subsample):")
+    print(f"  Total MCMC fits:       {total_fits_cumul:,}")
+    print(f"  Estimated GPU-hours:   {total_hours_cumul:.1f}h")
+    print(f"  Per chunk ({power_config.n_chunks} chunks): {total_hours_cumul / power_config.n_chunks:.1f}h")
+    print("=" * 60)
+
+    bench_path = output_dir / "benchmark.json"
+    with open(bench_path, "w") as f:
+        json.dump(results, f, indent=2)
+    print(f"\nBenchmark saved to: {bench_path}")
+
+
 def main() -> None:
     """Execute one chunk of the power sweep.
 
@@ -138,6 +335,10 @@ def main() -> None:
     )
 
     out_path = output_dir / f"job_{args.job_id}_chunk_{args.chunk_id:04d}.parquet"
+
+    if args.benchmark:
+        _run_benchmark(base_config, power_config, output_dir, args)
+        return
 
     if args.dry_run:
         rows: list[dict] = []

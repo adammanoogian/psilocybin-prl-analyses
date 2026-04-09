@@ -99,9 +99,12 @@ echo ""
 # =============================================================================
 # Run Power Iteration
 # =============================================================================
-DRY_RUN_FLAG=""
-if [[ "${DRY_RUN:-0}" == "1" ]]; then
-    DRY_RUN_FLAG="--dry-run"
+MODE_FLAG=""
+if [[ "${BENCHMARK:-0}" == "1" ]]; then
+    MODE_FLAG="--benchmark"
+    echo "Mode: BENCHMARK (JIT compile + single fit timing)"
+elif [[ "${DRY_RUN:-0}" == "1" ]]; then
+    MODE_FLAG="--dry-run"
     echo "Mode: DRY RUN (placeholder parquet, no MCMC)"
 else
     echo "Mode: FULL (simulate + fit + BF)"
@@ -114,7 +117,8 @@ python scripts/08_run_power_iteration.py \
     --fit-chains 2 \
     --fit-draws 500 \
     --fit-tune 500 \
-    ${DRY_RUN_FLAG}
+    --sampler "${SAMPLER:-pymc}" \
+    ${MODE_FLAG}
 
 EXIT_CODE=$?
 

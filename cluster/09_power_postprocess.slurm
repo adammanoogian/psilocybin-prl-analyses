@@ -34,11 +34,11 @@ PROJECT_ROOT="$(pwd)"
 mkdir -p cluster/logs
 export PYTHONUNBUFFERED=1
 
-# Activate prl_gpu env (has all required packages including matplotlib)
+# Activate ds_env (shared env across projects)
 _PROJECT="${PROJECT:-fc37}"
-conda activate prl_gpu 2>/dev/null || \
-conda activate /scratch/${_PROJECT}/${USER}/conda/envs/prl_gpu 2>/dev/null || {
-    echo "ERROR: Failed to activate prl_gpu conda environment"
+conda activate ds_env 2>/dev/null || \
+conda activate /scratch/${_PROJECT}/${USER}/conda/envs/ds_env 2>/dev/null || {
+    echo "ERROR: Failed to activate ds_env conda environment"
     exit 1
 }
 

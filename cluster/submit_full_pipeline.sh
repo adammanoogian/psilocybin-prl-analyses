@@ -18,7 +18,7 @@
 #   bash cluster/submit_full_pipeline.sh --skip-push --models="hgf_3level"
 #
 # Prerequisites:
-#   - prl_gpu conda environment created (bash cluster/00_setup_env_gpu.sh)
+#   - ds_env conda environment with jax[cuda12] installed
 #   - On M3 login node with SLURM available
 # =============================================================================
 
@@ -81,12 +81,11 @@ echo "============================================================"
 # Load miniforge3 for simulation step
 module load miniforge3
 
-# Activate prl_gpu env for simulation
+# Activate ds_env (shared env across projects)
 _PROJECT="${PROJECT:-fc37}"
-conda activate prl_gpu 2>/dev/null || \
-conda activate /scratch/${_PROJECT}/${USER}/conda/envs/prl_gpu 2>/dev/null || {
-    echo "ERROR: Failed to activate prl_gpu conda environment"
-    echo "Create with: bash cluster/00_setup_env_gpu.sh"
+conda activate ds_env 2>/dev/null || \
+conda activate /scratch/${_PROJECT}/${USER}/conda/envs/ds_env 2>/dev/null || {
+    echo "ERROR: Failed to activate ds_env conda environment"
     exit 1
 }
 

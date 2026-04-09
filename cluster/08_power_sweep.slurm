@@ -42,13 +42,11 @@ PROJECT_ROOT="$(pwd)"
 mkdir -p cluster/logs
 export PYTHONUNBUFFERED=1
 
-# Activate prl_gpu env (try by name, fallback to scratch path)
+# Activate ds_env (shared env across projects)
 _PROJECT="${PROJECT:-fc37}"
-conda activate prl_gpu 2>/dev/null || \
-conda activate /scratch/${_PROJECT}/${USER}/conda/envs/prl_gpu 2>/dev/null || {
-    echo "ERROR: Failed to activate prl_gpu conda environment"
-    echo "Tried: prl_gpu (by name), /scratch/${_PROJECT}/${USER}/conda/envs/prl_gpu"
-    echo "Create with: bash cluster/00_setup_env_gpu.sh"
+conda activate ds_env 2>/dev/null || \
+conda activate /scratch/${_PROJECT}/${USER}/conda/envs/ds_env 2>/dev/null || {
+    echo "ERROR: Failed to activate ds_env conda environment"
     exit 1
 }
 

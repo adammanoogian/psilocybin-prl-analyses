@@ -2,11 +2,12 @@
 # =============================================================================
 # Submit Power Analysis Pipeline on M3 Cluster
 # =============================================================================
-# Single entry point for the power analysis workflow. Handles environment
-# setup, benchmarking, dry-runs, and the full sweep with dependency chains.
+# Single entry point for the power analysis workflow. Handles git pull,
+# package install, benchmarking, dry-runs, and the full sweep with
+# SLURM dependency chains. Uses the shared ds_env conda environment.
 #
 # Usage:
-#   bash cluster/submit_power_pipeline.sh --setup              # pull + env setup only
+#   bash cluster/submit_power_pipeline.sh --setup              # pull + pip install only
 #   bash cluster/submit_power_pipeline.sh --setup --benchmark  # setup then benchmark
 #   bash cluster/submit_power_pipeline.sh --benchmark          # benchmark (env must exist)
 #   bash cluster/submit_power_pipeline.sh --dry-run            # placeholder parquet
@@ -21,8 +22,7 @@
 #
 # Subsequent sessions:
 #   cd /scratch/fc37/$USER/psilocybin-prl-analyses
-#   bash cluster/submit_power_pipeline.sh --setup              # pull + update env
-#   bash cluster/submit_power_pipeline.sh                      # submit sweep
+#   bash cluster/submit_power_pipeline.sh --setup --benchmark  # pull + benchmark
 # =============================================================================
 
 set -euo pipefail
@@ -62,7 +62,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: bash cluster/submit_power_pipeline.sh [OPTIONS]"
             echo ""
             echo "Options:"
-            echo "  --setup, -s          Git pull + create/update prl_gpu env first"
+            echo "  --setup, -s          Git pull + pip install -e . into ds_env"
             echo "  --dry-run            Placeholder parquet (no MCMC)"
             echo "  --benchmark          JIT compile + single fit timing (1 GPU, ~15 min)"
             echo "  --skip-push          Skip auto-push results to git"
@@ -91,7 +91,7 @@ PROJECT_ROOT="$(pwd)"
 # =============================================================================
 if [[ "$SETUP" == true ]]; then
     echo "============================================================"
-    echo "Setup: Git Pull + Environment"
+    echo "Setup: Git Pull + Package Install"
     echo "============================================================"
 
     # Git pull
@@ -101,10 +101,33 @@ if [[ "$SETUP" == true ]]; then
     git pull --ff-only origin main
     echo "HEAD: $(git log --oneline -1)"
 
-    # Env setup (delegates to 00_setup_env_gpu.sh --update)
+    # Activate ds_env and install project
     echo ""
-    echo "--- Conda environment ---"
-    bash cluster/00_setup_env_gpu.sh --update
+    echo "--- Activate ds_env + pip install ---"
+    module load miniforge3
+    _PROJECT="${PROJECT:-fc37}"
+    conda activate ds_env 2>/dev/null || \
+    conda activate /scratch/${_PROJECT}/${USER}/conda/envs/ds_env 2>/dev/null || {
+        echo "ERROR: ds_env not found. Create it from physics_dev/environment.yml first."
+        exit 1
+    }
+    pip install -e . --quiet
+    echo "prl_hgf installed."
+
+    # Verify jax[cuda12] is available (warn if CPU-only)
+    python -c "
+import jax
+backends = [d.platform for d in jax.devices()]
+if 'gpu' not in backends:
+    print('NOTE: No GPU on login node (expected). jax[cuda12] will use GPU on compute nodes.')
+    # Check if cuda plugin is installed
+    try:
+        import jax._src.xla_bridge
+        print(f'JAX {jax.__version__} — CUDA plugin will be checked on GPU node.')
+    except Exception:
+        pass
+print(f'JAX {jax.__version__}, devices: {jax.devices()}')
+"
 
     echo ""
     echo "Setup complete."

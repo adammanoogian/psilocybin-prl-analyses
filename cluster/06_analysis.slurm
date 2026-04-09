@@ -3,7 +3,7 @@
 # SLURM Job: Group-Level Analysis (CPU-only)
 # =============================================================================
 # Runs group-level HGF parameter analysis using bambi mixed-effects models.
-# No GPU required — runs on comp partition. Uses prl_gpu env for bambi.
+# No GPU required — runs on comp partition. Uses ds_env for bambi.
 #
 # Usage:
 #   sbatch cluster/06_analysis.slurm
@@ -47,12 +47,11 @@ echo "Draws: $DRAWS"
 echo "Start: $(date)"
 echo "============================================================"
 
-# Activate prl_gpu env (has bambi, pingouin)
+# Activate ds_env (shared env across projects)
 _PROJECT="${PROJECT:-fc37}"
-conda activate prl_gpu 2>/dev/null || \
-conda activate /scratch/${_PROJECT}/${USER}/conda/envs/prl_gpu 2>/dev/null || {
-    echo "ERROR: Failed to activate prl_gpu conda environment"
-    echo "Create with: bash cluster/00_setup_env_gpu.sh"
+conda activate ds_env 2>/dev/null || \
+conda activate /scratch/${_PROJECT}/${USER}/conda/envs/ds_env 2>/dev/null || {
+    echo "ERROR: Failed to activate ds_env conda environment"
     exit 1
 }
 

@@ -17,7 +17,7 @@
 #     but estimates_wide.csv and effect_sizes.csv are still produced (OK)
 #
 # Prerequisites:
-#   - ds_env conda environment active (or prl_gpu on cluster)
+#   - ds_env conda environment active
 #   - prl_hgf package installed (pip install -e .)
 #
 # Usage:

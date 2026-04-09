@@ -115,7 +115,7 @@ python scripts/08_run_power_iteration.py \
     --fit-chains 2 \
     --fit-draws 500 \
     --fit-tune 500 \
-    --sampler "${SAMPLER:-pymc}" \
+    --sampler "${SAMPLER:-numpyro}" \
     ${MODE_FLAG}
 
 EXIT_CODE=$?

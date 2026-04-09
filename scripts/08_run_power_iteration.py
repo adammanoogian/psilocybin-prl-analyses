@@ -115,8 +115,8 @@ def parse_args() -> argparse.Namespace:
         "--sampler",
         type=str,
         choices=["pymc", "numpyro"],
-        default="pymc",
-        help="MCMC backend: pymc (PyTensor NUTS) or numpyro (JAX NUTS).",
+        default="numpyro",
+        help="MCMC backend: numpyro (JAX NUTS, default) or pymc (PyTensor NUTS).",
     )
     parser.add_argument(
         "--output-dir",

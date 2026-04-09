@@ -35,8 +35,11 @@ from prl_hgf.power.iteration import (
 )
 from prl_hgf.power.precheck import (
     PrecheckResult,
+    SurfacePoint,
     build_eligibility_table,
+    make_sets_config,
     make_trial_config,
+    run_recoverability_surface,
     run_recovery_precheck,
 )
 from prl_hgf.power.schema import POWER_SCHEMA, write_parquet_batch, write_parquet_row
@@ -57,8 +60,11 @@ __all__ = [
     "write_parquet_batch",
     "write_parquet_row",
     "PrecheckResult",
+    "SurfacePoint",
     "make_trial_config",
+    "make_sets_config",
     "run_recovery_precheck",
+    "run_recoverability_surface",
     "build_eligibility_table",
     "compute_jzs_bf",
     "compute_did_contrast",

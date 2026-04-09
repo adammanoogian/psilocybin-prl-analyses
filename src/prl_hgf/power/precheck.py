@@ -33,7 +33,9 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import matplotlib
+import numpy as np
 import pandas as pd
+from scipy import stats
 
 matplotlib.use("Agg")
 
@@ -53,10 +55,13 @@ from prl_hgf.simulation.batch import simulate_batch
 __all__ = [
     "PrecheckResult",
     "SweepPoint",
+    "SurfacePoint",
     "make_trial_config",
+    "make_sets_config",
     "run_recovery_precheck",
     "build_eligibility_table",
     "run_trial_sweep",
+    "run_recoverability_surface",
     "plot_trial_sweep",
     "find_minimum_trial_count",
 ]
@@ -195,6 +200,39 @@ def make_trial_config(
 
 
 # ---------------------------------------------------------------------------
+# make_sets_config
+# ---------------------------------------------------------------------------
+
+
+def make_sets_config(
+    base: AnalysisConfig,
+    n_sets: int,
+) -> AnalysisConfig:
+    """Return a frozen AnalysisConfig with overridden n_sets.
+
+    Unlike :func:`make_trial_config` which scales per-phase trial counts
+    proportionally, this preserves the full phase structure (30 trials per
+    phase, 20 transfer) and varies only the number of complete blocks.
+    Each set adds 2 reversals (volatile phases), which is the primary
+    driver of HGF parameter recovery.
+
+    Parameters
+    ----------
+    base : AnalysisConfig
+        The baseline frozen config.
+    n_sets : int
+        Number of sets per session (must be >= 1).
+
+    Returns
+    -------
+    AnalysisConfig
+        New config with ``task.n_sets`` overridden.
+    """
+    new_task = dataclasses.replace(base.task, n_sets=n_sets)
+    return dataclasses.replace(base, task=new_task)
+
+
+# ---------------------------------------------------------------------------
 # run_recovery_precheck
 # ---------------------------------------------------------------------------
 
@@ -274,18 +312,13 @@ def run_recovery_precheck(
     # --- Step 5: PRE-06 convergence exclusion count
     n_total = int(fit_df["participant_id"].nunique())
     # flagged is per parameter row — a participant is flagged if ANY row is True
-    n_flagged = int(
-        fit_df.groupby("participant_id")["flagged"].any().sum()
-    )
+    n_flagged = int(fit_df.groupby("participant_id")["flagged"].any().sum())
     print(
-        f"PRE-06: {n_flagged}/{n_total} participants excluded "
-        f"(R-hat>1.05 or ESS<400)"
+        f"PRE-06: {n_flagged}/{n_total} participants excluded (R-hat>1.05 or ESS<400)"
     )
 
     # --- Step 6: build recovery DataFrame
-    recovery_df = build_recovery_df(
-        sim_df_pre, fit_df, exclude_flagged=True, min_n=30
-    )
+    recovery_df = build_recovery_df(sim_df_pre, fit_df, exclude_flagged=True, min_n=30)
 
     # --- Step 7: compute metrics and correlation matrix
     metrics_df = compute_recovery_metrics(recovery_df)
@@ -365,11 +398,13 @@ def build_eligibility_table(metrics_df: pd.DataFrame) -> pd.DataFrame:
     --------
     >>> import pandas as pd
     >>> from prl_hgf.power.precheck import build_eligibility_table
-    >>> metrics = pd.DataFrame({
-    ...     "parameter": ["omega_2", "omega_3"],
-    ...     "r": [0.85, 0.90],
-    ...     "passes_threshold": [True, True],
-    ... })
+    >>> metrics = pd.DataFrame(
+    ...     {
+    ...         "parameter": ["omega_2", "omega_3"],
+    ...         "r": [0.85, 0.90],
+    ...         "passes_threshold": [True, True],
+    ...     }
+    ... )
     >>> elig = build_eligibility_table(metrics)
     >>> elig.loc[elig["parameter"] == "omega_3", "status"].iloc[0]
     'exploratory -- upper bound'
@@ -382,10 +417,7 @@ def build_eligibility_table(metrics_df: pd.DataFrame) -> pd.DataFrame:
 
         if param == "omega_3":
             status = _OMEGA3_STATUS
-            reason = (
-                f"r={r_val:.2f} (actual). "
-                + _OMEGA3_RATIONALE
-            )
+            reason = f"r={r_val:.2f} (actual). " + _OMEGA3_RATIONALE
         elif passes:
             status = "power-eligible"
             reason = f"r={r_val:.2f} >= {_R_THRESHOLD}"
@@ -536,9 +568,7 @@ def run_trial_sweep(
 
         # Convergence exclusion count
         n_total = int(fit_df["participant_id"].nunique())
-        n_flagged = int(
-            fit_df.groupby("participant_id")["flagged"].any().sum()
-        )
+        n_flagged = int(fit_df.groupby("participant_id")["flagged"].any().sum())
         print(
             f"[{idx + 1}/{len(trial_grid)}] trials={actual_total}: "
             f"{n_flagged} flagged, computing recovery..."
@@ -742,8 +772,12 @@ def find_minimum_trial_count(
     >>> from prl_hgf.power.precheck import find_minimum_trial_count, SweepPoint
     >>> import pandas as pd
     >>> pts = [
-    ...     SweepPoint(150, pd.DataFrame({"parameter": ["omega_2"], "r": [0.60]}), 0, 10),
-    ...     SweepPoint(250, pd.DataFrame({"parameter": ["omega_2"], "r": [0.75]}), 0, 10),
+    ...     SweepPoint(
+    ...         150, pd.DataFrame({"parameter": ["omega_2"], "r": [0.60]}), 0, 10
+    ...     ),
+    ...     SweepPoint(
+    ...         250, pd.DataFrame({"parameter": ["omega_2"], "r": [0.75]}), 0, 10
+    ...     ),
     ... ]
     >>> find_minimum_trial_count(pts)
     250
@@ -779,3 +813,367 @@ def find_minimum_trial_count(
             return pt.trial_count
 
     return None
+
+
+# ---------------------------------------------------------------------------
+# _compute_contrast_recovery helper
+# ---------------------------------------------------------------------------
+
+
+def _compute_contrast_recovery(
+    sim_df: pd.DataFrame,
+    fit_df: pd.DataFrame,
+    parameter: str,
+) -> float:
+    """Compute r(true_DiD, recovered_DiD) for a parameter.
+
+    The DiD contrast per participant:
+        DiD = (param_post_dose - param_baseline) for psilocybin
+            - (param_post_dose - param_baseline) for placebo
+
+    For individual-level recovery, we compute DiD per participant
+    (within-group) and correlate true vs recovered across participants.
+
+    Parameters
+    ----------
+    sim_df : pandas.DataFrame
+        Simulation DataFrame with true_* columns.
+    fit_df : pandas.DataFrame
+        Fit results with mean column for recovered parameters.
+    parameter : str
+        Parameter name (e.g., "omega_2").
+
+    Returns
+    -------
+    float
+        Pearson r between true and recovered DiD contrasts.
+        NaN if insufficient data.
+    """
+    true_col = f"true_{parameter}"
+
+    # Get true parameter per (participant, session) from sim_df
+    true_params = (
+        sim_df.groupby(["participant_id", "group", "session"])[true_col]
+        .first()
+        .reset_index()
+    )
+
+    # Get recovered parameter per (participant, session) from fit_df
+    rec_params = fit_df[fit_df["parameter"] == parameter][
+        ["participant_id", "group", "session", "mean"]
+    ].copy()
+    rec_params = rec_params.rename(columns={"mean": "recovered"})
+
+    # Merge
+    merged = true_params.merge(
+        rec_params, on=["participant_id", "group", "session"], how="inner"
+    )
+
+    if len(merged) == 0:
+        return float("nan")
+
+    # Compute per-participant delta: post_dose - baseline
+    deltas = []
+    for pid in merged["participant_id"].unique():
+        p = merged[merged["participant_id"] == pid]
+        base = p[p["session"] == "baseline"]
+        post = p[p["session"] == "post_dose"]
+        if len(base) == 0 or len(post) == 0:
+            continue
+        true_delta = float(post[true_col].iloc[0]) - float(base[true_col].iloc[0])
+        rec_delta = float(post["recovered"].iloc[0]) - float(base["recovered"].iloc[0])
+        deltas.append({"true_delta": true_delta, "rec_delta": rec_delta})
+
+    if len(deltas) < 5:
+        return float("nan")
+
+    delta_df = pd.DataFrame(deltas)
+    r, _ = stats.pearsonr(delta_df["true_delta"], delta_df["rec_delta"])
+    return float(r)
+
+
+# ---------------------------------------------------------------------------
+# SurfacePoint dataclass
+# ---------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SurfacePoint:
+    """One cell in the joint recoverability surface.
+
+    Parameters
+    ----------
+    n_sets : int
+        Number of task sets per session.
+    trial_count : int
+        Actual total trials (``n_sets * n_trials_per_set``).
+    n_per_group : int
+        Sample size per group.
+    effect_size : float
+        Effect size delta applied to psilocybin group.
+    parameter : str
+        HGF parameter name.
+    r_individual : float
+        Mean r(true_param, recovered_param) across iterations.
+    r_contrast : float
+        Mean r(true_DiD, recovered_DiD) across iterations. NaN for d=0.
+    bf_rate : float
+        Proportion of iterations where BF > threshold.
+    n_iterations : int
+        Number of iterations completed for this cell.
+    n_flagged : int
+        Mean flagged participants across iterations.
+    n_total : int
+        Mean total participants across iterations.
+    """
+
+    n_sets: int
+    trial_count: int
+    n_per_group: int
+    effect_size: float
+    parameter: str
+    r_individual: float
+    r_contrast: float
+    bf_rate: float
+    n_iterations: int
+    n_flagged: int
+    n_total: int
+
+
+# ---------------------------------------------------------------------------
+# run_recoverability_surface
+# ---------------------------------------------------------------------------
+
+
+def run_recoverability_surface(
+    config: AnalysisConfig,
+    sets_grid: list[int] | None = None,
+    n_per_group_grid: list[int] | None = None,
+    effect_size_grid: list[float] | None = None,
+    n_iterations: int = 30,
+    model_name: str = "hgf_3level",
+    seed: int = 42,
+    bf_threshold: float = 10.0,
+    output_dir: Path | None = None,
+) -> list[SurfacePoint]:
+    """Run joint (N x sets x d) recoverability surface.
+
+    For each (n_sets, d) combination, simulates at max(n_per_group_grid)
+    participants per group, fits ALL sessions (not just baseline), then
+    subsamples at each N level. Computes individual parameter recovery
+    and DiD contrast recovery.
+
+    Uses reduced MCMC (2 chains, 500 draws, 500 tune) and fits only
+    the 3-level model.
+
+    Parameters
+    ----------
+    config : AnalysisConfig
+        Base analysis configuration.
+    sets_grid : list[int] or None
+        Number of sets to sweep. Default ``[1, 2, 3, 4, 5]``.
+    n_per_group_grid : list[int] or None
+        Sample sizes to evaluate via subsampling.
+        Default ``[10, 15, 20, 25, 30, 40, 50]``.
+    effect_size_grid : list[float] or None
+        Effect sizes. Default ``[0.0, 0.5]``.
+    n_iterations : int
+        Iterations per (sets, d) cell. Default 30.
+    model_name : str
+        HGF model variant. Default ``"hgf_3level"``.
+    seed : int
+        Base RNG seed.
+    bf_threshold : float
+        BF threshold for power/false positive rate. Default 10.0.
+    output_dir : Path or None
+        If provided, saves ``recoverability_surface.csv`` here.
+
+    Returns
+    -------
+    list[SurfacePoint]
+        One entry per (n_sets, n_per_group, effect_size, parameter)
+        combination.
+    """
+    from prl_hgf.power.contrasts import compute_all_contrasts
+
+    if sets_grid is None:
+        sets_grid = [1, 2, 3, 4, 5]
+    if n_per_group_grid is None:
+        n_per_group_grid = [10, 15, 20, 25, 30, 40, 50]
+    if effect_size_grid is None:
+        effect_size_grid = [0.0, 0.5]
+
+    max_n = max(n_per_group_grid)
+    all_points: list[SurfacePoint] = []
+
+    for sets_idx, n_sets in enumerate(sets_grid):
+        sets_cfg = make_sets_config(config, n_sets)
+        actual_trials = sets_cfg.task.n_trials_total
+
+        for d_idx, d in enumerate(effect_size_grid):
+            # Storage keyed by n_per_group, accumulates across iterations
+            iter_results: dict[int, list[dict]] = {n: [] for n in n_per_group_grid}
+
+            for it in range(n_iterations):
+                it_seed = seed + sets_idx * 1000 + d_idx * 100 + it
+
+                # Build config: sets override + effect size + max N
+                power_cfg = make_power_config(sets_cfg, max_n, d, it_seed)
+
+                # Simulate all sessions
+                sim_df = simulate_batch(power_cfg)
+
+                # Fit ALL sessions with reduced MCMC
+                fit_df = fit_batch(
+                    sim_df,
+                    model_name=model_name,
+                    cores=1,
+                    n_chains=2,
+                    n_draws=500,
+                    n_tune=500,
+                )
+
+                # Get sorted participant IDs per group
+                pid_by_group: dict[str, list] = {}
+                for grp in sim_df["group"].unique():
+                    pids = sorted(
+                        sim_df[sim_df["group"] == grp]["participant_id"].unique()
+                    )
+                    pid_by_group[grp] = pids
+
+                # For each N, subsample and compute metrics
+                for n in sorted(n_per_group_grid):
+                    # Take first N per group
+                    selected_pids: list = []
+                    for _grp, pids in pid_by_group.items():
+                        selected_pids.extend(pids[:n])
+
+                    sub_sim = sim_df[sim_df["participant_id"].isin(selected_pids)]
+                    sub_fit = fit_df[fit_df["participant_id"].isin(selected_pids)]
+
+                    # Compute individual recovery (r per parameter)
+                    recovery_df = build_recovery_df(
+                        sub_sim,
+                        sub_fit,
+                        exclude_flagged=True,
+                        min_n=0,
+                    )
+                    if len(recovery_df) > 0:
+                        metrics = compute_recovery_metrics(recovery_df)
+                    else:
+                        metrics = pd.DataFrame(
+                            columns=[
+                                "parameter",
+                                "r",
+                                "passes_threshold",
+                            ]
+                        )
+
+                    # Compute DiD contrast recovery (meaningful when d>0)
+                    contrast_r = float("nan")
+                    if d > 0 and len(sub_fit) > 0:
+                        contrast_r = _compute_contrast_recovery(
+                            sub_sim, sub_fit, "omega_2"
+                        )
+
+                    # Compute BF on the interaction contrast
+                    bf_exceeds = False
+                    if len(sub_fit) > 0:
+                        try:
+                            contrasts = compute_all_contrasts(
+                                sub_fit,
+                                parameter="omega_2",
+                                bf_threshold=bf_threshold,
+                            )
+                            for c in contrasts:
+                                if c["sweep_type"] == "did_postdose":
+                                    bf_exceeds = c["bf_exceeds"]
+                                    break
+                        except Exception:
+                            pass
+
+                    # Store per-iteration results
+                    n_total = int(sub_fit["participant_id"].nunique())
+                    n_flagged = 0
+                    if "flagged" in sub_fit.columns:
+                        n_flagged = int(
+                            sub_fit.groupby("participant_id")["flagged"].any().sum()
+                        )
+
+                    iter_results[n].append(
+                        {
+                            "metrics": metrics,
+                            "contrast_r": contrast_r,
+                            "bf_exceeds": bf_exceeds,
+                            "n_flagged": n_flagged,
+                            "n_total": n_total,
+                        }
+                    )
+
+                # Progress
+                print(f"[sets={n_sets}, d={d:.1f}] iter {it + 1}/{n_iterations}")
+
+            # Aggregate across iterations for each N
+            for n in sorted(n_per_group_grid):
+                results_at_n = iter_results[n]
+                n_iter_actual = len(results_at_n)
+
+                # Average r per parameter across iterations
+                param_rs: dict[str, list[float]] = {}
+                for res in results_at_n:
+                    for _, row in res["metrics"].iterrows():
+                        param = str(row["parameter"])
+                        r_val = float(row["r"])
+                        if param not in param_rs:
+                            param_rs[param] = []
+                        param_rs[param].append(r_val)
+
+                # Average contrast r
+                contrast_rs = [
+                    res["contrast_r"]
+                    for res in results_at_n
+                    if not (
+                        isinstance(res["contrast_r"], float)
+                        and np.isnan(res["contrast_r"])
+                    )
+                ]
+                mean_contrast_r = (
+                    float(np.mean(contrast_rs)) if contrast_rs else float("nan")
+                )
+
+                # BF rate
+                bf_rate = (
+                    sum(1 for res in results_at_n if res["bf_exceeds"]) / n_iter_actual
+                )
+
+                # Mean flagged
+                mean_flagged = int(np.mean([res["n_flagged"] for res in results_at_n]))
+                mean_total = int(np.mean([res["n_total"] for res in results_at_n]))
+
+                for param, rs in param_rs.items():
+                    all_points.append(
+                        SurfacePoint(
+                            n_sets=n_sets,
+                            trial_count=actual_trials,
+                            n_per_group=n,
+                            effect_size=d,
+                            parameter=param,
+                            r_individual=float(np.mean(rs)),
+                            r_contrast=mean_contrast_r,
+                            bf_rate=bf_rate,
+                            n_iterations=n_iter_actual,
+                            n_flagged=mean_flagged,
+                            n_total=mean_total,
+                        )
+                    )
+
+    # Save CSV
+    if output_dir is not None:
+        output_dir = Path(output_dir)
+        output_dir.mkdir(parents=True, exist_ok=True)
+        rows = [dataclasses.asdict(pt) for pt in all_points]
+        csv_path = output_dir / "recoverability_surface.csv"
+        pd.DataFrame(rows).to_csv(csv_path, index=False)
+        print(f"Saved: {csv_path}")
+
+    return all_points

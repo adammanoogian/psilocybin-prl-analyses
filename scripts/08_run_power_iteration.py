@@ -1,19 +1,22 @@
 #!/usr/bin/env python
-"""Entry point for chunk-based power analysis on SLURM.
+"""Entry point for chunk-based SBF power analysis on SLURM.
 
-Each invocation processes a contiguous chunk of the power sweep grid.
+Each invocation processes a contiguous chunk of the SBF power sweep grid.
 A single process reuses the JAX-compiled HGF model across all iterations
 in the chunk, avoiding redundant JIT compilation.
 
-Grid layout: ``n_per_group x effect_size x iteration`` (row-major).
-With ``n_chunks=3`` and the default grid (7 N x 3 d x 200 iter = 4200
-tasks), each chunk handles ~1400 iterations and writes one combined
-parquet file.
+SBF grid layout: ``effect_size x iteration`` (row-major, 2-D).
+Sample size (N) is handled inside each iteration by simulating at
+``max(n_per_group_grid)`` and subsampling posteriors at each N level.
+
+With ``n_chunks=3`` and the default grid (3 d x 200 iter = 600 tasks),
+each chunk handles 200 iterations (one effect size per chunk) and writes
+one combined parquet file.
 
 Chunk assignment:
-    chunk 0 → task_ids [0, 1400)
-    chunk 1 → task_ids [1400, 2800)
-    chunk 2 → task_ids [2800, 4200)
+    chunk 0 → task_ids [0, 200)   (d=0.3)
+    chunk 1 → task_ids [200, 400) (d=0.5)
+    chunk 2 → task_ids [400, 600) (d=0.7)
 
 In ``--dry-run`` mode, placeholder rows are written without running
 the full simulate-fit pipeline.
@@ -35,8 +38,12 @@ sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 import config as _cfg
 from prl_hgf.env.task_config import load_config
 from prl_hgf.power.config import load_power_config
-from prl_hgf.power.grid import chunk_task_ids, decode_task_id, total_grid_size
-from prl_hgf.power.iteration import run_power_iteration
+from prl_hgf.power.grid import (
+    chunk_task_ids,
+    decode_sbf_task_id,
+    sbf_grid_size,
+)
+from prl_hgf.power.iteration import run_sbf_iteration
 from prl_hgf.power.schema import write_parquet_batch
 from prl_hgf.power.seeds import make_chunk_rngs
 
@@ -295,40 +302,33 @@ def _run_benchmark(
                 results[f"vram_delta_{model_name}_mb"] = round(delta, 1)
                 print(f"  VRAM delta: +{delta:.0f} MB")
 
-    # --- Projections ---
+    # --- Projections (SBF design: fit at max N only, subsample rest) ---
     fit_3 = results["fit_single_hgf_3level_s"]
     fit_2 = results["fit_single_hgf_2level_s"]
     fit_both = fit_3 + fit_2
 
-    # Current design: sum of 12*N across all N grid values × 3d × 200 iter
     n_grid = power_config.n_per_group_grid
     d_grid = power_config.effect_size_grid
     n_iter = power_config.n_iterations
-    fits_per_d_iter = sum(2 * n * 3 * 2 for n in n_grid)  # 2 groups × 3 sessions × 2 models
-    total_fits = fits_per_d_iter * len(d_grid) * n_iter
-    total_hours = (total_fits * fit_both / 2) / 3600  # /2 because fit_both is for 2 models
-
-    # Cumulative design: fit at max N only, subsample rest
     max_n = max(n_grid)
-    fits_cumul_per_d_iter = 2 * max_n * 3 * 2  # both models, both groups, 3 sessions
-    total_fits_cumul = fits_cumul_per_d_iter * len(d_grid) * n_iter
-    total_hours_cumul = (total_fits_cumul * fit_both / 2) / 3600
 
-    results["projection_current_design"] = {
+    # SBF: fit at max N only — 2 groups × max_n × 3 sessions × 2 models
+    fits_per_d_iter = 2 * max_n * 3 * 2
+    total_fits = fits_per_d_iter * len(d_grid) * n_iter
+    total_hours = (total_fits * fit_both / 2) / 3600  # /2: fit_both covers 2 models
+
+    results["projection_sbf_design"] = {
         "total_fits": total_fits,
         "total_gpu_hours": round(total_hours, 1),
         "per_chunk_hours": round(total_hours / power_config.n_chunks, 1),
     }
-    results["projection_cumulative_design"] = {
-        "total_fits": total_fits_cumul,
-        "total_gpu_hours": round(total_hours_cumul, 1),
-        "per_chunk_hours": round(total_hours_cumul / power_config.n_chunks, 1),
-    }
     results["grid"] = {
         "n_per_group": n_grid,
+        "max_n": max_n,
         "effect_sizes": d_grid,
         "n_iterations": n_iter,
         "n_chunks": power_config.n_chunks,
+        "sbf_grid_tasks": len(d_grid) * n_iter,
     }
     results["mcmc_settings"] = {
         "chains": args.fit_chains,
@@ -356,15 +356,13 @@ def _run_benchmark(
     print(f"  Single fit (2-level):  {fit_2:.2f}s")
     print(f"  Both models / participant-session: {fit_both:.2f}s")
     print()
-    print("PROJECTIONS (current grid design):")
+    print("PROJECTIONS (SBF design — fit max N, subsample at each N):")
+    print(f"  Max N per group:       {max_n}")
+    print(f"  SBF grid tasks:        {len(d_grid) * n_iter:,}")
     print(f"  Total MCMC fits:       {total_fits:,}")
     print(f"  Estimated GPU-hours:   {total_hours:.1f}h")
-    print(f"  Per chunk ({power_config.n_chunks} chunks): {total_hours / power_config.n_chunks:.1f}h")
-    print()
-    print("PROJECTIONS (cumulative design — fit max N, subsample):")
-    print(f"  Total MCMC fits:       {total_fits_cumul:,}")
-    print(f"  Estimated GPU-hours:   {total_hours_cumul:.1f}h")
-    print(f"  Per chunk ({power_config.n_chunks} chunks): {total_hours_cumul / power_config.n_chunks:.1f}h")
+    n_chunks = power_config.n_chunks
+    print(f"  Per chunk ({n_chunks} chunks): {total_hours / n_chunks:.1f}h")
     if "vram_total_mb" in results:
         peak = max(
             results.get("vram_after_hgf_3level_mb", 0),
@@ -403,8 +401,7 @@ def main() -> None:
     base_config = load_config()
     power_config = load_power_config()
 
-    grid_size = total_grid_size(
-        power_config.n_per_group_grid,
+    grid_size = sbf_grid_size(
         power_config.effect_size_grid,
         power_config.n_iterations,
     )
@@ -425,29 +422,29 @@ def main() -> None:
     if args.dry_run:
         rows: list[dict] = []
         for tid in task_ids:
-            n_per_group, effect_size, iteration = decode_task_id(
+            effect_size, iteration = decode_sbf_task_id(
                 tid,
-                power_config.n_per_group_grid,
                 power_config.effect_size_grid,
                 power_config.n_iterations,
             )
-            rows.append(
-                {
-                    "sweep_type": "smoke_test",
-                    "effect_size": effect_size,
-                    "n_per_group": n_per_group,
-                    "trial_count": base_config.task.n_trials_total,
-                    "iteration": iteration,
-                    "parameter": "omega_2",
-                    "bf_value": 1.0,
-                    "bf_exceeds": False,
-                    "bms_xp": 0.5,
-                    "bms_correct": False,
-                    "recovery_r": 0.0,
-                    "n_divergences": 0,
-                    "mean_rhat": 1.0,
-                }
-            )
+            for n_per_group in sorted(power_config.n_per_group_grid):
+                rows.append(
+                    {
+                        "sweep_type": "smoke_test",
+                        "effect_size": effect_size,
+                        "n_per_group": n_per_group,
+                        "trial_count": base_config.task.n_trials_total,
+                        "iteration": iteration,
+                        "parameter": "omega_2",
+                        "bf_value": 1.0,
+                        "bf_exceeds": False,
+                        "bms_xp": 0.5,
+                        "bms_correct": False,
+                        "recovery_r": 0.0,
+                        "n_divergences": 0,
+                        "mean_rhat": 1.0,
+                    }
+                )
         write_parquet_batch(rows, out_path)
         print(
             f"Dry run: wrote {len(rows)} placeholder rows to {out_path}"
@@ -459,29 +456,28 @@ def main() -> None:
 
     all_results: list[dict] = []
     for i, tid in enumerate(task_ids):
-        n_per_group, effect_size_delta, iteration = decode_task_id(
+        effect_size_delta, iteration = decode_sbf_task_id(
             tid,
-            power_config.n_per_group_grid,
             power_config.effect_size_grid,
             power_config.n_iterations,
         )
 
         log.info(
-            "Chunk %d: task %d/%d (N=%d, d=%.1f, iter=%d)",
+            "Chunk %d: task %d/%d (d=%.1f, iter=%d, N_grid=%s)",
             args.chunk_id,
             i + 1,
             len(task_ids),
-            n_per_group,
             effect_size_delta,
             iteration,
+            power_config.n_per_group_grid,
         )
 
-        results = run_power_iteration(
+        results = run_sbf_iteration(
             base_config=base_config,
-            n_per_group=n_per_group,
             effect_size_delta=effect_size_delta,
             iteration=iteration,
             child_seed=int(rngs[i].integers(0, 2**31)),
+            n_per_group_grid=power_config.n_per_group_grid,
             power_config=power_config,
             n_chains=args.fit_chains,
             n_draws=args.fit_draws,

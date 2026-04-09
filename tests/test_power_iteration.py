@@ -374,7 +374,7 @@ def test_entry_point_dry_run_still_works(
         "argv",
         [
             "prog",
-            "--task-id", "0",
+            "--chunk-id", "0",
             "--job-id", "test",
             "--dry-run",
             "--output-dir", str(tmp_path),
@@ -397,4 +397,4 @@ def test_entry_point_dry_run_still_works(
     # Verify a parquet file was created
     parquet_files = list(tmp_path.glob("*.parquet"))
     assert len(parquet_files) == 1
-    assert "job_test_task_0000" in parquet_files[0].name
+    assert "job_test_chunk_0000" in parquet_files[0].name

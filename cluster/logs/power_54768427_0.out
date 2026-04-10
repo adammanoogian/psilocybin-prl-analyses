@@ -1,0 +1,44 @@
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu
+
+Verifying GPU...
+JAX devices: [CudaDevice(id=0)]
+GPU(s) available: [CudaDevice(id=0)]
+
+============================================================
+Power Sweep - SLURM Array Job
+============================================================
+Job ID:     54768427
+Array task: 0
+Array size: 1
+Node:       m3g108
+GPU(s):     0
+Start:      Sat Apr 11 05:23:54 AM AEST 2026
+============================================================
+
+Mode: BENCHMARK (JIT compile + single fit timing)
+
+============================================================
+BENCHMARK MODE
+============================================================
+
+GPU: cuda:0
+  nvidia-smi: NVIDIA L40S, 46068 MiB, 10928 MiB
+
+Phase 1: JIT compilation (hgf_3level)...
+  hgf_3level JIT: 2.19s
+
+Phase 1: JIT compilation (hgf_2level)...
+  hgf_2level JIT: 0.63s
+
+Phase 2: Simulate cohort (N=10/group, 3 sessions)...
+Pre-warming JAX JIT compilation…
+JIT pre-warm complete.
+[10/60] placebo P003 session baseline done (19.3s)
+[20/60] placebo P006 session post_dose done (38.5s)
+[30/60] placebo P009 session followup done (57.7s)
+[40/60] psilocybin P003 session baseline done (76.9s)
+[50/60] psilocybin P006 session post_dose done (96.3s)
+[60/60] psilocybin P009 session followup done (115.1s)
+  Simulated 60 participant-sessions in 115.64s
+
+Phase 3: Fit 1 participant (hgf_3level, 2 chains × 500 draws)...

@@ -1,0 +1,58 @@
+2026-04-10 17:25:37.612781: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.8 which is older than the PTX compiler version (12.9.86). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+HGF beliefs diverged to NaN on trial 312 — using uniform random choice for remaining trials
+Initializing NUTS using jitter+adapt_diag...
+/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/tensor/rewriting/elemwise.py:954: UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Traceback (most recent call last):
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/link/vm.py", line 406, in __call__
+    thunk()
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/graph/op.py", line 544, in rval
+    r = p(n, [x[0] for x in i], o)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/tensor/elemwise.py", line 723, in perform
+    odat[...] = variable
+ValueError: assignment destination is read-only
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "/fs04/fc37/adam/projects/psilocybin-prl-analyses/scripts/08_run_power_iteration.py", line 502, in <module>
+    main()
+  File "/fs04/fc37/adam/projects/psilocybin-prl-analyses/scripts/08_run_power_iteration.py", line 419, in main
+    _run_benchmark(base_config, power_config, output_dir, args)
+  File "/fs04/fc37/adam/projects/psilocybin-prl-analyses/scripts/08_run_power_iteration.py", line 272, in _run_benchmark
+    fit_participant(
+  File "/fs04/fc37/adam/projects/psilocybin-prl-analyses/src/prl_hgf/fitting/single.py", line 268, in fit_participant
+    idata = pm.sample(
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pymc/sampling/mcmc.py", line 825, in sample
+    initial_points, step = init_nuts(
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pymc/sampling/mcmc.py", line 1598, in init_nuts
+    initial_points = _init_jitter(
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pymc/sampling/mcmc.py", line 1475, in _init_jitter
+    point_logp = model_logp_fn(point)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pymc/sampling/mcmc.py", line 1596, in model_logp_fn
+    return logp_dlogp_func([q], extra_vars={})[0]
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pymc/model/core.py", line 291, in __call__
+    return self._pytensor_function(*grad_vars)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/compile/function/types.py", line 1039, in __call__
+    outputs = vm() if output_subset is None else vm(output_subset=output_subset)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/link/vm.py", line 410, in __call__
+    raise_with_op(self.fgraph, node, thunk)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/link/utils.py", line 526, in raise_with_op
+    raise exc_value.with_traceback(exc_trace)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/link/vm.py", line 406, in __call__
+    thunk()
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/graph/op.py", line 544, in rval
+    r = p(n, [x[0] for x in i], o)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pytensor/tensor/elemwise.py", line 723, in perform
+    odat[...] = variable
+ValueError: assignment destination is read-only
+Apply node that caused the error: Mul(ExpandDims{axis=0}.0, ExpandDims{axis=0}.0)
+Toposort index: 61
+Inputs types: [TensorType(float64, shape=(1,)), TensorType(float64, shape=(1,))]
+Inputs shapes: [(1,), (1,)]
+Inputs strides: [(8,), (8,)]
+Inputs values: [array([12.77649241]), array([1.24540075])]
+Outputs clients: [[Add(Mul.0, Mul.0)]]
+
+HINT: Re-running with most PyTensor optimizations disabled could provide a back-trace showing when this node was created. This can be done by setting the PyTensor flag 'optimizer=fast_compile'. If that does not work, PyTensor optimizations can be disabled with 'optimizer=None'.
+HINT: Use the PyTensor flag `exception_verbosity=high` for a debug print-out and storage map footprint of this Apply node.

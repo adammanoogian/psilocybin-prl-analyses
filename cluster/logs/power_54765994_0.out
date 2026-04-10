@@ -1,0 +1,72 @@
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu
+
+Verifying GPU...
+JAX devices: [CudaDevice(id=0)]
+GPU(s) available: [CudaDevice(id=0)]
+
+============================================================
+Power Sweep - SLURM Array Job
+============================================================
+Job ID:     54765994
+Array task: 0
+Array size: 1
+Node:       m3g112
+GPU(s):     0
+Start:      Fri Apr 10 05:24:21 PM AEST 2026
+============================================================
+
+Mode: BENCHMARK (JIT compile + single fit timing)
+
+============================================================
+BENCHMARK MODE
+============================================================
+
+GPU: cuda:0
+  nvidia-smi: NVIDIA L40S, 46068 MiB, 10928 MiB
+
+Phase 1: JIT compilation (hgf_3level)...
+  hgf_3level JIT: 2.30s
+
+Phase 1: JIT compilation (hgf_2level)...
+  hgf_2level JIT: 0.64s
+
+Phase 2: Simulate cohort (N=10/group, 3 sessions)...
+Pre-warming JAX JIT compilation…
+JIT pre-warm complete.
+[10/60] placebo P003 session baseline done (19.8s)
+[20/60] placebo P006 session post_dose done (39.4s)
+[30/60] placebo P009 session followup done (58.7s)
+[40/60] psilocybin P003 session baseline done (78.4s)
+[50/60] psilocybin P006 session post_dose done (98.2s)
+[60/60] psilocybin P009 session followup done (117.4s)
+  Simulated 60 participant-sessions in 118.10s
+
+Phase 3: Fit 1 participant (hgf_3level, 2 chains × 500 draws)...
+
+*** ERROR: Task 0 FAILED with exit code 1 ***
+*** Check: cluster/logs/power_54765994_0.err ***
+
+Completed: Fri Apr 10 05:27:49 PM AEST 2026 (exit code: 1)
+
+============================================================
+JOB RESOURCE REPORT
+============================================================
+Job ID:     54765994_0
+Node:       m3g112
+
+GPU Info:
+  Model:       NVIDIA L40S
+  VRAM Total:   46068 MiB
+  VRAM Used:    0 MiB
+  VRAM Free:    45468 MiB
+  Utilization:  1 %
+  Temperature:  47
+
+SLURM Accounting:
+          54765994_0   00:03:43                              64G          4      RUNNING 
+    54765994_0.batch   00:03:43                                           4      RUNNING 
+   54765994_0.extern   00:03:43                                           4      RUNNING 
+
+For detailed stats after completion:
+  jobstats 54765994_0
+============================================================

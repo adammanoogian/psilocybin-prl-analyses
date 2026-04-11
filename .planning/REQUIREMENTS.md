@@ -1,118 +1,126 @@
-# Requirements: v1.1 Power Analysis
+# Requirements: v1.2 Hierarchical GPU Fitting
 
-**Defined:** 2026-04-07
-**Core Value:** Determine required sample size and trial count for detecting psilocybin x session interactions on HGF parameters via simulation-based BFDA.
-**Design:** Post-concussion participants, psilocybin vs placebo (between), 3 sessions (within)
+**Defined:** 2026-04-11
+**Core Value:** Refactor v1.1's per-participant sequential fitting into a batched hierarchical architecture so GPU acceleration is actually usable, and finish the v1.1 production run on real compute.
 
-## v1.1 Requirements
+**Motivation:** v1.1 benchmark on L40S showed ~1.5s per NUTS sample (vs ~5ms on CPU) because each sample triggers a CPU↔GPU dispatch for a tiny 420-trial sequential scan. Projected total cost: ~18,000 GPU-hours. Infeasible. The fix is architectural: batch all participants through one vmapped logp so the 5000 NUTS launches per fit are amortized across the whole cohort.
 
-### Config & Infrastructure (PWR)
+## v1.2 Requirements
 
-- [ ] **PWR-01**: Power analysis config section in prl_analysis.yaml: effect_sizes [0.3, 0.5, 0.7], n_per_group_levels [10, 15, 20, 25, 30, 40, 50], trial_count_levels [50, 100, 150, 200, 250], n_iterations (K=200), bf_threshold (6), recovery_r_threshold (0.7), bms_exceedance_threshold (0.75), jzs_scale (sqrt(2)/2), seed_base
-- [ ] **PWR-09**: Embarrassingly parallel iterations via SLURM array jobs (--array=0-K%50 throttle). Each iteration is an independent process with its own JAX initialization
-- [ ] **PWR-10**: Tidy results DataFrame per iteration saved as parquet: sweep_type, effect_size, n_per_group, trial_count, iteration, parameter, bf_value, bf_exceeds, bms_xp, bms_correct, recovery_r, n_divergences, mean_rhat
+### Batched Hierarchical Fitting (BATCH)
 
-### Prechecks (PRE) — Gate the Power Analysis
+- [ ] **BATCH-01**: Build a hierarchical PyMC model with `shape=(n_participants,)` parameters (omega_2, beta, zeta for 2-level; omega_2, omega_3, kappa, beta, zeta for 3-level). Independent priors per participant — no hyperpriors. This preserves v1.1 statistical semantics while exposing the participant dimension to numpyro's vmap.
+- [ ] **BATCH-02**: New factory `build_logp_ops_batched(input_data_arr, observed_arr, choices_arr)` where arrays have a leading participant dimension (shape `(P, n_trials, 3)`). Returns a PyTensor Op whose `perform` and JAX dispatch accept batched parameters and return a scalar sum-over-participants log-likelihood.
+- [ ] **BATCH-03**: Batched logp implemented via `jax.vmap` over the participant dimension, calling pyhgf's `scan_fn` inside the per-participant branch. Preserves the two-Op split (logp Op + grad Op) so PyMC's gradient machinery works unchanged.
+- [ ] **BATCH-04**: tapas-style Layer 2 per-trial clamping inside the `lax.scan` step. On each update, check `jnp.isfinite` on all belief states; if unstable, `jnp.where` reverts to the previous trial's state and that trial contributes 0 to the logp (via a per-trial mask). Must be implemented with pure JAX ops (no Python `if`) to stay inside `jit`.
+- [ ] **BATCH-05**: New orchestrator `fit_batch_hierarchical(sim_df, model_name, n_chains, n_draws, n_tune, sampler)` that builds the model, runs **one** `pmjax.sample_numpyro_nuts` call for the full cohort, and returns a single `InferenceData` with a participant dimension on every parameter. Replaces the current loop of per-participant `fit_participant` calls.
+- [ ] **BATCH-06**: Preserve the `-jnp.inf` logp sentinel for completely broken parameter combinations (Layer 3 fallback, already present in `ops.py`). With Layer 2 clamping, this should rarely fire.
+- [ ] **BATCH-07**: Padding-ready shape — accept an optional `trial_mask` argument (even if currently all-ones) so future variable-length cohorts can reuse the same compiled kernel without triggering XLA recompilation. Lesson from rlwm's fixed-shape pattern.
 
-- [ ] **PRE-01**: Parameter recovery at current trial count: simulate 50 participants, fit MCMC, compute Pearson r per parameter. r < 0.7 -> excluded from power analysis. omega_3 results labeled "exploratory — upper bound"
-- [ ] **PRE-02**: Confound matrix: pairwise correlations between recovered parameters. |r| > 0.8 -> flag
-- [ ] **PRE-03**: Output list of power-eligible parameters with exclusion reasons documented
-- [ ] **PRE-04**: Trial count sweep: fix N=30/group, vary trials [50-250], compute recovery r per parameter per level. Preserve stable/volatile trial ratio when adjusting total count
-- [ ] **PRE-05**: Identify minimum trial count where all power-eligible parameters exceed recovery threshold
-- [ ] **PRE-06**: MCMC convergence gating: R-hat < 1.05 and ESS > 400 required per fit; fits failing these thresholds are flagged and excluded from power calculation
+### JAX-Native Cohort Simulation (JSIM)
 
-### Power Analysis A: Psilocybin x Session Interaction (PWR-A)
+- [ ] **JSIM-01**: New `simulate_session_jax(params, trial_inputs, rng_key)` function that runs one full 420-trial session via `lax.scan`, using pyhgf's `net.scan_fn` for the HGF update (no reimplementation of HGF math — pyhgf remains the source of truth). All sampling via `jax.random` (categorical for choice, bernoulli for reward).
+- [ ] **JSIM-02**: Same tapas-style Layer 2 clamping as BATCH-04 — on NaN belief, revert to the previous trial state and continue. The `diverged` flag is a `jnp.any` reduction over per-trial clamping events.
+- [ ] **JSIM-03**: New `simulate_cohort_jax(params_batch, trial_inputs, rng_keys_batch)` that `jax.vmap`s `simulate_session_jax` across participants, running an entire cohort (up to 300 participant-sessions) in one compiled kernel.
+- [ ] **JSIM-04**: `simulate_batch` updated to use the new path internally; produces the same DataFrame schema as before so `run_sbf_iteration` and all downstream code is unchanged.
+- [ ] **JSIM-05**: Per-session `diverged` flag propagated through to the output DataFrame as a `diverged` column (matches current simulate_agent behavior after the NaN fix).
+- [ ] **JSIM-06**: RNG key threading via `jax.random.split` ensures determinism — same master seed reproduces the same cohort, even across devices.
 
-- [ ] **PWR-02**: Sample size sweep: fix trial count (from PRE-05), iterate N levels. Each iteration: generate N x 2 groups (psilocybin vs placebo) x 3 sessions with interaction of magnitude d on target parameter via session_deltas. Fit all MCMC. Compute interaction contrast. Compute JZS BF. Record BF > threshold
-- [ ] **PWR-03**: JZS BF via pingouin.bayesfactor_ttest (Rouder et al. 2009 one-sample t-test) on the difference-in-differences contrast. Prior scale r = sqrt(2)/2 (default Cauchy)
-- [ ] **PWR-04**: Sensitivity sweep at d = {0.3, 0.5, 0.7}, producing family of power curves
-- [ ] **PWR-05**: Primary contrast: delta_i = (theta_psi,post - theta_psi,baseline) - (theta_plc,post - theta_plc,baseline). Also test baseline->followup and linear trend. Document which is primary
-- [ ] **PWR-06**: Effect size parameterized via session_deltas: delta = d x pooled_sd(parameter) from config group distributions. make_power_config() factory constructs frozen config instances from (N, d, seed) without modifying YAML
+### CPU Validation Harness (VALID)
 
-### Power Analysis B: Model Discriminability (PWR-B)
+- [ ] **VALID-01**: Bit-exact numerical equivalence test — batched logp with `n_participants=1` returns the same float64 value as the existing per-participant `ops.py` logp for matched data and parameters. Any deviation is a bug.
+- [ ] **VALID-02**: Small-batch statistical equivalence — fit 5 participants sequentially via the legacy path and 5 participants batched via the new path on CPU with matched seeds. Posterior means agree within 3× MCSE per parameter.
+- [ ] **VALID-03**: Cross-platform consistency — run the same small fit on CPU (`ds_env`) and GPU (a single `srun` allocation), verify posterior means agree within 1% relative error. NUTS is stochastic so exact match is not expected.
+- [ ] **VALID-04**: Simulation equivalence test — `simulate_agent` (NumPy loop, old path) and `simulate_session_jax` (new path) produce choice/reward distributions that agree on aggregate statistics (mean choice frequency per cue per phase) over 100 replicates with matched master seeds. Exact per-trial match is not required because RNG ordering changes.
+- [ ] **VALID-05**: Legacy path preservation — the existing per-participant sequential fitting path (`fit_participant`, `run_power_iteration`) stays runnable via `--legacy` flag on `08_run_power_iteration.py`, so v1.1-era reproducibility is preserved for debugging.
 
-- [ ] **PWR-07**: Generate from 3-level model, fit both models MCMC, compute WAIC/LOO, run random-effects BMS (Rigoux et al. 2014). Record P(XP_true > 0.75) at each N
-- [ ] **PWR-08**: Optional group-stratified BMS: does psilocybin shift model preference?
+### GPU Benchmark + SBF Integration (BENCH)
 
-### Seed & Reproducibility (SEED)
+- [ ] **BENCH-01**: New benchmark mode fits one full iteration (300 participant-sessions × 2 models) via the batched path on a GPU node and reports per-iteration wall-clock time, VRAM peak, and GPU utilization. Writes `results/power/benchmark_batched.json`.
+- [ ] **BENCH-02**: Decision gate — if `(per_iter_seconds × 600 / 3600) > 50` GPU-hours per chunk, recommend falling back to the CPU `comp` partition for production. Otherwise commit to GPU. Record decision in `results/power/benchmark_batched.json` and update STATE.md.
+- [ ] **BENCH-03**: `run_sbf_iteration` updated to use `fit_batch_hierarchical` + `simulate_cohort_jax` by default. Old sequential path preserved behind `--legacy` flag (see VALID-05).
+- [ ] **BENCH-04**: Entry point `08_run_power_iteration.py --benchmark` uses the new path and reports GPU utilization via periodic `nvidia-smi` sampling during the fit (inside the Python process, to detect idle GPU cycles).
+- [ ] **BENCH-05**: JAX compilation cache hit verified across chunks — Chunk 0 compiles cold, Chunks 1 and 2 should start fitting within ~5 seconds (vs ~60s cold). Report in benchmark output.
 
-- [ ] **SEED-01**: numpy.random.SeedSequence for parallel seed independence across SLURM array tasks. Each iteration gets a child seed from the base SeedSequence, not bare integer arithmetic
+### Production Run + Milestone Delivery (PROD)
 
-### Visualizations (VIZ)
-
-- [ ] **VIZ-01**: Precheck figure: recovery r vs trial count, one line per parameter, reference at r=0.7
-- [ ] **VIZ-02**: Power A figure: P(BF>6) vs N, one line per effect size, references at 80%/90%, annotate N where d=0.5 crosses 80%
-- [ ] **VIZ-03**: Power B figure: P(correct BMS) vs N, reference at 75%
-- [ ] **VIZ-04**: Combined 4-panel publication figure (precheck + A + B + sensitivity heatmap). PDF + PNG
-
-### Recommendation (REC)
-
-- [ ] **REC-01**: Summary table + text: recommended N/group and trial count with evidence. Markdown report in results/power/
+- [ ] **PROD-01**: Full power sweep (600 SBF tasks across 3 chunks) executes successfully on the chosen platform (GPU or CPU comp, per BENCH-02).
+- [ ] **PROD-02**: All 600 tasks complete; per-chunk parquet files aggregate cleanly into `results/power/power_master.csv` with no missing grid cells (`scripts/09_aggregate_power.py` runs without warnings).
+- [ ] **PROD-03**: 4-panel publication figure (`scripts/10_plot_power_curves.py`) regenerated with real data, saved as both PDF and PNG. No placeholder values.
+- [ ] **PROD-04**: `results/power/recommendation.md` (`scripts/11_write_recommendation.py`) contains a concrete N/group and trial count recommendation backed by real BF evidence, exclusion rates, and the omega_3 upper-bound caveat.
+- [ ] **PROD-05**: Wave 3 auto-push wired into the production pipeline (`99_push_results.slurm` triggered via `afterany` from the post-processing job), so results land in git without manual intervention. Benchmark mode still skips push (unchanged).
 
 ## v2 Requirements (Deferred)
 
-- **V2-PWR-01**: MAP fitting as fast proxy for power loop (validate against MCMC first)
-- **V2-PWR-02**: Sequential BFDA with optional stopping (not applicable to fixed clinical N)
-- **V2-PWR-03**: Full posterior propagation to Level 2 (hierarchical model; current pipeline uses summary statistics)
-- **V2-PWR-04**: Interactive power analysis GUI
+- **V2-HIER-01**: True hierarchical model with population-level hyperpriors (partial pooling) — would improve recovery for participants with poor fits but changes the statistical model and needs its own validation.
+- **V2-HIER-02**: Per-participant step-size adaptation in NUTS via numpyro's `HMCGibbs` or custom kernel — the default batched NUTS adapts a single step size across all participants, which is a compromise.
+- **V2-MLE-01**: MAP/MLE via `jaxopt.LBFGS` as a fast screening pass (rlwm pattern), with NUTS only for cases where MAP is ambiguous. ~50-100x speedup potential.
+- **V2-HIER-03**: Multi-GPU `pmap` across chains if > 1 GPU is requested (currently `numpyro.set_host_device_count(1)`, sequential chains).
 
 ## Out of Scope
 
 | Feature | Reason |
 |---------|--------|
-| Sequential BFDA | Clinical trial has fixed N; sequential stopping not applicable |
-| rpy2 bridge to R BayesFactor | pingouin handles JZS BF; anovaBF has documented misspecification for RM designs (Van den Bergh et al. 2023) |
-| Full posterior propagation | Doesn't match the actual two-stage analysis pipeline |
-| Power analysis GUI | Batch HPC computation, not interactive |
-| omega_3 as primary power target | Recovery r < 0.7 expected; labeled exploratory only |
+| Reimplementing HGF math in pure JAX | pyhgf's `scan_fn` is the source of truth; wrapping it in our own `lax.scan` gets the same benefit without maintenance burden |
+| Changing statistical priors or contrasts | Scope creep — v1.2 is a compute/architecture refactor, not a model change |
+| Multi-device `pmap` across GPUs | SLURM allocates 1 GPU per task in our setup; multi-GPU is v2 |
+| GUI for power analysis | Batch HPC workflow, not interactive |
+| Hierarchical hyperpriors (partial pooling) | Changes statistical semantics vs v1.1 — defer to v2 and validate separately |
+| Real data ingestion | v2.0 milestone, unrelated to compute architecture |
 
 ## Success Criteria
 
-1. At least omega_2 and beta pass recovery precheck (r > 0.7)
-2. Power A at d=0.5 crosses 80% at a concrete N
-3. Power B crosses 75% at a concrete N
-4. 4-panel figure is self-contained for grant/preregistration
-5. Full analysis < 200 cluster-hours
+1. Batched hierarchical logp passes bit-exact CPU test (VALID-01)
+2. Small-batch sequential-vs-batched fit agrees within MCSE (VALID-02)
+3. GPU benchmark completes and produces a feasibility decision (BENCH-01, BENCH-02)
+4. Full power sweep runs on the chosen platform within a reasonable walltime budget (PROD-01)
+5. v1.1 deliverables (`power_master.csv`, 4-panel figure, `recommendation.md`) populated with real data (PROD-02, PROD-03, PROD-04)
+6. Legacy path still works for reproducibility (VALID-05)
 
 ## Key References
 
-- Schreiber et al. (2024) — BFDA for multi-armed bandit tasks
-- Hess et al. (2025) — Bayesian workflow for computational psychiatry
-- Schonbrodt & Wagenmakers (2018) — Bayes factor design analysis
-- Rouder et al. (2009) — JZS Bayesian t tests
-- Rigoux et al. (2014) — Random-effects BMS
-- Wilson & Collins (2019) — Ten simple rules for computational modeling
-- Van den Bergh et al. (2023) — anovaBF misspecification for RM designs
+- rlwm_trauma_analysis `scripts/fitting/jax_likelihoods.py` — padding/masking pattern, stacked arrays
+- rlwm_trauma_analysis `validation/diagnose_gpu.py` — vmap-vs-sequential benchmark (7-13x slower for their LBFGS case; different regime from our NUTS case)
+- `project_utils/templates/guides/JAX_GPU_BAYESIAN_FITTING.md` — full writeup of lessons and patterns
+- Current `src/prl_hgf/fitting/ops.py` — existing JAX Op with `lax.scan` over 420 trials, to be generalized to batched
+- tapas HGF toolbox (MATLAB) `tapas_ehgf_binary.m` — Layer 2 per-trial state clamping pattern we are porting to JAX
+- Schönbrodt & Wagenmakers (2018) — SBF design (v1.1 inherits; v1.2 preserves)
 
 ## Traceability
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| PWR-01 | Phase 8 | Complete |
-| PWR-09 | Phase 8 | Complete |
-| PWR-10 | Phase 8 | Complete |
-| SEED-01 | Phase 8 | Complete |
-| PRE-01 | Phase 9 | Complete |
-| PRE-02 | Phase 9 | Complete |
-| PRE-03 | Phase 9 | Complete |
-| PRE-04 | Phase 9 | Complete |
-| PRE-05 | Phase 9 | Complete |
-| PRE-06 | Phase 9 | Complete |
-| PWR-02 | Phase 10 | Complete |
-| PWR-03 | Phase 10 | Complete |
-| PWR-04 | Phase 10 | Complete |
-| PWR-05 | Phase 10 | Complete |
-| PWR-06 | Phase 10 | Complete |
-| PWR-07 | Phase 10 | Complete |
-| PWR-08 | Phase 10 | Complete |
-| VIZ-01 | Phase 11 | Complete |
-| VIZ-02 | Phase 11 | Complete |
-| VIZ-03 | Phase 11 | Complete |
-| VIZ-04 | Phase 11 | Complete |
-| REC-01 | Phase 11 | Complete |
+| BATCH-01 | Phase 12 | Pending |
+| BATCH-02 | Phase 12 | Pending |
+| BATCH-03 | Phase 12 | Pending |
+| BATCH-04 | Phase 12 | Pending |
+| BATCH-05 | Phase 12 | Pending |
+| BATCH-06 | Phase 12 | Pending |
+| BATCH-07 | Phase 12 | Pending |
+| VALID-01 | Phase 12 | Pending |
+| VALID-02 | Phase 12 | Pending |
+| JSIM-01 | Phase 13 | Pending |
+| JSIM-02 | Phase 13 | Pending |
+| JSIM-03 | Phase 13 | Pending |
+| JSIM-04 | Phase 13 | Pending |
+| JSIM-05 | Phase 13 | Pending |
+| JSIM-06 | Phase 13 | Pending |
+| VALID-04 | Phase 13 | Pending |
+| BENCH-01 | Phase 14 | Pending |
+| BENCH-02 | Phase 14 | Pending |
+| BENCH-03 | Phase 14 | Pending |
+| BENCH-04 | Phase 14 | Pending |
+| BENCH-05 | Phase 14 | Pending |
+| VALID-03 | Phase 14 | Pending |
+| VALID-05 | Phase 14 | Pending |
+| PROD-01 | Phase 15 | Pending |
+| PROD-02 | Phase 15 | Pending |
+| PROD-03 | Phase 15 | Pending |
+| PROD-04 | Phase 15 | Pending |
+| PROD-05 | Phase 15 | Pending |
 
-**Coverage:** 22/22 v1.1 requirements mapped across 4 phases (8-11).
+**Coverage:** 28/28 v1.2 requirements mapped across 4 phases (12-15).
 
 ---
-*Requirements defined: 2026-04-07*
-*Traceability updated: 2026-04-07 (roadmap created)*
+*Requirements defined: 2026-04-11*
+*Traceability updated: 2026-04-11 (roadmap created)*

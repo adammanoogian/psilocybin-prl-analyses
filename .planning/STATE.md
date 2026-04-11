@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.1 Power Analysis — Phase 11 complete (v1.1 code-complete)
+**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — starting Phase 12 (refactor fitting pipeline so GPU actually accelerates)
 
 ## Current Position
 
-Phase: 11 - Aggregation and Publication (complete)
-Plan: 3/3 complete
-Status: Phase 11 verified (31/31 tests pass, all must-haves confirmed)
-Last activity: 2026-04-08 — Completed 11-03-PLAN.md (power recommendation script + 8 unit tests)
+Phase: 12 - Batched Hierarchical JAX Logp (not started)
+Plan: —
+Status: Defining requirements and roadmap for v1.2
+Last activity: 2026-04-11 — v1.2 milestone initialized after L40S benchmark showed v1.1 per-participant sequential fitting is infeasible (~1.5s/sample → projected 18,000 GPU-hours)
 
-[=====================] v1.1 complete (v1.0 shipped; Phases 8-11 done; all 3 Phase 11 plans complete)
+[==========]          v1.1 code-complete (Phases 1-11); v1.2 in progress (Phases 12-15 pending)
 
 ## Performance Metrics
 
@@ -72,8 +72,10 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 - System Python 3.13 incompatible with pyhgf 0.2.8 — all work must use ds_env
 - omega_3 parameter recovery expected to be challenging (known issue in literature)
-- MCMC-based power loop is compute-heavy (~200-300 cluster-hours estimated)
-- SLURM %50 throttle tuned from general guidance — verify empirically in Phase 8 smoke test
+- **v1.1 per-participant sequential MCMC is GPU-pessimal** — L40S benchmark showed ~1.5s/NUTS-sample vs ~5ms on CPU due to PCIe dispatch overhead. v1.2 refactor is mandatory for GPU feasibility.
+- **Decision gate at Phase 14:** if batched hierarchical GPU benchmark is still > 50 GPU-hours per chunk, fall back to CPU `comp` partition (new batched code still wins over v1.1 sequential on CPU).
+- pyhgf has no built-in NaN clamping — v1.2 must add tapas-style Layer 2 per-trial reversion inside our JAX scan.
+- `_init_jitter` PyTensor read-only-array bug means we can't use `pm.sample(...)` directly even with `nuts_sampler="numpyro"`; must call `pmjax.sample_numpyro_nuts()` directly.
 
 ## Quick Tasks
 
@@ -83,7 +85,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-08T00:07:00Z
-Stopped at: Completed 11-03-PLAN.md — Phase 11 complete, v1.1 code-complete
+Last session: 2026-04-11
+Stopped at: v1.2 milestone initialized — REQUIREMENTS.md and ROADMAP.md drafted for Phases 12-15
 Resume file: None
-Next action: /gsd:audit-milestone (v1.1 BFDA Power Analysis)
+Next action: /gsd:discuss-phase 12 or /gsd:plan-phase 12 (Batched Hierarchical JAX Logp)

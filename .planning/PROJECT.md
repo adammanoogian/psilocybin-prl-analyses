@@ -62,19 +62,23 @@ Softmax over three cue beliefs with beta (inverse temperature) and zeta (stickin
 - GRP-01 through GRP-05: Group-level analysis — v1.0
 - GUI-01 through GUI-06: Interactive parameter explorer — v1.0
 - INF-01 through INF-05: Infrastructure — v1.0
+- PWR-01 through PWR-10, PRE-01 through PRE-06, SEED-01, VIZ-01 through VIZ-04, REC-01: BFDA power analysis pipeline (code-complete, pending production run) — v1.1
 
 ### Active
 
-#### Current Milestone: v1.1 Power Analysis
+#### Current Milestone: v1.2 Hierarchical GPU Fitting
 
-**Goal:** Simulation-based Bayes Factor Design Analysis (BFDA) to determine required sample size and trial count for detecting psilocybin × session interactions on HGF parameters.
+**Goal:** Refactor the v1.1 power analysis fitting pipeline to a batched hierarchical architecture so GPU acceleration actually works — amortizing NUTS launch overhead across all participants in one `sample_numpyro_nuts` call. Finish the v1.1 production run on real compute.
 
 **Target features:**
-- Prechecks: parameter recovery validation, trial count sweep, MCMC validation
-- Power Analysis A: N × effect size sweep for group × session interaction (JZS BF)
-- Power Analysis B: Model discriminability via BMS at varying N
-- 4-panel publication figure + N recommendation
-- SLURM-parallelized compute (embarrassingly parallel iterations)
+- Batched hierarchical PyMC model (shape-(n_participants,) independent priors, single joint NUTS call)
+- JAX-native cohort simulation via `lax.scan` + `jax.vmap`, reusing pyhgf's `net.scan_fn` (no HGF math rewrite)
+- tapas-style Layer 2 per-trial belief clamping inside `lax.scan` (revert to previous state on NaN)
+- CPU validation harness (bit-exact vs legacy, statistical equivalence, cross-platform consistency)
+- GPU benchmark with decision gate (GPU vs CPU `comp` partition fallback)
+- Complete v1.1 production run: `power_master.csv`, 4-panel figure, `recommendation.md` populated with real data
+
+**Why v1.2 exists:** The v1.1 benchmark on an L40S showed ~1.5s per NUTS sample due to per-participant sequential fitting causing 5000 small CPU↔GPU dispatches per fit. That projected to ~18,000 GPU-hours for the full sweep — infeasible. The fix is architectural: batch all participants through one vmapped logp so the launch overhead is amortized.
 
 ### Out of Scope
 
@@ -92,8 +96,14 @@ Environment: ds_env conda (Python 3.10) — pyhgf requires Python <=3.13.
 
 Known limitations:
 - omega_3 recovery is poor (literature-known caveat)
-- 3-level model NaN boundary at omega_2 >= ~-1.2 (handled by prior)
+- 3-level model NaN boundary at omega_2 >= ~-1.2 (handled by prior + simulation NaN guard)
 - cores=1 default on Windows for MCMC fitting
+- v1.1 per-participant sequential fitting architecture is pessimal for GPU — benchmark showed ~1.5s per NUTS sample on L40S due to PCIe dispatch overhead dominating a 420-trial sequential scan; this motivates v1.2's batched hierarchical refactor
+
+Key v1.1 decisions informing v1.2 (see `project_utils/templates/guides/JAX_GPU_BAYESIAN_FITTING.md` for full writeup):
+- `numpyro` (JAX NUTS) is the default sampler, not PyTensor NUTS — avoids a PyMC `_init_jitter` read-only array bug
+- rlwm_trauma_analysis benchmarked vmap as 7-13x slower than sequential for LBFGS with 154×50 starts — a lesson we take seriously but do not take as universal; NUTS with a hierarchical model is a different regime and should be benchmarked on its own
+- pyhgf has no built-in NaN clamping; tapas-style Layer 2 per-trial reversion must be added in our own JAX code
 
 ## Constraints
 
@@ -112,4 +122,4 @@ Known limitations:
 - Rigoux et al. (2014) — Random-effects Bayesian model selection
 
 ---
-*Last updated: 2026-04-07 after v1.0 milestone*
+*Last updated: 2026-04-11 starting v1.2 Hierarchical GPU Fitting milestone*

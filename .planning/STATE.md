@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 12 complete, Phase 13 next
+**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phases 12-13 complete, Phase 14 next
 
 ## Current Position
 
-Phase: 13 of 15 (JAX-Native Cohort Simulation) — Phase complete
+Phase: 13 of 15 (JAX-Native Cohort Simulation) — COMPLETE ✓
 Plan: 3/3 complete
-Status: Phase complete
-Last activity: 2026-04-12 — Completed 13-03-PLAN.md (VALID-04 statistical equivalence: KS test confirms JAX path is unbiased vs legacy NumPy)
+Status: Phase verified (7/7 must-haves passed, JSIM-01..06 + VALID-04)
+Last activity: 2026-04-12 — Phase 13 verified: all requirements confirmed against codebase
 
-[==========█████░]   v1.1 code-complete (Phases 1-11); Phase 12 verified; Phase 13 complete
+[==========█████░]   v1.1 code-complete (Phases 1-11); Phases 12-13 verified; Phase 14 next
 
 ## Performance Metrics
 
@@ -103,7 +103,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-12T14:04:31Z
-Stopped at: Completed 13-03-PLAN.md — VALID-04 statistical equivalence (JAX path validated vs NumPy legacy)
+Last session: 2026-04-12
+Stopped at: Phase 13 verified — 7/7 must-haves passed, ROADMAP + REQUIREMENTS updated
 Resume file: None
-Next action: Phase 13 complete. Next: /gsd:execute-phase 14 (GPU fitting benchmark)
+Next action: /gsd:discuss-phase 14 or /gsd:plan-phase 14 (Integration + GPU Benchmark + Decision Gate)

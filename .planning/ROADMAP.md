@@ -138,7 +138,12 @@ Plans:
   3. `simulate_batch` uses the new path internally, preserves the DataFrame schema (including the `diverged` column from JSIM-05)
   4. RNG determinism: fixing the master seed reproduces the same cohort across runs (and across devices, up to floating-point noise)
   5. VALID-04: over 100 replicates with matched master seeds, `simulate_agent` and `simulate_session_jax` produce statistically equivalent choice frequency distributions per cue per phase (KS test p > 0.05 or equivalent)
-**Plans**: ~3 plans (session simulator, vmap wrapper, equivalence tests)
+**Plans**: 3 plans
+
+Plans:
+- [x] 13-01-PLAN.md — simulate_session_jax: lax.scan session simulator with factory pattern, Layer 2 clamping, PRNG key threading, 5 unit tests
+- [x] 13-02-PLAN.md — simulate_cohort_jax vmap wrapper, simulate_batch JAX rewrite, __init__.py exports, 4 cohort tests
+- [x] 13-03-PLAN.md — VALID-04 statistical equivalence: 100 replicates KS test (legacy vs JAX), 2 tests
 
 ### Phase 14: Integration + GPU Benchmark + Decision Gate
 
@@ -184,6 +189,6 @@ Plans:
 | 10 - Core Power Modules + Sweep | v1.1 | 3/3 | Complete | 2026-04-07 |
 | 11 - Aggregation + Publication | v1.1 | 3/3 | Complete | 2026-04-07 |
 | 12 - Batched Hierarchical JAX Logp | v1.2 | 4/4 | Complete | 2026-04-12 |
-| 13 - JAX-Native Cohort Simulation | v1.2 | 0/3 | Pending | — |
+| 13 - JAX-Native Cohort Simulation | v1.2 | 3/3 | Complete | 2026-04-12 |
 | 14 - Integration + GPU Benchmark | v1.2 | 0/3 | Pending | — |
 | 15 - Production Run + Results | v1.2 | 0/3 | Pending | — |

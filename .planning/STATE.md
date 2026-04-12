@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — starting Phase 12 (refactor fitting pipeline so GPU actually accelerates)
+**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 12
 
 ## Current Position
 
 Phase: 12 of 15 (Batched Hierarchical JAX Logp)
-Plan: 02 of 04
+Plan: 03 of 04
 Status: In progress
-Last activity: 2026-04-12 — Completed 12-02-PLAN.md (batched JAX logp Op factory)
+Last activity: 2026-04-12 — Completed 12-03-PLAN.md (hierarchical PyMC orchestrator)
 
-[==========██==]     v1.1 code-complete (Phases 1-11); v1.2 plans 12-01, 12-02 complete, 12-03 next
+[==========███=]     v1.1 code-complete (Phases 1-11); v1.2 plans 12-01, 12-02, 12-03 complete, 12-04 next
 
 ## Performance Metrics
 
@@ -65,6 +65,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | Data as runtime args for vmap (not closure-over-data) | Clean vmap signature; XLA sees full data flow; no closure recreation on data change | 12-02 |
 | Separate named functions for 2-level/3-level logp | Avoids mypy error from conditional redefinition with different signatures | 12-02 |
 | Level-2 mean key is attrs[i]["mean"] | Confirmed via runtime inspection of pyhgf attribute pytree structure | 12-02 |
+| Post-hoc dim rename for participant coords (not pm.Model coords=) | dims= parameter interacts unpredictably with pm.Potential in some PyMC versions; post-hoc rename is robust | 12-03 |
+| TYPE_CHECKING guard for pd/az imports | Avoids heavy runtime imports; satisfies ruff F821 + UP037 for forward-ref type annotations | 12-03 |
 
 ### Pending Todos
 
@@ -91,6 +93,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-12
-Stopped at: Completed 12-02-PLAN.md (batched JAX logp Op factory)
+Stopped at: Completed 12-03-PLAN.md (hierarchical PyMC orchestrator)
 Resume file: None
-Next action: Execute 12-03-PLAN.md (hierarchical PyMC model wrapper)
+Next action: Execute 12-04-PLAN.md (validation tests)

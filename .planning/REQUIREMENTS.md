@@ -90,15 +90,15 @@
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| BATCH-01 | Phase 12 | Pending |
-| BATCH-02 | Phase 12 | Pending |
-| BATCH-03 | Phase 12 | Pending |
-| BATCH-04 | Phase 12 | Pending |
-| BATCH-05 | Phase 12 | Pending |
-| BATCH-06 | Phase 12 | Pending |
-| BATCH-07 | Phase 12 | Pending |
-| VALID-01 | Phase 12 | Pending |
-| VALID-02 | Phase 12 | Pending |
+| BATCH-01 | Phase 12 | Complete |
+| BATCH-02 | Phase 12 | Complete |
+| BATCH-03 | Phase 12 | Complete |
+| BATCH-04 | Phase 12 | Complete |
+| BATCH-05 | Phase 12 | Complete |
+| BATCH-06 | Phase 12 | Complete |
+| BATCH-07 | Phase 12 | Complete |
+| VALID-01 | Phase 12 | Complete |
+| VALID-02 | Phase 12 | Complete |
 | JSIM-01 | Phase 13 | Pending |
 | JSIM-02 | Phase 13 | Pending |
 | JSIM-03 | Phase 13 | Pending |

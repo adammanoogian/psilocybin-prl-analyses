@@ -122,10 +122,10 @@ Plans:
 **Plans**: 4 plans
 
 Plans:
-- [ ] 12-01-legacy-migration-PLAN.md — Move fitting/single.py + fitting/batch.py into legacy/, add backward-compat shims, leave ops.py + models.py in place
-- [ ] 12-02-batched-jax-logp-PLAN.md — Create hierarchical.py with build_logp_ops_batched (jax.vmap over participants, Layer 2 clamping, trial_mask, two-Op split, jax_funcify)
-- [ ] 12-03-hierarchical-pymc-orchestrator-PLAN.md — Add build_pymc_model_batched + fit_batch_hierarchical (one pmjax.sample_numpyro_nuts call), wire __init__.py exports
-- [ ] 12-04-validation-tests-PLAN.md — tests/test_hierarchical_logp.py: VALID-01 bit-exact P=1, P=2 doubling, Layer 2 clamping smoke, VALID-02 5-participant within-MCSE
+- [x] 12-01-legacy-migration-PLAN.md — Move fitting/single.py + fitting/batch.py into legacy/, add backward-compat shims, leave ops.py + models.py in place
+- [x] 12-02-batched-jax-logp-PLAN.md — Create hierarchical.py with build_logp_ops_batched (jax.vmap over participants, Layer 2 clamping, trial_mask, two-Op split, jax_funcify)
+- [x] 12-03-hierarchical-pymc-orchestrator-PLAN.md — Add build_pymc_model_batched + fit_batch_hierarchical (one pmjax.sample_numpyro_nuts call), wire __init__.py exports
+- [x] 12-04-validation-tests-PLAN.md — tests/test_hierarchical_logp.py: VALID-01 bit-exact P=1, P=2 doubling, Layer 2 clamping smoke, VALID-02 5-participant within-MCSE
 
 ### Phase 13: JAX-Native Cohort Simulation
 
@@ -183,7 +183,7 @@ Plans:
 | 9 - Prechecks | v1.1 | 2/2 | Complete | 2026-04-07 |
 | 10 - Core Power Modules + Sweep | v1.1 | 3/3 | Complete | 2026-04-07 |
 | 11 - Aggregation + Publication | v1.1 | 3/3 | Complete | 2026-04-07 |
-| 12 - Batched Hierarchical JAX Logp | v1.2 | 0/4 | Pending | — |
+| 12 - Batched Hierarchical JAX Logp | v1.2 | 4/4 | Complete | 2026-04-12 |
 | 13 - JAX-Native Cohort Simulation | v1.2 | 0/3 | Pending | — |
 | 14 - Integration + GPU Benchmark | v1.2 | 0/3 | Pending | — |
 | 15 - Production Run + Results | v1.2 | 0/3 | Pending | — |

@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 Phase: 14 of 15 (Integration + GPU Benchmark)
 Plan: 3/3 complete (plans 01 and 03 done; plan 02 GPU benchmark script)
 Status: In progress — VALID-03 cross-platform script and dual-path run_sbf_iteration complete
-Last activity: 2026-04-12 — Completed 14-03-PLAN.md (VALID-03 cross-platform consistency check)
+Last activity: 2026-04-12 — Re-executed 14-01-PLAN.md: dual-path run_sbf_iteration + helpers + VALID-05 tests committed
 
 [==========██████░]   v1.1 code-complete (Phases 1-11); Phases 12-13 verified; Phase 14 plans 01+03 done
 
@@ -80,6 +80,10 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | KS test on choice frequency distributions (not per-trial match) for VALID-04 | NumPy PCG64 and JAX ThreeFry are incompatible RNG streams; per-trial exact match impossible; aggregate distributional equivalence is the correct scientific test | 13-03 |
 | VALID-03 is two separate script invocations + JSON comparison (not a single pytest) | JAX platform (CPU/GPU) is set at import time; cannot be changed within a running process | 14-03 |
 | compare_results denominator uses abs(mean_a) + 1e-8 | Prevents near-zero division false failures when parameter means (e.g. zeta) are ~ 0.001 | 14-03 |
+| Deferred import of fit_batch_hierarchical inside else block of run_sbf_iteration | Keeps heavy JAX/PyMC/pyhgf imports out of import-time when using legacy path; consistent with existing deferred-import pattern | 14-01 |
+| fit_df_2 not constructed in batched path of run_sbf_iteration | SBF subsampling loop only uses fit_df_3 for BF contrasts and diagnostics; same is true in legacy path — no structural need to construct it | 14-01 |
+| az.rhat(da)[param].values for scalar extraction from az.rhat Dataset | az.rhat(DataArray) returns a Dataset not a scalar; [param].values extracts the 0-d NumPy scalar correctly | 14-01 |
+| strict=True on all zip() calls in _idata_to_fit_df and _build_idata_dict | Catches participant metadata length misalignment at helper boundaries before silent posterior-to-participant mapping errors | 14-01 |
 
 ### Pending Todos
 
@@ -106,6 +110,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-12
-Stopped at: Completed 14-03-PLAN.md — VALID-03 cross-platform consistency check (validation/valid03_cross_platform.py + tests/test_valid03.py)
+Stopped at: Completed 14-01-PLAN.md — dual-path run_sbf_iteration + _idata_to_fit_df + _split_idata + _build_idata_dict + --legacy flag + VALID-05 tests
+Resume file: None
+Next action: Execute 14-02-PLAN.md (GPU benchmark timing with full-iteration measurement)
 Resume file: None
 Next action: Phase 14 plan 02 (GPU benchmark + decision gate in 08_run_power_iteration.py) if not yet complete; then phase 15

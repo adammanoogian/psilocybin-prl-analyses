@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 
 ## Current Position
 
-Phase: 13 of 15 (JAX-Native Cohort Simulation) — In progress
-Plan: 2/3 complete
-Status: In progress
-Last activity: 2026-04-12 — Completed 13-02-PLAN.md (simulate_cohort_jax vmap + JAX batch path)
+Phase: 13 of 15 (JAX-Native Cohort Simulation) — Phase complete
+Plan: 3/3 complete
+Status: Phase complete
+Last activity: 2026-04-12 — Completed 13-03-PLAN.md (VALID-04 statistical equivalence: KS test confirms JAX path is unbiased vs legacy NumPy)
 
-[==========████░░]   v1.1 code-complete (Phases 1-11); Phase 12 verified; Phase 13 Plans 01-02 done
+[==========█████░]   v1.1 code-complete (Phases 1-11); Phase 12 verified; Phase 13 complete
 
 ## Performance Metrics
 
@@ -76,6 +76,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | simulate_cohort_jax captures shared cue_probs_arr in lambda closure | Shared trial sequence across participants; closure keeps vmap axes to 6 scalar params + 1 key; cleaner than in_axes=None | 13-02 |
 | simulate_batch stacks per-participant cue_probs as axis=0 | Each session has distinct env_seed → different trial sequence; (P, n_trials, 3) stack with in_axes=0 handles variation across participants | 13-02 |
 | Two-phase batch: Python collection then single vmap dispatch | Preserves deterministic seed derivation; eliminates _prewarm_jit; DataFrame assembly stays in Python after compiled kernel runs | 13-02 |
+| Single fixed trial sequence for VALID-04 controlled-comparison design | Isolates agent RNG from environment RNG; holding env constant makes KS test sensitive only to JAX vs NumPy behavioral difference | 13-03 |
+| KS test on choice frequency distributions (not per-trial match) for VALID-04 | NumPy PCG64 and JAX ThreeFry are incompatible RNG streams; per-trial exact match impossible; aggregate distributional equivalence is the correct scientific test | 13-03 |
 
 ### Pending Todos
 
@@ -101,7 +103,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-12T13:42:48Z
-Stopped at: Completed 13-02-PLAN.md — simulate_cohort_jax vmap + JAX batch path + 4 cohort tests
+Last session: 2026-04-12T14:04:31Z
+Stopped at: Completed 13-03-PLAN.md — VALID-04 statistical equivalence (JAX path validated vs NumPy legacy)
 Resume file: None
-Next action: /gsd:execute-phase 13-03 (JAX benchmarks)
+Next action: Phase 13 complete. Next: /gsd:execute-phase 14 (GPU fitting benchmark)

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phases 12-13 complete, Phase 14 next
+**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 14 Integration + GPU Benchmark in progress (plans 01 + 03 complete)
 
 ## Current Position
 
-Phase: 13 of 15 (JAX-Native Cohort Simulation) — COMPLETE ✓
-Plan: 3/3 complete
-Status: Phase verified (7/7 must-haves passed, JSIM-01..06 + VALID-04)
-Last activity: 2026-04-12 — Phase 13 verified: all requirements confirmed against codebase
+Phase: 14 of 15 (Integration + GPU Benchmark)
+Plan: 3/3 complete (plans 01 and 03 done; plan 02 GPU benchmark script)
+Status: In progress — VALID-03 cross-platform script and dual-path run_sbf_iteration complete
+Last activity: 2026-04-12 — Completed 14-03-PLAN.md (VALID-03 cross-platform consistency check)
 
-[==========█████░]   v1.1 code-complete (Phases 1-11); Phases 12-13 verified; Phase 14 next
+[==========██████░]   v1.1 code-complete (Phases 1-11); Phases 12-13 verified; Phase 14 plans 01+03 done
 
 ## Performance Metrics
 
@@ -78,6 +78,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | Two-phase batch: Python collection then single vmap dispatch | Preserves deterministic seed derivation; eliminates _prewarm_jit; DataFrame assembly stays in Python after compiled kernel runs | 13-02 |
 | Single fixed trial sequence for VALID-04 controlled-comparison design | Isolates agent RNG from environment RNG; holding env constant makes KS test sensitive only to JAX vs NumPy behavioral difference | 13-03 |
 | KS test on choice frequency distributions (not per-trial match) for VALID-04 | NumPy PCG64 and JAX ThreeFry are incompatible RNG streams; per-trial exact match impossible; aggregate distributional equivalence is the correct scientific test | 13-03 |
+| VALID-03 is two separate script invocations + JSON comparison (not a single pytest) | JAX platform (CPU/GPU) is set at import time; cannot be changed within a running process | 14-03 |
+| compare_results denominator uses abs(mean_a) + 1e-8 | Prevents near-zero division false failures when parameter means (e.g. zeta) are ~ 0.001 | 14-03 |
 
 ### Pending Todos
 
@@ -104,6 +106,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-12
-Stopped at: Phase 13 verified — 7/7 must-haves passed, ROADMAP + REQUIREMENTS updated
+Stopped at: Completed 14-03-PLAN.md — VALID-03 cross-platform consistency check (validation/valid03_cross_platform.py + tests/test_valid03.py)
 Resume file: None
-Next action: /gsd:discuss-phase 14 or /gsd:plan-phase 14 (Integration + GPU Benchmark + Decision Gate)
+Next action: Phase 14 plan 02 (GPU benchmark + decision gate in 08_run_power_iteration.py) if not yet complete; then phase 15

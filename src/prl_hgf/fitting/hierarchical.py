@@ -577,4 +577,146 @@ def build_logp_ops_batched(
     return _BatchedLogpOp(), n_participants, n_trials
 
 
-__all__ = ["build_logp_ops_batched"]
+
+# ---------------------------------------------------------------------------
+# Hierarchical PyMC model factory
+# ---------------------------------------------------------------------------
+
+
+def build_pymc_model_batched(
+    input_data_arr: np.ndarray,
+    observed_arr: np.ndarray,
+    choices_arr: np.ndarray,
+    model_name: str = "hgf_3level",
+    trial_mask: np.ndarray | None = None,
+) -> tuple:
+    """Build a hierarchical PyMC model with shape=(P,) IID priors.
+
+    Constructs a PyMC model where every free parameter has
+    ``shape=n_participants`` — one independent prior per participant,
+    with **no hyperpriors and no partial pooling**.  This gives identical
+    statistical semantics to v1.1's per-participant loop but packs
+    everything into a single model graph so that one
+    ``pmjax.sample_numpyro_nuts`` call fits the entire cohort.
+
+    The ``shape=(P,)`` trick exploits the fact that PyMC's IID priors
+    with no plate-level coupling are mathematically equivalent to P
+    independent models.  The only difference is that NUTS explores all
+    P posteriors in one joint step, amortising launch overhead.
+
+    Parameters
+    ----------
+    input_data_arr : numpy.ndarray, shape (P, n_trials, 3)
+        Float reward-value arrays for all participants.
+    observed_arr : numpy.ndarray, shape (P, n_trials, 3)
+        Binary observed masks for all participants.
+    choices_arr : numpy.ndarray, shape (P, n_trials)
+        Chosen cue indices for all participants.
+    model_name : str, optional
+        Model variant: ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+    trial_mask : numpy.ndarray or None, shape (P, n_trials)
+        Binary mask for variable-length cohorts.  Defaults to all-ones.
+
+    Returns
+    -------
+    model : pymc.Model
+        Compiled PyMC model with IID priors and ``pm.Potential`` hook.
+    var_names : list[str]
+        Names of the free parameters for ``az.summary``.
+    n_participants : int
+        Number of participants ``P``.
+
+    Raises
+    ------
+    ValueError
+        If ``input_data_arr`` is not 3-dimensional or ``model_name`` is
+        not recognised.
+    """
+    import pymc as pm
+
+    if input_data_arr.ndim != 3:
+        msg = (
+            f"input_data_arr must be 3-dimensional (P, n_trials, 3), "
+            f"got ndim={input_data_arr.ndim}"
+        )
+        raise ValueError(msg)
+
+    if model_name not in _MODEL_NAMES:
+        msg = (
+            f"model_name must be one of {_MODEL_NAMES}, "
+            f"got {model_name!r}"
+        )
+        raise ValueError(msg)
+
+    n_participants = input_data_arr.shape[0]
+
+    logp_op, _P, _T = build_logp_ops_batched(
+        input_data_arr,
+        observed_arr,
+        choices_arr,
+        model_name=model_name,
+        trial_mask=trial_mask,
+    )
+
+    with pm.Model() as model:
+        if model_name == "hgf_2level":
+            # Perceptual parameter: tonic volatility (must be < 0)
+            omega_2 = pm.TruncatedNormal(
+                "omega_2", mu=-3.0, sigma=2.0, upper=0.0,
+                shape=n_participants,
+            )
+
+            # Response parameters
+            log_beta = pm.Normal(
+                "log_beta", mu=0.0, sigma=1.5,
+                shape=n_participants,
+            )
+            beta = pm.Deterministic(
+                "beta", pm.math.exp(log_beta),
+            )
+            zeta = pm.Normal(
+                "zeta", mu=0.0, sigma=2.0,
+                shape=n_participants,
+            )
+
+            pm.Potential("loglike", logp_op(omega_2, beta, zeta))
+            var_names = ["omega_2", "beta", "zeta"]
+
+        else:
+            # Perceptual parameters
+            omega_2 = pm.TruncatedNormal(
+                "omega_2", mu=-3.0, sigma=2.0, upper=0.0,
+                shape=n_participants,
+            )
+            omega_3 = pm.TruncatedNormal(
+                "omega_3", mu=-6.0, sigma=2.0, upper=0.0,
+                shape=n_participants,
+            )
+            kappa = pm.TruncatedNormal(
+                "kappa", mu=1.0, sigma=0.5, lower=0.01, upper=2.0,
+                shape=n_participants,
+            )
+
+            # Response parameters
+            log_beta = pm.Normal(
+                "log_beta", mu=0.0, sigma=1.5,
+                shape=n_participants,
+            )
+            beta = pm.Deterministic(
+                "beta", pm.math.exp(log_beta),
+            )
+            zeta = pm.Normal(
+                "zeta", mu=0.0, sigma=2.0,
+                shape=n_participants,
+            )
+
+            pm.Potential(
+                "loglike",
+                logp_op(omega_2, omega_3, kappa, beta, zeta),
+            )
+            var_names = ["omega_2", "omega_3", "kappa", "beta", "zeta"]
+
+    return model, var_names, n_participants
+
+
+__all__ = ["build_logp_ops_batched", "build_pymc_model_batched"]

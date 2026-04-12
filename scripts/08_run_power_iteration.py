@@ -206,22 +206,90 @@ class _GpuMonitor:
         return max((s["vram_total_mb"] for s in self.samples), default=0.0)
 
 
+def _update_state_md(
+    state_md_path: Path,
+    decision: str,
+    gpu_hours_per_chunk: float,
+    per_iteration_s: float,
+) -> None:
+    """Append decision gate result to .planning/STATE.md Key Decisions table.
+
+    Parameters
+    ----------
+    state_md_path : Path
+        Absolute path to .planning/STATE.md.
+    decision : str
+        Gate decision: ``"gpu"`` or ``"cpu_comp"``.
+    gpu_hours_per_chunk : float
+        Projected GPU-hours per chunk.
+    per_iteration_s : float
+        Measured wall-clock time for one full iteration (seconds).
+    """
+    if not state_md_path.exists():
+        print(
+            f"WARNING: STATE.md not found at {state_md_path} — "
+            "skipping decision gate append."
+        )
+        return
+
+    text = state_md_path.read_text(encoding="utf-8")
+
+    operator = ">" if decision == "cpu_comp" else "<="
+    row = (
+        f"| Benchmark decision gate: {decision} "
+        f"({gpu_hours_per_chunk} GPU-hrs/chunk) "
+        f"| BENCH-02: per_iter_s={round(per_iteration_s, 1)}, "
+        f"formula=per_iter_s*600/3600 {operator} 50 | 14-02 |\n"
+    )
+
+    # Find the Key Decisions table and append before the next blank line /
+    # section heading.  Locate the header row of the table to anchor insertion.
+    table_header = "| Decision | Rationale | Phase |"
+    if table_header not in text:
+        print(
+            "WARNING: Key Decisions table header not found in STATE.md — "
+            "appending row at end of file."
+        )
+        text = text.rstrip("\n") + "\n\n" + row
+    else:
+        # Find the last row of the Key Decisions table: the last line starting
+        # with '| ' that comes after the table header.
+        header_pos = text.index(table_header)
+        after_header = text[header_pos:]
+        lines = after_header.split("\n")
+        last_table_line_idx = 0
+        for idx, line in enumerate(lines):
+            if line.startswith("| "):
+                last_table_line_idx = idx
+        insert_pos = header_pos + len(
+            "\n".join(lines[: last_table_line_idx + 1])
+        )
+        text = text[: insert_pos + 1] + row + text[insert_pos + 1 :]
+
+    state_md_path.write_text(text, encoding="utf-8")
+    print(f"  Appended decision gate row to {state_md_path}")
+
+
 def _run_benchmark(
     base_config: object,
     power_config: object,
     output_dir: Path,
     args: argparse.Namespace,
 ) -> None:
-    """Time JAX compilation and a single real MCMC fit.
+    """Run one full batched SBF iteration and report timing + decision gate.
 
-    Measures three phases:
+    Measures four phases:
 
-    1. JAX JIT compilation / cache load (via ``fit_batch._prewarm_jit``).
-    2. Simulation of a small cohort (N=10 per group, baseline only).
-    3. A single-participant MCMC fit (post-compilation).
+    1. GPU device info query.
+    2. JAX compilation cache test: two back-to-back small fits (BENCH-05).
+    3. Full batched iteration timing at max N (BENCH-01).
+    4. Decision gate application and result recording (BENCH-02).
 
-    Writes a JSON report to ``output_dir / benchmark.json`` and prints
-    a human-readable summary to stdout.
+    GPU utilisation is sampled via background-threaded nvidia-smi during the
+    full iteration (BENCH-04).
+
+    Writes ``benchmark_batched.json`` to ``output_dir`` and appends the
+    decision gate result to ``.planning/STATE.md``.
 
     Parameters
     ----------
@@ -234,23 +302,21 @@ def _run_benchmark(
     args : argparse.Namespace
         Parsed CLI arguments (provides fit-chains, fit-draws, etc.).
     """
-    from prl_hgf.fitting.batch import _prewarm_jit
-    from prl_hgf.fitting.single import fit_participant
+    import jax
+
+    from prl_hgf.fitting.hierarchical import fit_batch_hierarchical
     from prl_hgf.power.config import make_power_config
+    from prl_hgf.power.iteration import apply_decision_gate, run_sbf_iteration
     from prl_hgf.simulation.batch import simulate_batch
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    results = {}
+    results: dict = {}
 
     print("=" * 60)
-    print("BENCHMARK MODE")
+    print("BENCHMARK MODE (batched hierarchical path)")
     print("=" * 60)
 
     # --- Phase 0: GPU device info ---
-    import subprocess
-
-    import jax
-
     devices = jax.devices()
     gpu_devices = [d for d in devices if d.platform == "gpu"]
     if gpu_devices:
@@ -259,14 +325,21 @@ def _run_benchmark(
         print(f"\nGPU: {dev}")
     else:
         results["gpu_device"] = "none (CPU only)"
-        print("\nWARNING: No GPU detected — timings will reflect CPU performance")
+        print(
+            "\nWARNING: No GPU detected. Benchmark reflects CPU performance "
+            "only. Decision gate results may not be meaningful."
+        )
 
-    # Capture full nvidia-smi snapshot
     try:
         smi = subprocess.run(
-            ["nvidia-smi", "--query-gpu=name,memory.total,memory.free",
-             "--format=csv,noheader"],
-            capture_output=True, text=True, timeout=10,
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total,memory.free",
+                "--format=csv,noheader",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
         )
         if smi.returncode == 0:
             gpu_info = smi.stdout.strip()
@@ -275,136 +348,107 @@ def _run_benchmark(
     except (FileNotFoundError, subprocess.TimeoutExpired):
         pass
 
-    # --- Phase 1: JAX JIT compilation for both models ---
-    for model_name in ("hgf_3level", "hgf_2level"):
-        print(f"\nPhase 1: JIT compilation ({model_name})...")
-        t0 = time.perf_counter()
-        _prewarm_jit(model_name)
-        dt = time.perf_counter() - t0
-        key = f"jit_compile_{model_name}_s"
-        results[key] = round(dt, 2)
-        print(f"  {model_name} JIT: {dt:.2f}s")
+    # --- Phase 1: JAX compilation cache test (BENCH-05) ---
+    print("\nPhase 1: JAX compilation cache test (BENCH-05)...")
+    print("  Building tiny cohort for JIT warm-up (N=2/group, 2 chains, 10 draws)...")
 
-    # --- Phase 2: Simulate a small cohort ---
-    print("\nPhase 2: Simulate cohort (N=10/group, 3 sessions)...")
-    n_bench = 10
     d_bench = power_config.effect_size_grid[0]
-    cfg = make_power_config(base_config, n_bench, d_bench, 99999)
+    cfg_tiny = make_power_config(base_config, 2, d_bench, 99999)
+    sim_tiny = simulate_batch(cfg_tiny)
 
     t0 = time.perf_counter()
-    sim_df = simulate_batch(cfg)
-    dt_sim = time.perf_counter() - t0
-    results["simulate_n10_s"] = round(dt_sim, 2)
-
-    n_participant_sessions = sim_df.groupby(
-        ["participant_id", "group", "session"]
-    ).ngroups
-    print(f"  Simulated {n_participant_sessions} participant-sessions in {dt_sim:.2f}s")
-
-    # --- Phase 3: Fit ONE participant-session (post-cache) per model ---
-    import numpy as np
-
-    first_key = (
-        sim_df[["participant_id", "group", "session"]]
-        .drop_duplicates()
-        .iloc[0]
+    fit_batch_hierarchical(
+        sim_tiny,
+        "hgf_3level",
+        n_chains=2,
+        n_draws=10,
+        n_tune=10,
+        target_accept=0.9,
+        random_seed=42,
+        sampler=args.sampler,
+        progressbar=False,
     )
-    pid, grp, sess = first_key["participant_id"], first_key["group"], first_key["session"]
-    subset = sim_df[
-        (sim_df["participant_id"] == pid)
-        & (sim_df["group"] == grp)
-        & (sim_df["session"] == sess)
-    ].sort_values("trial")
+    jit_cold_s = time.perf_counter() - t0
+    results["jit_cold_s"] = round(jit_cold_s, 2)
+    print(f"  Cold JIT: {jit_cold_s:.2f}s")
 
-    n_trials = len(subset)
-    choices = subset["cue_chosen"].to_numpy(dtype=int)
-    rewards = subset["reward"].to_numpy(dtype=float)
-    input_arr = np.zeros((n_trials, 3), dtype=float)
-    observed_arr = np.zeros((n_trials, 3), dtype=int)
-    for t in range(n_trials):
-        input_arr[t, choices[t]] = rewards[t]
-        observed_arr[t, choices[t]] = 1
+    t0 = time.perf_counter()
+    fit_batch_hierarchical(
+        sim_tiny,
+        "hgf_3level",
+        n_chains=2,
+        n_draws=10,
+        n_tune=10,
+        target_accept=0.9,
+        random_seed=43,
+        sampler=args.sampler,
+        progressbar=False,
+    )
+    jit_warm_s = time.perf_counter() - t0
+    results["jit_warm_s"] = round(jit_warm_s, 2)
+    print(f"  Warm JIT: {jit_warm_s:.2f}s")
+    cache_speedup = jit_cold_s / max(jit_warm_s, 0.001)
+    print(f"  Cache speedup: {cache_speedup:.1f}x")
 
-    def _gpu_vram_mb() -> dict[str, float] | None:
-        """Query nvidia-smi for current VRAM usage in MB."""
-        try:
-            smi = subprocess.run(
-                ["nvidia-smi", "--query-gpu=memory.used,memory.total",
-                 "--format=csv,noheader,nounits"],
-                capture_output=True, text=True, timeout=10,
-            )
-            if smi.returncode == 0:
-                used, total = smi.stdout.strip().split(", ")
-                return {"used_mb": float(used), "total_mb": float(total)}
-        except (FileNotFoundError, subprocess.TimeoutExpired, ValueError):
-            pass
-        return None
+    # --- Phase 2: Full batched iteration at max N (BENCH-01) ---
+    max_n = max(power_config.n_per_group_grid)
+    # 2 groups x max_n x 3 sessions = participant-sessions
+    benchmark_n_participant_sessions = 2 * max_n * 3
+    print(
+        f"\nPhase 2: Full batched iteration (BENCH-01) at max N={max_n} "
+        f"({benchmark_n_participant_sessions} participant-sessions × 2 models)..."
+    )
 
-    for model_name in ("hgf_3level", "hgf_2level"):
-        print(f"\nPhase 3: Fit 1 participant ({model_name}, "
-              f"{args.fit_chains} chains × {args.fit_draws} draws)...")
-        vram_before = _gpu_vram_mb()
-        t0 = time.perf_counter()
-        fit_participant(
-            input_data_arr=input_arr,
-            observed_arr=observed_arr,
-            choices_arr=choices,
-            participant_id=pid,
-            group=grp,
-            session=sess,
-            model_name=model_name,
-            n_chains=args.fit_chains,
-            n_draws=args.fit_draws,
-            n_tune=args.fit_tune,
-            target_accept=0.9,
-            random_seed=42,
-            cores=1,
-            sampler=args.sampler,
-        )
-        dt_fit = time.perf_counter() - t0
-        vram_after = _gpu_vram_mb()
+    monitor = _GpuMonitor(interval_s=2.0)
+    monitor.start()
 
-        key = f"fit_single_{model_name}_s"
-        results[key] = round(dt_fit, 2)
-        print(f"  {model_name} single fit: {dt_fit:.2f}s")
+    t0 = time.perf_counter()
+    run_sbf_iteration(
+        base_config=base_config,
+        effect_size_delta=d_bench,
+        iteration=0,
+        child_seed=99999,
+        n_per_group_grid=power_config.n_per_group_grid,
+        power_config=power_config,
+        n_chains=args.fit_chains,
+        n_draws=args.fit_draws,
+        n_tune=args.fit_tune,
+        sampler=args.sampler,
+        use_legacy=False,
+    )
+    per_iteration_s = time.perf_counter() - t0
 
-        if vram_after:
-            vram_key = f"vram_after_{model_name}_mb"
-            results[vram_key] = vram_after["used_mb"]
-            results["vram_total_mb"] = vram_after["total_mb"]
-            print(f"  VRAM: {vram_after['used_mb']:.0f} / {vram_after['total_mb']:.0f} MB")
-            if vram_before:
-                delta = vram_after["used_mb"] - vram_before["used_mb"]
-                results[f"vram_delta_{model_name}_mb"] = round(delta, 1)
-                print(f"  VRAM delta: +{delta:.0f} MB")
+    monitor.stop()
 
-    # --- Projections (SBF design: fit at max N only, subsample rest) ---
-    fit_3 = results["fit_single_hgf_3level_s"]
-    fit_2 = results["fit_single_hgf_2level_s"]
-    fit_both = fit_3 + fit_2
+    results["per_iteration_s"] = round(per_iteration_s, 2)
+    results["peak_vram_mb"] = monitor.peak_vram_mb
+    results["mean_gpu_util_pct"] = round(monitor.mean_gpu_util_pct, 1)
+    results["vram_total_mb"] = monitor.vram_total_mb
+    results["benchmark_n_participant_sessions"] = benchmark_n_participant_sessions
 
+    print(f"  Full iteration: {per_iteration_s:.2f}s")
+    if monitor.samples:
+        print(f"  Peak VRAM: {monitor.peak_vram_mb:.0f} MB")
+        print(f"  Mean GPU util: {monitor.mean_gpu_util_pct:.1f}%")
+
+    # --- Phase 3: Decision gate (BENCH-02) ---
+    print("\nPhase 3: Decision gate (BENCH-02)...")
+    gate_result = apply_decision_gate(per_iteration_s)
+    results.update(gate_result)
+
+    print(f"  GPU-hours/chunk: {gate_result['gpu_hours_per_chunk']:.1f}h")
+    print(f"  Decision: {gate_result['decision'].upper()}")
+
+    # --- Grid and MCMC settings metadata ---
     n_grid = power_config.n_per_group_grid
     d_grid = power_config.effect_size_grid
     n_iter = power_config.n_iterations
-    max_n = max(n_grid)
-
-    # SBF: fit at max N only — 2 groups × max_n × 3 sessions × 2 models
-    fits_per_d_iter = 2 * max_n * 3 * 2
-    total_fits = fits_per_d_iter * len(d_grid) * n_iter
-    total_hours = (total_fits * fit_both / 2) / 3600  # /2: fit_both covers 2 models
-
-    results["projection_sbf_design"] = {
-        "total_fits": total_fits,
-        "total_gpu_hours": round(total_hours, 1),
-        "per_chunk_hours": round(total_hours / power_config.n_chunks, 1),
-    }
     results["grid"] = {
         "n_per_group": n_grid,
         "max_n": max_n,
         "effect_sizes": d_grid,
         "n_iterations": n_iter,
         "n_chunks": power_config.n_chunks,
-        "sbf_grid_tasks": len(d_grid) * n_iter,
     }
     results["mcmc_settings"] = {
         "chains": args.fit_chains,
@@ -413,55 +457,46 @@ def _run_benchmark(
         "sampler": args.sampler,
     }
 
-    # --- Report ---
-    print("\n" + "=" * 60)
-    print("BENCHMARK RESULTS")
-    print("=" * 60)
-    print(f"  GPU:                   {results.get('gpu_device', 'unknown')}")
-    if "vram_total_mb" in results:
-        print(f"  VRAM total:            {results['vram_total_mb']:.0f} MB")
-    if "vram_after_hgf_3level_mb" in results:
-        print(f"  VRAM after 3-level:    {results['vram_after_hgf_3level_mb']:.0f} MB")
-    if "vram_after_hgf_2level_mb" in results:
-        print(f"  VRAM after 2-level:    {results['vram_after_hgf_2level_mb']:.0f} MB")
-    print()
-    print(f"  JIT compile (3-level): {results['jit_compile_hgf_3level_s']:.2f}s")
-    print(f"  JIT compile (2-level): {results['jit_compile_hgf_2level_s']:.2f}s")
-    print(f"  Simulate (N=10):       {results['simulate_n10_s']:.2f}s")
-    print(f"  Single fit (3-level):  {fit_3:.2f}s")
-    print(f"  Single fit (2-level):  {fit_2:.2f}s")
-    print(f"  Both models / participant-session: {fit_both:.2f}s")
-    print()
-    print("PROJECTIONS (SBF design — fit max N, subsample at each N):")
-    print(f"  Max N per group:       {max_n}")
-    print(f"  SBF grid tasks:        {len(d_grid) * n_iter:,}")
-    print(f"  Total MCMC fits:       {total_fits:,}")
-    print(f"  Estimated GPU-hours:   {total_hours:.1f}h")
-    n_chunks = power_config.n_chunks
-    print(f"  Per chunk ({n_chunks} chunks): {total_hours / n_chunks:.1f}h")
-    if "vram_total_mb" in results:
-        peak = max(
-            results.get("vram_after_hgf_3level_mb", 0),
-            results.get("vram_after_hgf_2level_mb", 0),
-        )
-        print()
-        print("GPU SIZING:")
-        print(f"  Peak VRAM (single fit): {peak:.0f} MB")
-        print(f"  GPU assigned:           {results['vram_total_mb']:.0f} MB")
-        headroom = results["vram_total_mb"] - peak
-        print(f"  Headroom:               {headroom:.0f} MB")
-        if peak < 8000:
-            print("  Recommendation:         T4 (16 GB) sufficient")
-        elif peak < 20000:
-            print("  Recommendation:         A40 (48 GB) or A100 (40 GB)")
-        else:
-            print("  Recommendation:         A100 (80 GB)")
-    print("=" * 60)
-
-    bench_path = output_dir / "benchmark.json"
+    # --- Write benchmark_batched.json ---
+    bench_path = output_dir / "benchmark_batched.json"
     with open(bench_path, "w") as f:
         json.dump(results, f, indent=2)
     print(f"\nBenchmark saved to: {bench_path}")
+
+    # --- Append decision to STATE.md ---
+    state_md_path = (
+        Path(__file__).resolve().parent.parent / ".planning" / "STATE.md"
+    )
+    _update_state_md(
+        state_md_path,
+        gate_result["decision"],
+        gate_result["gpu_hours_per_chunk"],
+        per_iteration_s,
+    )
+
+    # --- Human-readable summary ---
+    print("\n" + "=" * 60)
+    print("BENCHMARK RESULTS")
+    print("=" * 60)
+    print(f"  GPU:                      {results.get('gpu_device', 'unknown')}")
+    print(f"  VRAM total:               {results['vram_total_mb']:.0f} MB")
+    print(f"  Peak VRAM (full iter):    {results['peak_vram_mb']:.0f} MB")
+    print(f"  Mean GPU util:            {results['mean_gpu_util_pct']:.1f}%")
+    print()
+    print(f"  JIT cold (first call):    {results['jit_cold_s']:.2f}s")
+    print(f"  JIT warm (second call):   {results['jit_warm_s']:.2f}s")
+    print()
+    print(f"  Full iteration (N={max_n}): {per_iteration_s:.2f}s")
+    print(f"  Participant-sessions:      {benchmark_n_participant_sessions} x 2 models")
+    print()
+    print("DECISION GATE (BENCH-02):")
+    print("  Formula: per_iter_s * 600 / 3600 > 50")
+    print(f"  {per_iteration_s:.1f}s * 600 / 3600 = {gate_result['gpu_hours_per_chunk']:.1f} GPU-hrs/chunk")
+    if gate_result["decision"] == "gpu":
+        print(f"  {gate_result['gpu_hours_per_chunk']:.1f} <= 50 → RECOMMEND GPU (mgpu partition)")
+    else:
+        print(f"  {gate_result['gpu_hours_per_chunk']:.1f} > 50 → RECOMMEND CPU (comp partition)")
+    print("=" * 60)
 
 
 def main() -> None:

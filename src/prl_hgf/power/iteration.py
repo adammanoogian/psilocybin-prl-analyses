@@ -13,6 +13,15 @@ Two iteration strategies are provided:
   fits once, then subsamples posteriors at each N level. 3.8x fewer MCMC
   fits.
 
+Two fitting backends are available inside :func:`run_sbf_iteration`:
+
+- Default (``use_legacy=False``): calls :func:`~prl_hgf.fitting.hierarchical\
+.fit_batch_hierarchical`, the v1.2 batched JAX path.  Returns a single joint
+  ``arviz.InferenceData`` for all participants.
+- Legacy (``use_legacy=True``): calls the original v1.1
+  :func:`~prl_hgf.fitting.batch.fit_batch` sequential path.  Preserved for
+  reproducibility and debugging (VALID-05).
+
 Memory strategy
 ---------------
 The legacy BMS path (:func:`_compute_bms_power`) processes idata
@@ -555,6 +564,183 @@ def _bms_from_waic_table(
 
 
 # ---------------------------------------------------------------------------
+# Batched InferenceData conversion helpers (v1.2 path)
+# ---------------------------------------------------------------------------
+
+
+def _idata_to_fit_df(
+    idata: object,
+    model_name: str,
+) -> pd.DataFrame:
+    """Convert batched ``InferenceData`` to the legacy ``fit_batch`` schema.
+
+    Extracts per-participant posterior statistics from a joint
+    ``arviz.InferenceData`` (produced by :func:`~prl_hgf.fitting.hierarchical\
+.fit_batch_hierarchical`) and returns a DataFrame conforming to the schema
+    produced by the legacy :func:`~prl_hgf.fitting.batch.fit_batch`.
+
+    Parameters
+    ----------
+    idata : arviz.InferenceData
+        Joint posterior for all participants.  Must have a ``participant``
+        dimension on every parameter variable, plus ``participant_group`` and
+        ``participant_session`` coordinates.
+    model_name : str
+        Model label to populate the ``model`` column (e.g.
+        ``"hgf_3level"``).
+
+    Returns
+    -------
+    pandas.DataFrame
+        Columns: ``participant_id``, ``group``, ``session``, ``model``,
+        ``parameter``, ``mean``, ``sd``, ``hdi_3%``, ``hdi_97%``,
+        ``r_hat``, ``ess``, ``flagged``.  One row per
+        (participant, parameter) combination.
+    """
+    import arviz as az  # deferred — heavy import
+
+    posterior = idata.posterior  # type: ignore[union-attr]
+
+    # Participant ordering from coords is the ground truth
+    participant_ids = list(posterior.coords["participant"].values)
+    participant_groups = list(posterior.coords["participant_group"].values)
+    participant_sessions = list(posterior.coords["participant_session"].values)
+
+    # Parameter variables: all data_vars in the posterior
+    coord_names = set(posterior.coords)
+    param_names = [
+        v for v in posterior.data_vars
+        if v not in coord_names
+    ]
+
+    rows: list[dict] = []
+    for param in param_names:
+        for i, (pid, grp, sess) in enumerate(
+            zip(
+                participant_ids,
+                participant_groups,
+                participant_sessions,
+                strict=True,
+            )
+        ):
+            da = posterior[param].isel(participant=i)
+            # Flatten to (chain * draw,) then compute stats
+            flat = da.values.flatten()
+            mean_val = float(np.mean(flat))
+            sd_val = float(np.std(flat, ddof=1))
+
+            # az.rhat / az.ess expect DataArrays with (chain, draw) dims
+            rhat_val = float(az.rhat(da).item())
+            ess_val = float(az.ess(da).item())
+
+            # HDI via az.hdi — returns Dataset with hdi_prob-specific keys
+            hdi_result = az.hdi(da, hdi_prob=0.94)
+            # hdi returns Dataset; variable name is param
+            hdi_lower = float(
+                hdi_result[param].values[0]
+                if hasattr(hdi_result, "data_vars")
+                else hdi_result.values[0]
+            )
+            hdi_upper = float(
+                hdi_result[param].values[1]
+                if hasattr(hdi_result, "data_vars")
+                else hdi_result.values[1]
+            )
+
+            flagged = rhat_val > 1.05 or ess_val < 400
+
+            rows.append(
+                {
+                    "participant_id": pid,
+                    "group": grp,
+                    "session": sess,
+                    "model": model_name,
+                    "parameter": param,
+                    "mean": mean_val,
+                    "sd": sd_val,
+                    "hdi_3%": hdi_lower,
+                    "hdi_97%": hdi_upper,
+                    "r_hat": rhat_val,
+                    "ess": ess_val,
+                    "flagged": flagged,
+                }
+            )
+
+    return pd.DataFrame(rows)
+
+
+def _split_idata(
+    joint_idata: object,
+    participant_idx: int,
+) -> object:
+    """Slice a joint ``InferenceData`` to a single participant.
+
+    Parameters
+    ----------
+    joint_idata : arviz.InferenceData
+        Batched posterior with a ``participant`` dimension.
+    participant_idx : int
+        Zero-based position along the ``participant`` dimension to extract.
+
+    Returns
+    -------
+    arviz.InferenceData
+        Single-participant ``InferenceData`` whose posterior has no
+        ``participant`` dimension.  Compatible with
+        :func:`~prl_hgf.analysis.bms.compute_subject_waic`.
+    """
+    import arviz as az  # deferred — heavy import
+
+    posterior_slice = joint_idata.posterior.isel(  # type: ignore[union-attr]
+        participant=participant_idx
+    )
+    return az.InferenceData(posterior=posterior_slice)
+
+
+def _build_idata_dict(
+    joint_idata: object,
+    participant_ids: list[str],
+    participant_groups: list[str],
+    participant_sessions: list[str],
+) -> dict[tuple, object]:
+    """Build a per-participant ``InferenceData`` mapping from a joint object.
+
+    Converts the joint ``InferenceData`` returned by
+    :func:`~prl_hgf.fitting.hierarchical.fit_batch_hierarchical` into the
+    ``dict[tuple, InferenceData]`` format expected by
+    :func:`_compute_waic_table` and :func:`_compute_bms_power`.
+
+    Parameters
+    ----------
+    joint_idata : arviz.InferenceData
+        Batched posterior with a ``participant`` dimension.
+    participant_ids : list[str]
+        Participant ID for each position in the ``participant`` dimension.
+    participant_groups : list[str]
+        Group label for each participant.
+    participant_sessions : list[str]
+        Session label for each participant.
+
+    Returns
+    -------
+    dict[tuple, arviz.InferenceData]
+        Mapping ``(participant_id, group, session) -> single-participant
+        InferenceData``.
+    """
+    result: dict[tuple, object] = {}
+    for i, (pid, grp, sess) in enumerate(
+        zip(
+            participant_ids,
+            participant_groups,
+            participant_sessions,
+            strict=True,
+        )
+    ):
+        result[(pid, grp, sess)] = _split_idata(joint_idata, i)
+    return result
+
+
+# ---------------------------------------------------------------------------
 # SBF iteration: simulate at max N, fit once, subsample at each N
 # ---------------------------------------------------------------------------
 
@@ -570,12 +756,22 @@ def run_sbf_iteration(
     n_draws: int = 500,
     n_tune: int = 500,
     sampler: str = "pymc",
+    use_legacy: bool = False,
 ) -> list[dict]:
     """Run one SBF iteration: simulate at max N, fit once, subsample at each N.
 
     This is 3.8x more efficient than the fixed-grid approach because MCMC
     fitting is performed only once at ``max(n_per_group_grid)`` and then
     posteriors are subsampled for each smaller N level.
+
+    Two fitting backends are available:
+
+    - ``use_legacy=False`` (default): uses
+      :func:`~prl_hgf.fitting.hierarchical.fit_batch_hierarchical`, the v1.2
+      batched JAX path.  Fits all participants in a single NUTS call.
+    - ``use_legacy=True``: uses the original v1.1
+      :func:`~prl_hgf.fitting.batch.fit_batch` sequential path.  Preserved
+      for reproducibility and debugging (VALID-05).
 
     Steps
     -----
@@ -618,6 +814,10 @@ def run_sbf_iteration(
         Tuning steps per chain.  Default ``500``.
     sampler : str, optional
         MCMC backend: ``"pymc"`` (default) or ``"numpyro"``.
+    use_legacy : bool, optional
+        If ``True``, use the v1.1 sequential :func:`~prl_hgf.fitting.batch\
+.fit_batch` path.  If ``False`` (default), use the v1.2 batched
+        :func:`~prl_hgf.fitting.hierarchical.fit_batch_hierarchical` path.
 
     Returns
     -------
@@ -632,34 +832,86 @@ def run_sbf_iteration(
         base_config, max_n, effect_size_delta, child_seed
     )
 
-    # Step 2: Simulate at max N
+    # Step 2: Simulate at max N (same for both paths — simulate_batch already
+    # uses JAX vmap internally since Phase 13)
     sim_df = simulate_batch(cfg)
 
-    # Step 3: Fit 3-level model to ALL participants
-    fit_df_3, idata_3level = fit_batch(
-        sim_df,
-        "hgf_3level",
-        return_idata=True,
-        random_seed=child_seed,
-        cores=1,
-        n_chains=n_chains,
-        n_draws=n_draws,
-        n_tune=n_tune,
-        sampler=sampler,
-    )
+    if use_legacy:
+        # ------------------------------------------------------------------
+        # Legacy v1.1 path: sequential per-participant MCMC
+        # ------------------------------------------------------------------
+        # Step 3 (legacy): Fit 3-level model to ALL participants
+        fit_df_3, idata_3level = fit_batch(
+            sim_df,
+            "hgf_3level",
+            return_idata=True,
+            random_seed=child_seed,
+            cores=1,
+            n_chains=n_chains,
+            n_draws=n_draws,
+            n_tune=n_tune,
+            sampler=sampler,
+        )
 
-    # Step 4: Fit 2-level model to ALL participants
-    fit_df_2, idata_2level = fit_batch(
-        sim_df,
-        "hgf_2level",
-        return_idata=True,
-        random_seed=child_seed + 1,
-        cores=1,
-        n_chains=n_chains,
-        n_draws=n_draws,
-        n_tune=n_tune,
-        sampler=sampler,
-    )
+        # Step 4 (legacy): Fit 2-level model to ALL participants
+        fit_df_2, idata_2level = fit_batch(
+            sim_df,
+            "hgf_2level",
+            return_idata=True,
+            random_seed=child_seed + 1,
+            cores=1,
+            n_chains=n_chains,
+            n_draws=n_draws,
+            n_tune=n_tune,
+            sampler=sampler,
+        )
+    else:
+        # ------------------------------------------------------------------
+        # Batched v1.2 path: one joint NUTS call for all participants
+        # ------------------------------------------------------------------
+        from prl_hgf.fitting.hierarchical import (  # noqa: PLC0415
+            fit_batch_hierarchical,
+        )
+
+        # Step 3 (batched): Fit 3-level model — single NUTS call
+        idata_3 = fit_batch_hierarchical(
+            sim_df,
+            "hgf_3level",
+            n_chains=n_chains,
+            n_draws=n_draws,
+            n_tune=n_tune,
+            target_accept=0.9,
+            random_seed=child_seed,
+            sampler=sampler,
+            progressbar=False,
+        )
+
+        # Step 4 (batched): Fit 2-level model — single NUTS call
+        idata_2 = fit_batch_hierarchical(
+            sim_df,
+            "hgf_2level",
+            n_chains=n_chains,
+            n_draws=n_draws,
+            n_tune=n_tune,
+            target_accept=0.9,
+            random_seed=child_seed + 1,
+            sampler=sampler,
+            progressbar=False,
+        )
+
+        # Extract participant metadata from coords (ground truth ordering)
+        pids = idata_3.posterior.coords["participant"].values.tolist()
+        pgrps = idata_3.posterior.coords["participant_group"].values.tolist()
+        psess = idata_3.posterior.coords["participant_session"].values.tolist()
+
+        # Convert to legacy DataFrame schema for BF contrasts + diagnostics.
+        # Only fit_df_3 is used in the subsampling loop (BF contrasts and
+        # recovery diagnostics are computed on the 3-level model).
+        fit_df_3 = _idata_to_fit_df(idata_3, "hgf_3level")
+
+        # Build per-participant idata dicts for WAIC computation
+        idata_3level = _build_idata_dict(idata_3, pids, pgrps, psess)
+        idata_2level = _build_idata_dict(idata_2, pids, pgrps, psess)
 
     # Step 5: Compute WAIC table once (does NOT delete idata)
     waic_table = _compute_waic_table(sim_df, idata_3level, idata_2level)
@@ -679,7 +931,7 @@ def run_sbf_iteration(
     for n_per_group in sorted(n_per_group_grid):
         # Select first N participants per group
         selected_pids: list = []
-        for grp, pids in pid_by_group.items():
+        for _grp, pids in pid_by_group.items():
             selected_pids.extend(pids[:n_per_group])
         selected_set = set(selected_pids)
 

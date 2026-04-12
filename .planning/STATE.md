@@ -9,12 +9,12 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 
 ## Current Position
 
-Phase: 12 of 15 (Batched Hierarchical JAX Logp) — COMPLETE ✓
-Plan: 4/4 complete
-Status: Phase verified (9/9 must-haves passed)
-Last activity: 2026-04-12 — Phase 12 verified: BATCH-01..07, VALID-01, VALID-02 all confirmed against codebase
+Phase: 13 of 15 (JAX-Native Cohort Simulation) — In progress
+Plan: 1/3 complete
+Status: In progress
+Last activity: 2026-04-12 — Completed 13-01-PLAN.md (simulate_session_jax with lax.scan)
 
-[==========████]     v1.1 code-complete (Phases 1-11); Phase 12 verified; Phase 13 next
+[==========████░░]   v1.1 code-complete (Phases 1-11); Phase 12 verified; Phase 13 Plan 01 done
 
 ## Performance Metrics
 
@@ -70,6 +70,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | Both VALID-02 paths use numpyro sampler | PyMC sampler hits _init_jitter read-only array bug with JAX-backed Ops; numpyro bypasses PyTensor entirely | 12-04 |
 | Simulated agent data for VALID-02 (not random) | Random choice/reward data produces poorly constrained posteriors, making MCSE-based comparison unreliable | 12-04 |
 | Positional dim indexing for batched posterior | PyMC assigns per-variable dim names when shape= used without dims=; positional indexing is robust | 12-04 |
+| Factory pattern for jax_session vmappability | _build_session_scanner builds pyhgf Network once outside JAX trace; _run_session is pure-JAX and vmappable for Plan 02 cohort path | 13-01 |
+| jnp.int32(-1) sentinel for trial-0 stickiness | (prev_choice == jnp.arange(3)) evaluates all-False for -1 giving zero stickiness; verified in test_session_jax_stickiness_sentinel | 13-01 |
+| values_t elements use .reshape(1) in sim path | Matches pyhgf scan_fn shape contract: logp path uses input_data[:, 0:1] sliced to (1,) per step; simulation must match exactly | 13-01 |
 
 ### Pending Todos
 
@@ -95,7 +98,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-12
-Stopped at: Phase 12 verified — 9/9 must-haves passed, ROADMAP + REQUIREMENTS updated
+Last session: 2026-04-12T13:25:52Z
+Stopped at: Completed 13-01-PLAN.md — simulate_session_jax with lax.scan + 5 unit tests
 Resume file: None
-Next action: /gsd:discuss-phase 13 or /gsd:plan-phase 13 (JAX-Native Cohort Simulation)
+Next action: /gsd:execute-phase 13-02 (simulate_cohort_jax vmap path)

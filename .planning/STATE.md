@@ -10,11 +10,11 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 ## Current Position
 
 Phase: 12 of 15 (Batched Hierarchical JAX Logp)
-Plan: 01 of 04
+Plan: 02 of 04
 Status: In progress
-Last activity: 2026-04-12 — Completed 12-01-PLAN.md (legacy migration)
+Last activity: 2026-04-12 — Completed 12-02-PLAN.md (batched JAX logp Op factory)
 
-[==========█===]     v1.1 code-complete (Phases 1-11); v1.2 plan 12-01 complete, 12-02 next
+[==========██==]     v1.1 code-complete (Phases 1-11); v1.2 plans 12-01, 12-02 complete, 12-03 next
 
 ## Performance Metrics
 
@@ -62,6 +62,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | Chunk-based SLURM: 3 jobs instead of 4200 | JAX compiles once per chunk; reuses compiled model for ~1400 iterations; one combined parquet per chunk | 11 |
 | legacy/batch.py imports from legacy/single.py (not shim) | Ensures frozen code calls frozen code; no circular dependency through shims | 12-01 |
 | Shims use noqa: F401 for re-exports | Ruff would flag unused imports in shim modules; F401 suppression is standard for re-export patterns | 12-01 |
+| Data as runtime args for vmap (not closure-over-data) | Clean vmap signature; XLA sees full data flow; no closure recreation on data change | 12-02 |
+| Separate named functions for 2-level/3-level logp | Avoids mypy error from conditional redefinition with different signatures | 12-02 |
+| Level-2 mean key is attrs[i]["mean"] | Confirmed via runtime inspection of pyhgf attribute pytree structure | 12-02 |
 
 ### Pending Todos
 
@@ -76,7 +79,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 - omega_3 parameter recovery expected to be challenging (known issue in literature)
 - **v1.1 per-participant sequential MCMC is GPU-pessimal** — L40S benchmark showed ~1.5s/NUTS-sample vs ~5ms on CPU due to PCIe dispatch overhead. v1.2 refactor is mandatory for GPU feasibility.
 - **Decision gate at Phase 14:** if batched hierarchical GPU benchmark is still > 50 GPU-hours per chunk, fall back to CPU `comp` partition (new batched code still wins over v1.1 sequential on CPU).
-- pyhgf has no built-in NaN clamping — v1.2 must add tapas-style Layer 2 per-trial reversion inside our JAX scan.
+- pyhgf has no built-in NaN clamping — **RESOLVED in 12-02**: Layer 2 clamping implemented in hierarchical.py using jnp.where + tree_map (|mu_2| < 14 bound).
 - `_init_jitter` PyTensor read-only-array bug means we can't use `pm.sample(...)` directly even with `nuts_sampler="numpyro"`; must call `pmjax.sample_numpyro_nuts()` directly.
 
 ## Quick Tasks
@@ -88,6 +91,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-12
-Stopped at: Completed 12-01-PLAN.md (legacy migration)
+Stopped at: Completed 12-02-PLAN.md (batched JAX logp Op factory)
 Resume file: None
-Next action: Execute 12-02-PLAN.md (batched JAX logp Op factory)
+Next action: Execute 12-03-PLAN.md (hierarchical PyMC model wrapper)

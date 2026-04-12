@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 14 Integration + GPU Benchmark in progress (plans 01 + 03 complete)
+**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 14 Integration + GPU Benchmark complete (all 3 plans done)
 
 ## Current Position
 
 Phase: 14 of 15 (Integration + GPU Benchmark)
-Plan: 3/3 complete (plans 01 and 03 done; plan 02 GPU benchmark script)
-Status: In progress — VALID-03 cross-platform script and dual-path run_sbf_iteration complete
-Last activity: 2026-04-12 — Re-executed 14-01-PLAN.md: dual-path run_sbf_iteration + helpers + VALID-05 tests committed
+Plan: 3/3 complete (all plans done)
+Status: Phase complete — apply_decision_gate + _GpuMonitor + rewritten _run_benchmark + tests committed
+Last activity: 2026-04-12 — Completed 14-02-PLAN.md: apply_decision_gate, _GpuMonitor, full _run_benchmark rewrite
 
-[==========██████░]   v1.1 code-complete (Phases 1-11); Phases 12-13 verified; Phase 14 plans 01+03 done
+[==========████████]   v1.1 code-complete (Phases 1-11); Phases 12-13 verified; Phase 14 complete
 
 ## Performance Metrics
 
@@ -84,6 +84,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | fit_df_2 not constructed in batched path of run_sbf_iteration | SBF subsampling loop only uses fit_df_3 for BF contrasts and diagnostics; same is true in legacy path — no structural need to construct it | 14-01 |
 | az.rhat(da)[param].values for scalar extraction from az.rhat Dataset | az.rhat(DataArray) returns a Dataset not a scalar; [param].values extracts the 0-d NumPy scalar correctly | 14-01 |
 | strict=True on all zip() calls in _idata_to_fit_df and _build_idata_dict | Catches participant metadata length misalignment at helper boundaries before silent posterior-to-participant mapping errors | 14-01 |
+| apply_decision_gate is pure function in iteration.py (not script-local) | Testable independently of benchmark script; importable by any caller needing gate logic | 14-02 |
+| _update_state_md uses string search + last-| -line insertion (not regex) | Simple and robust for the fixed table structure; handles missing STATE.md gracefully | 14-02 |
+| BLE001 noqa on broad except in _GpuMonitor._run | Intentional swallow for nvidia-smi transient failures (missing binary, timeout, parse error) | 14-02 |
 
 ### Pending Todos
 
@@ -110,8 +113,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-12
-Stopped at: Completed 14-01-PLAN.md — dual-path run_sbf_iteration + _idata_to_fit_df + _split_idata + _build_idata_dict + --legacy flag + VALID-05 tests
+Stopped at: Completed 14-02-PLAN.md — apply_decision_gate + _GpuMonitor + rewritten _run_benchmark + 5 tests (14 total passing)
 Resume file: None
-Next action: Execute 14-02-PLAN.md (GPU benchmark timing with full-iteration measurement)
-Resume file: None
-Next action: Phase 14 plan 02 (GPU benchmark + decision gate in 08_run_power_iteration.py) if not yet complete; then phase 15
+Next action: Phase 15 (production sweep configuration and SLURM job scripts)

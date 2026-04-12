@@ -27,6 +27,10 @@ from prl_hgf.simulation.agent import (
     simulate_agent,
 )
 from prl_hgf.simulation.batch import simulate_batch
+from prl_hgf.simulation.jax_session import (
+    simulate_cohort_jax,
+    simulate_session_jax,
+)
 
 __all__ = [
     "simulate_agent",
@@ -34,4 +38,6 @@ __all__ = [
     "SimulationResult",
     "PARAM_BOUNDS",
     "simulate_batch",
+    "simulate_session_jax",
+    "simulate_cohort_jax",
 ]

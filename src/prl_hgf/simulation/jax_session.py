@@ -42,7 +42,12 @@ from jax import lax
 
 from prl_hgf.models.hgf_3level import build_3level_network
 
-__all__ = ["simulate_session_jax", "_build_session_scanner", "_run_session"]
+__all__ = [
+    "simulate_session_jax",
+    "simulate_cohort_jax",
+    "_build_session_scanner",
+    "_run_session",
+]
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -352,4 +357,85 @@ def simulate_session_jax(
         zeta,
         cue_probs_arr,
         rng_key,
+    )
+
+
+# ---------------------------------------------------------------------------
+# Cohort-level vmap wrapper
+# ---------------------------------------------------------------------------
+
+
+def simulate_cohort_jax(
+    params_batch: dict[str, jnp.ndarray],
+    cue_probs_arr: jnp.ndarray,
+    rng_keys_batch: jnp.ndarray,
+) -> tuple[jnp.ndarray, jnp.ndarray, jnp.ndarray]:
+    """Simulate a full cohort of participants via ``jax.vmap``.
+
+    Builds the pyhgf network once via :func:`_build_session_scanner`, then
+    vmaps :func:`_run_session` across participants.  All participants share
+    the same trial sequence (``cue_probs_arr``) but have distinct parameter
+    vectors and PRNG keys.
+
+    .. note::
+        For cohorts with **per-participant** trial sequences (different
+        ``env_seed`` per participant), use the :func:`simulate_batch`
+        function in :mod:`prl_hgf.simulation.batch`, which stacks
+        per-participant ``cue_probs_arr`` arrays and vmaps over them.
+
+    Parameters
+    ----------
+    params_batch : dict[str, jnp.ndarray]
+        Dictionary with keys ``"omega_2"``, ``"omega_3"``, ``"kappa"``,
+        ``"beta"``, ``"zeta"``, each of shape ``(P,)`` — one scalar value
+        per participant.
+    cue_probs_arr : jnp.ndarray, shape (n_trials, 3)
+        Shared ground-truth reward probability for each cue on each trial.
+        Same trial sequence used for all ``P`` participants.
+    rng_keys_batch : jnp.ndarray, shape (P, 2)
+        One distinct JAX PRNG key per participant.  Generate with
+        ``jax.random.split(master_key, P)``.
+
+    Returns
+    -------
+    choices : jnp.ndarray, shape (P, n_trials)
+        Chosen cue index per participant per trial, dtype int32.
+    rewards : jnp.ndarray, shape (P, n_trials)
+        Binary reward outcome per participant per trial, dtype int32.
+    diverged : jnp.ndarray, shape (P,)
+        Per-participant boolean — ``True`` if any trial's belief state was
+        clamped for that participant.
+
+    Examples
+    --------
+    >>> import jax
+    >>> import jax.numpy as jnp
+    >>> from prl_hgf.simulation.jax_session import simulate_cohort_jax
+    >>> params = {
+    ...     "omega_2": jnp.array([-3.0, -4.0]),
+    ...     "omega_3": jnp.array([-6.0, -5.0]),
+    ...     "kappa": jnp.array([1.0, 0.5]),
+    ...     "beta": jnp.array([2.0, 3.0]),
+    ...     "zeta": jnp.array([0.5, 0.0]),
+    ... }
+    >>> # cue_probs_arr shape (n_trials, 3) — from generate_session
+    >>> keys = jax.random.split(jax.random.PRNGKey(0), 2)
+    >>> choices, rewards, diverged = simulate_cohort_jax(params, cue_probs_arr, keys)
+    >>> choices.shape
+    (2, n_trials)
+    """
+    scan_fn, base_attrs = _build_session_scanner()
+    _vmapped = jax.vmap(
+        lambda o2, o3, k, b, z, rk: _run_session(
+            scan_fn, base_attrs, o2, o3, k, b, z, cue_probs_arr, rk
+        ),
+        in_axes=(0, 0, 0, 0, 0, 0),
+    )
+    return _vmapped(
+        params_batch["omega_2"],
+        params_batch["omega_3"],
+        params_batch["kappa"],
+        params_batch["beta"],
+        params_batch["zeta"],
+        rng_keys_batch,
     )

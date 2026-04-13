@@ -583,9 +583,314 @@ def build_logp_ops_batched(
     return _BatchedLogpOp(), n_participants, n_trials
 
 
+# ---------------------------------------------------------------------------
+# Pure JAX logp factory (numpyro-direct path)
+# ---------------------------------------------------------------------------
+
+
+def build_logp_fn_batched(
+    model_name: str = "hgf_3level",
+    n_trials: int = 100,
+) -> tuple:
+    """Build a pure JAX batched logp function with data as arguments.
+
+    Unlike :func:`build_logp_ops_batched`, the returned callable does **not**
+    capture data in a closure.  Data arrays are explicit arguments, making the
+    XLA trace shape-dependent but value-independent.  This enables JIT cache
+    reuse across power-sweep iterations with different data.
+
+    The only values captured via closure are the *static* model structure:
+    ``base_attrs``, ``scan_fn``, and ``n_trials``.
+
+    Parameters
+    ----------
+    model_name : str, optional
+        Model variant: ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+    n_trials : int, optional
+        Number of trials per participant.  Used to build the pyhgf
+        ``Network`` once and to size the scan inputs.
+
+    Returns
+    -------
+    batched_logp_fn : callable
+        For 3-level: ``(omega_2, omega_3, kappa, beta, zeta,
+        input_data, observed, choices, trial_mask) -> scalar``.
+        For 2-level: ``(omega_2, beta, zeta,
+        input_data, observed, choices, trial_mask) -> scalar``.
+    n_params : int
+        Number of model parameters (5 for 3-level, 3 for 2-level).
+
+    Raises
+    ------
+    ValueError
+        If ``model_name`` is not in ``_MODEL_NAMES``.
+    """
+    if model_name not in _MODEL_NAMES:
+        msg = (
+            f"model_name must be one of {_MODEL_NAMES}, "
+            f"got {model_name!r}"
+        )
+        raise ValueError(msg)
+
+    is_3level = model_name == "hgf_3level"
+
+    # Build network once to capture base_attrs and scan_fn (static)
+    if is_3level:
+        from prl_hgf.models.hgf_3level import build_3level_network
+
+        net = build_3level_network()
+    else:
+        from prl_hgf.models.hgf_2level import build_2level_network
+
+        net = build_2level_network()
+
+    dummy_input = np.zeros((n_trials, 3), dtype=float)
+    dummy_obs = np.zeros((n_trials, 3), dtype=int)
+    net.input_data(input_data=dummy_input, observed=dummy_obs)
+    base_attrs = net.attributes
+    scan_fn = net.scan_fn
+
+    # Per-participant logp: same math as build_logp_ops_batched closures
+    def _single_logp_3level(
+        omega_2: jnp.ndarray,
+        omega_3: jnp.ndarray,
+        kappa: jnp.ndarray,
+        beta: jnp.ndarray,
+        zeta: jnp.ndarray,
+        input_data: jnp.ndarray,
+        observed: jnp.ndarray,
+        choices: jnp.ndarray,
+        mask: jnp.ndarray,
+    ) -> jnp.ndarray:
+        scan_inputs = _build_scan_inputs(input_data, observed, n_trials)
+        attrs = dict(base_attrs)
+        for idx in _BELIEF_NODES:
+            node = dict(attrs[idx])
+            node["tonic_volatility"] = omega_2
+            attrs[idx] = node
+        node6 = dict(attrs[6])
+        node6["tonic_volatility"] = omega_3
+        node6["volatility_coupling_children"] = jnp.array(
+            [kappa, kappa, kappa]
+        )
+        attrs[6] = node6
+        for idx in _BELIEF_NODES:
+            node = dict(attrs[idx])
+            node["volatility_coupling_parents"] = jnp.array([kappa])
+            attrs[idx] = node
+        _, (node_traj, stability_mask) = _clamped_scan(
+            scan_fn, attrs, scan_inputs
+        )
+        return _compute_logp(
+            node_traj,
+            choices.astype(jnp.int32),
+            n_trials,
+            beta,
+            zeta,
+            stability_mask,
+            mask,
+        )
+
+    def _single_logp_2level(
+        omega_2: jnp.ndarray,
+        beta: jnp.ndarray,
+        zeta: jnp.ndarray,
+        input_data: jnp.ndarray,
+        observed: jnp.ndarray,
+        choices: jnp.ndarray,
+        mask: jnp.ndarray,
+    ) -> jnp.ndarray:
+        scan_inputs = _build_scan_inputs(input_data, observed, n_trials)
+        attrs = dict(base_attrs)
+        for idx in _BELIEF_NODES:
+            node = dict(attrs[idx])
+            node["tonic_volatility"] = omega_2
+            attrs[idx] = node
+        _, (node_traj, stability_mask) = _clamped_scan(
+            scan_fn, attrs, scan_inputs
+        )
+        return _compute_logp(
+            node_traj,
+            choices.astype(jnp.int32),
+            n_trials,
+            beta,
+            zeta,
+            stability_mask,
+            mask,
+        )
+
+    if is_3level:
+        n_params = 5
+        _single_participant_logp = _single_logp_3level  # type: ignore[assignment]
+    else:
+        n_params = 3
+        _single_participant_logp = _single_logp_2level  # type: ignore[assignment]
+
+    _batched_logp = jax.vmap(
+        _single_participant_logp,
+        in_axes=tuple([0] * (n_params + 4)),
+    )
+
+    def batched_logp_fn(
+        *args: jnp.ndarray,
+    ) -> jnp.ndarray:
+        """Evaluate batched logp: sum across participants.
+
+        Parameters
+        ----------
+        *args : jnp.ndarray
+            K parameter arrays of shape ``(P,)`` followed by
+            ``input_data (P, T, 3)``, ``observed (P, T, 3)``,
+            ``choices (P, T)``, ``trial_mask (P, T)``.
+
+        Returns
+        -------
+        jnp.ndarray
+            Scalar total log-likelihood.
+        """
+        per_participant = _batched_logp(*args)
+        return jnp.sum(per_participant)
+
+    return batched_logp_fn, n_params
+
 
 # ---------------------------------------------------------------------------
-# Hierarchical PyMC model factory
+# NumPyro model functions
+# ---------------------------------------------------------------------------
+
+
+def _numpyro_model_3level(
+    input_data: jnp.ndarray,
+    observed: jnp.ndarray,
+    choices: jnp.ndarray,
+    trial_mask: jnp.ndarray,
+    n_participants: int,
+    batched_logp_fn,  # noqa: ANN001
+) -> None:
+    """NumPyro model: 3-level HGF with IID priors per participant.
+
+    Priors match :func:`build_pymc_model_batched` exactly.  Data is received
+    as arguments (forwarded from ``MCMC.run`` kwargs) so that XLA sees them
+    as dynamic traced values and can reuse the compiled kernel across
+    iterations with different data of the same shape.
+
+    Parameters
+    ----------
+    input_data : jnp.ndarray, shape (P, n_trials, 3)
+        Float reward-value arrays.
+    observed : jnp.ndarray, shape (P, n_trials, 3)
+        Binary observed masks.
+    choices : jnp.ndarray, shape (P, n_trials)
+        Chosen cue indices.
+    trial_mask : jnp.ndarray, shape (P, n_trials)
+        Binary trial mask for variable-length cohorts.
+    n_participants : int
+        Number of participants ``P``.
+    batched_logp_fn : callable
+        Pure JAX batched logp from :func:`build_logp_fn_batched`.
+    """
+    import numpyro
+    import numpyro.distributions as dist
+
+    # Perceptual parameters
+    omega_2 = numpyro.sample(
+        "omega_2",
+        dist.TruncatedNormal(
+            loc=-3.0, scale=2.0, high=0.0,
+        ).expand([n_participants]),
+    )
+    omega_3 = numpyro.sample(
+        "omega_3",
+        dist.TruncatedNormal(
+            loc=-6.0, scale=2.0, high=0.0,
+        ).expand([n_participants]),
+    )
+    kappa = numpyro.sample(
+        "kappa",
+        dist.TruncatedNormal(
+            loc=1.0, scale=0.5, low=0.01, high=2.0,
+        ).expand([n_participants]),
+    )
+
+    # Response parameters
+    log_beta = numpyro.sample(
+        "log_beta",
+        dist.Normal(0.0, 1.5).expand([n_participants]),
+    )
+    beta = numpyro.deterministic("beta", jnp.exp(log_beta))
+    zeta = numpyro.sample(
+        "zeta",
+        dist.Normal(0.0, 2.0).expand([n_participants]),
+    )
+
+    # Custom HGF log-likelihood
+    logp = batched_logp_fn(
+        omega_2, omega_3, kappa, beta, zeta,
+        input_data, observed, choices, trial_mask,
+    )
+    numpyro.factor("hgf_loglike", logp)
+
+
+def _numpyro_model_2level(
+    input_data: jnp.ndarray,
+    observed: jnp.ndarray,
+    choices: jnp.ndarray,
+    trial_mask: jnp.ndarray,
+    n_participants: int,
+    batched_logp_fn,  # noqa: ANN001
+) -> None:
+    """NumPyro model: 2-level HGF with IID priors per participant.
+
+    Priors match the 2-level branch of :func:`build_pymc_model_batched`
+    exactly.  See :func:`_numpyro_model_3level` for argument descriptions.
+
+    Parameters
+    ----------
+    input_data : jnp.ndarray, shape (P, n_trials, 3)
+        Float reward-value arrays.
+    observed : jnp.ndarray, shape (P, n_trials, 3)
+        Binary observed masks.
+    choices : jnp.ndarray, shape (P, n_trials)
+        Chosen cue indices.
+    trial_mask : jnp.ndarray, shape (P, n_trials)
+        Binary trial mask for variable-length cohorts.
+    n_participants : int
+        Number of participants ``P``.
+    batched_logp_fn : callable
+        Pure JAX batched logp from :func:`build_logp_fn_batched`.
+    """
+    import numpyro
+    import numpyro.distributions as dist
+
+    # Perceptual parameter
+    omega_2 = numpyro.sample(
+        "omega_2",
+        dist.TruncatedNormal(
+            loc=-3.0, scale=2.0, high=0.0,
+        ).expand([n_participants]),
+    )
+
+    # Response parameters
+    log_beta = numpyro.sample(
+        "log_beta",
+        dist.Normal(0.0, 1.5).expand([n_participants]),
+    )
+    beta = numpyro.deterministic("beta", jnp.exp(log_beta))
+    zeta = numpyro.sample(
+        "zeta",
+        dist.Normal(0.0, 2.0).expand([n_participants]),
+    )
+
+    # Custom HGF log-likelihood
+    logp = batched_logp_fn(
+        omega_2, beta, zeta,
+        input_data, observed, choices, trial_mask,
+    )
+    numpyro.factor("hgf_loglike", logp)
+
+
+# ---------------------------------------------------------------------------
+# Hierarchical PyMC model factory (DEPRECATED)
 # ---------------------------------------------------------------------------
 
 
@@ -597,6 +902,11 @@ def build_pymc_model_batched(
     trial_mask: np.ndarray | None = None,
 ) -> tuple:
     """Build a hierarchical PyMC model with shape=(P,) IID priors.
+
+    .. deprecated::
+        Use :func:`build_logp_fn_batched` with :func:`fit_batch_hierarchical`
+        instead.  The PyMC bridge path is retained for backward compatibility
+        with VALID-01/02 tests but will be removed in a future release.
 
     Constructs a PyMC model where every free parameter has
     ``shape=n_participants`` — one independent prior per participant,
@@ -638,7 +948,16 @@ def build_pymc_model_batched(
         If ``input_data_arr`` is not 3-dimensional or ``model_name`` is
         not recognised.
     """
+    import warnings
+
     import pymc as pm
+
+    warnings.warn(
+        "build_pymc_model_batched is deprecated. Use build_logp_fn_batched "
+        "with fit_batch_hierarchical (numpyro-direct path) instead.",
+        DeprecationWarning,
+        stacklevel=2,
+    )
 
     if input_data_arr.ndim != 3:
         msg = (
@@ -781,18 +1100,19 @@ def fit_batch_hierarchical(
     sampler: str = "numpyro",
     progressbar: bool = True,
 ) -> az.InferenceData:
-    """Fit an entire cohort in one ``pmjax.sample_numpyro_nuts`` call.
+    """Fit an entire cohort via direct numpyro MCMC (no PyMC bridge).
 
     Groups ``sim_df`` by ``(participant_id, group, session)``, builds the
-    stacked ``(P, n_trials, 3)`` arrays, constructs a PyMC model via
-    :func:`build_pymc_model_batched`, and runs a **single** NUTS call for
-    the full cohort.  Returns an ``InferenceData`` with a ``participant``
-    dimension on every parameter so downstream analysis can map posterior
-    slices back to individual participants.
+    stacked ``(P, n_trials, 3)`` arrays, constructs a pure JAX logp via
+    :func:`build_logp_fn_batched`, and runs a **single** numpyro NUTS call
+    for the full cohort.  Returns an ``InferenceData`` with a
+    ``participant`` dimension on every parameter so downstream analysis
+    can map posterior slices back to individual participants.
 
-    This replaces v1.1's sequential ``fit_batch`` loop.  By packing all
-    participants into one PyMC model with ``shape=(n_participants,)`` IID
-    priors, NUTS launch overhead amortises across the cohort.
+    Data arrays are passed as keyword arguments to ``MCMC.run()`` so that
+    JAX traces them as dynamic values.  This makes the XLA compilation
+    shape-dependent but value-independent, enabling JIT cache reuse across
+    power-sweep iterations with different data of the same shape.
 
     Parameters
     ----------
@@ -812,8 +1132,8 @@ def fit_batch_hierarchical(
     random_seed : int, optional
         RNG seed for reproducibility.  Default ``42``.
     sampler : str, optional
-        ``"numpyro"`` (default) for ``pmjax.sample_numpyro_nuts`` or
-        ``"pymc"`` for ``pm.sample``.
+        Accepted for backward compatibility.  Always uses the numpyro
+        path.  Passing ``"pymc"`` raises :class:`DeprecationWarning`.
     progressbar : bool, optional
         Show MCMC progress bar.  Default ``True``.
 
@@ -830,7 +1150,20 @@ def fit_batch_hierarchical(
         If ``sim_df`` is missing required columns or participants have
         different trial counts.
     """
-    import pymc as pm
+    import warnings
+
+    import arviz as az
+    from numpyro.infer import MCMC, NUTS
+
+    # Deprecation gate for sampler="pymc"
+    if sampler == "pymc":
+        warnings.warn(
+            "sampler='pymc' is deprecated and ignored. "
+            "fit_batch_hierarchical now always uses the numpyro-direct "
+            "path. The PyMC bridge has been removed from the hot path.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
 
     # ------------------------------------------------------------------
     # Validate input DataFrame
@@ -884,111 +1217,86 @@ def fit_batch_hierarchical(
         )
         raise ValueError(msg)
 
+    n_trials = trial_counts[0]
+    n_participants = len(input_data_list)
+
     input_data_arr = np.stack(input_data_list, axis=0)
     observed_arr = np.stack(observed_list, axis=0)
     choices_arr = np.stack(choices_list, axis=0)
 
     # ------------------------------------------------------------------
-    # Build the model with participant coords
+    # Build the pure JAX logp function (no data closure)
     # ------------------------------------------------------------------
-    model, var_names, n_participants = build_pymc_model_batched(
-        input_data_arr, observed_arr, choices_arr, model_name=model_name,
+    logp_fn, _n_params = build_logp_fn_batched(model_name, n_trials)
+
+    # ------------------------------------------------------------------
+    # Select numpyro model function
+    # ------------------------------------------------------------------
+    if model_name == "hgf_3level":
+        model_fn = _numpyro_model_3level
+        var_names = [
+            "omega_2", "omega_3", "kappa", "log_beta", "beta", "zeta",
+        ]
+    else:
+        model_fn = _numpyro_model_2level
+        var_names = ["omega_2", "log_beta", "beta", "zeta"]
+
+    # ------------------------------------------------------------------
+    # Convert data to JAX arrays
+    # ------------------------------------------------------------------
+    jax_input_data = jnp.array(input_data_arr, dtype=jnp.float32)
+    jax_observed = jnp.array(observed_arr, dtype=jnp.int32)
+    jax_choices = jnp.array(choices_arr, dtype=jnp.int32)
+    jax_trial_mask = jnp.ones(
+        (n_participants, n_trials), dtype=jnp.float32,
     )
 
     # ------------------------------------------------------------------
-    # Run MCMC
+    # Run numpyro MCMC
     # ------------------------------------------------------------------
-    with model:
-        if sampler == "numpyro":
-            import pymc.sampling.jax as pmjax
-
-            idata = pmjax.sample_numpyro_nuts(
-                draws=n_draws,
-                tune=n_tune,
-                chains=n_chains,
-                target_accept=target_accept,
-                random_seed=random_seed,
-                progressbar=progressbar,
-            )
-        else:
-            idata = pm.sample(
-                draws=n_draws,
-                tune=n_tune,
-                chains=n_chains,
-                cores=1,
-                target_accept=target_accept,
-                random_seed=random_seed,
-                return_inferencedata=True,
-                progressbar=progressbar,
-            )
+    rng_key = jax.random.PRNGKey(random_seed)
+    kernel = NUTS(model_fn, target_accept_prob=target_accept)
+    mcmc = MCMC(
+        kernel,
+        num_warmup=n_tune,
+        num_samples=n_draws,
+        num_chains=n_chains,
+        chain_method="vectorized",
+        progress_bar=progressbar,
+    )
+    mcmc.run(
+        rng_key,
+        input_data=jax_input_data,
+        observed=jax_observed,
+        choices=jax_choices,
+        trial_mask=jax_trial_mask,
+        n_participants=n_participants,
+        batched_logp_fn=logp_fn,
+    )
 
     # ------------------------------------------------------------------
-    # Attach participant metadata as InferenceData coords
+    # Convert to ArviZ InferenceData with participant coords
     # ------------------------------------------------------------------
-    # The posterior arrays have a dimension corresponding to the P
-    # participants.  Rename it to "participant" and attach metadata.
-    #
-    # PyMC names the dimension "{var_name}_dim_0" by default when
-    # shape is used without dims.  We post-hoc assign coords so the
-    # InferenceData is self-describing.
+    dims_dict = {vn: ["participant"] for vn in var_names}
+    coords_dict = {"participant": participant_ids}
 
-    # Determine the dimension name PyMC assigned.  The first free RV's
-    # first non-chain/draw dimension tells us the convention.
-    posterior = idata.posterior
-    param_dims = {}
-    for vn in var_names:
-        if vn in posterior:
-            dims = list(posterior[vn].dims)
-            # Remove "chain" and "draw" to get the participant dim
-            ppt_dims = [d for d in dims if d not in ("chain", "draw")]
-            if ppt_dims:
-                param_dims[vn] = ppt_dims[0]
-
-    # All participant dims should be the same name
-    unique_ppt_dims = set(param_dims.values())
-
-    if len(unique_ppt_dims) == 1:
-        ppt_dim = unique_ppt_dims.pop()
-        # Rename dim to "participant" and assign coords
-        idata.posterior = posterior.rename({ppt_dim: "participant"})
-        idata.posterior = idata.posterior.assign_coords(
-            participant=participant_ids,
-        )
-    elif len(unique_ppt_dims) == 0:
-        # Scalar parameters (P=1) — no dim rename needed
-        pass
-    else:
-        # Multiple different dim names — assign coords to each
-        for _vn, dim_name in param_dims.items():
-            if dim_name not in idata.posterior.coords:
-                idata.posterior = idata.posterior.assign_coords(
-                    {dim_name: participant_ids},
-                )
+    idata = az.from_numpyro(
+        mcmc,
+        dims=dims_dict,
+        coords=coords_dict,
+    )
 
     # Attach group and session metadata as additional coords
     idata.posterior = idata.posterior.assign_coords(
-        participant_group=(
-            "participant"
-            if "participant" in idata.posterior.dims
-            else list(unique_ppt_dims)[0]
-            if unique_ppt_dims
-            else "participant",
-            participant_groups,
-        ),
-        participant_session=(
-            "participant"
-            if "participant" in idata.posterior.dims
-            else list(unique_ppt_dims)[0]
-            if unique_ppt_dims
-            else "participant",
-            participant_sessions,
-        ),
+        participant_group=("participant", participant_groups),
+        participant_session=("participant", participant_sessions),
     )
 
     return idata
 
 
 __all__ = [
+    "build_logp_fn_batched",
     "build_logp_ops_batched",
     "build_pymc_model_batched",
     "fit_batch_hierarchical",

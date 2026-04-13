@@ -1,0 +1,3 @@
+/scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/pymc/sampling/jax.py:475: UserWarning: There are not enough devices to run parallel chains: expected 2 but got 1. Chains will be drawn sequentially. If you are running MCMC in CPU, consider using `numpyro.set_host_device_count(2)` at the beginning of your program. You can double-check how many devices are available in your system using `jax.local_device_count()`.
+  pmap_numpyro = MCMC(
+[2026-04-13T18:38:28.006] error: *** JOB 54797885 ON m3j008 CANCELLED AT 2026-04-13T18:38:28 DUE TO TIME LIMIT ***

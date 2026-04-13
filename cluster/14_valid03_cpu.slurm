@@ -12,7 +12,7 @@
 #SBATCH --job-name=prl_v03cpu
 #SBATCH --output=cluster/logs/valid03_cpu_%j.out
 #SBATCH --error=cluster/logs/valid03_cpu_%j.err
-#SBATCH --time=01:00:00
+#SBATCH --time=04:00:00
 #SBATCH --mem=32G
 #SBATCH --cpus-per-task=4
 #SBATCH --partition=comp

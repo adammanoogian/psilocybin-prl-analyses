@@ -13,8 +13,8 @@
 #SBATCH --output=cluster/logs/valid03_cpu_%j.out
 #SBATCH --error=cluster/logs/valid03_cpu_%j.err
 #SBATCH --time=04:00:00
-#SBATCH --mem=32G
-#SBATCH --cpus-per-task=4
+#SBATCH --mem=128G
+#SBATCH --cpus-per-task=8
 #SBATCH --partition=comp
 
 # =============================================================================
@@ -33,8 +33,9 @@ conda activate /scratch/${_PROJECT}/${USER}/conda/envs/ds_env 2>/dev/null || {
     exit 1
 }
 
-# Force CPU platform
+# Force CPU platform and expose 2 CPU devices for pmap chain parallelism
 export JAX_PLATFORM_NAME=cpu
+export XLA_FLAGS="--xla_force_host_platform_device_count=2"
 
 echo "============================================================"
 echo "VALID-03: CPU Baseline Fit"

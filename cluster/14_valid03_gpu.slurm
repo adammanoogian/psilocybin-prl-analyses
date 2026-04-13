@@ -13,8 +13,8 @@
 #SBATCH --output=cluster/logs/valid03_gpu_%j.out
 #SBATCH --error=cluster/logs/valid03_gpu_%j.err
 #SBATCH --time=04:00:00
-#SBATCH --mem=32G
-#SBATCH --gres=gpu:1
+#SBATCH --mem=64G
+#SBATCH --gres=gpu:2
 #SBATCH --partition=gpu
 #SBATCH --cpus-per-task=4
 

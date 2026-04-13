@@ -17,8 +17,8 @@
 #SBATCH --output=cluster/logs/bench14_%j.out
 #SBATCH --error=cluster/logs/bench14_%j.err
 #SBATCH --time=08:00:00
-#SBATCH --mem=64G
-#SBATCH --gres=gpu:1
+#SBATCH --mem=128G
+#SBATCH --gres=gpu:2
 #SBATCH --partition=gpu
 #SBATCH --cpus-per-task=4
 

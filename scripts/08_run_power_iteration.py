@@ -118,7 +118,11 @@ def parse_args() -> argparse.Namespace:
         type=str,
         choices=["pymc", "numpyro"],
         default="numpyro",
-        help="MCMC backend: numpyro (JAX NUTS, default) or pymc (PyTensor NUTS).",
+        help=(
+            "DEPRECATED: ignored for the batched path (always uses "
+            "numpyro-direct MCMC). Retained for backward compatibility "
+            "with existing SLURM scripts."
+        ),
     )
     parser.add_argument(
         "--output-dir",
@@ -365,7 +369,6 @@ def _run_benchmark(
         n_tune=10,
         target_accept=0.9,
         random_seed=42,
-        sampler=args.sampler,
         progressbar=False,
     )
     jit_cold_s = time.perf_counter() - t0
@@ -381,7 +384,6 @@ def _run_benchmark(
         n_tune=10,
         target_accept=0.9,
         random_seed=43,
-        sampler=args.sampler,
         progressbar=False,
     )
     jit_warm_s = time.perf_counter() - t0
@@ -413,7 +415,6 @@ def _run_benchmark(
         n_chains=args.fit_chains,
         n_draws=args.fit_draws,
         n_tune=args.fit_tune,
-        sampler=args.sampler,
         use_legacy=False,
     )
     per_iteration_s = time.perf_counter() - t0
@@ -454,7 +455,7 @@ def _run_benchmark(
         "chains": args.fit_chains,
         "draws": args.fit_draws,
         "tune": args.fit_tune,
-        "sampler": args.sampler,
+        "sampler": "numpyro-direct",
     }
 
     # --- Write benchmark_batched.json ---
@@ -593,7 +594,6 @@ def main() -> None:
             n_chains=args.fit_chains,
             n_draws=args.fit_draws,
             n_tune=args.fit_tune,
-            sampler=args.sampler,
             use_legacy=args.legacy,
         )
         all_results.extend(results)

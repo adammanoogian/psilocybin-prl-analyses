@@ -847,7 +847,11 @@ def run_sbf_iteration(
     n_tune : int, optional
         Tuning steps per chain.  Default ``500``.
     sampler : str, optional
-        MCMC backend: ``"pymc"`` (default) or ``"numpyro"``.
+        .. deprecated:: 1.2
+            The ``sampler`` parameter is ignored for the batched path
+            (``use_legacy=False``), which always uses numpyro-direct
+            MCMC.  Retained for backward compatibility with legacy
+            callers.
     use_legacy : bool, optional
         If ``True``, use the v1.1 sequential :func:`~prl_hgf.fitting.batch\
 .fit_batch` path.  If ``False`` (default), use the v1.2 batched
@@ -916,7 +920,6 @@ def run_sbf_iteration(
             n_tune=n_tune,
             target_accept=0.9,
             random_seed=child_seed,
-            sampler=sampler,
             progressbar=False,
         )
 
@@ -929,7 +932,6 @@ def run_sbf_iteration(
             n_tune=n_tune,
             target_accept=0.9,
             random_seed=child_seed + 1,
-            sampler=sampler,
             progressbar=False,
         )
 

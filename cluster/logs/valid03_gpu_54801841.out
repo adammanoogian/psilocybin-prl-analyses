@@ -1,0 +1,19 @@
+============================================================
+VALID-03: GPU Fit
+============================================================
+Job ID:   54801841
+Node:     m3g110
+GPU(s):   0,1
+Start:    Mon Apr 13 11:02:43 PM AEST 2026
+============================================================
+
+JAX: [CudaDevice(id=0), CudaDevice(id=1)]
+
+[VALID-03] JAX devices: [CudaDevice(id=0), CudaDevice(id=1)]
+[VALID-03] Platform: gpu
+[VALID-03] Simulating cohort: 3 per group, seed=42
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.1s. Running JAX vmap…
+JAX vmap completed in 2.3s.
+[VALID-03] Simulation complete in 4.69s, rows=7560
+[VALID-03] Fitting hgf_3level: chains=2, draws=200, tune=200

@@ -1,0 +1,21 @@
+============================================================
+VALID-03: CPU Baseline Fit
+============================================================
+Job ID:   54801840
+Node:     m3v117
+Platform: CPU (forced via JAX_PLATFORM_NAME=cpu)
+Start:    Mon Apr 13 09:32:34 PM AEST 2026
+============================================================
+
+[VALID-03] JAX devices: [CpuDevice(id=0), CpuDevice(id=1)]
+[VALID-03] Platform: cpu
+[VALID-03] Simulating cohort: 3 per group, seed=42
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.4s. Running JAX vmap…
+JAX vmap completed in 31.7s.
+[VALID-03] Simulation complete in 41.45s, rows=7560
+[VALID-03] Fitting hgf_3level: chains=2, draws=200, tune=200
+[VALID-03] Fit complete in 10807.18s
+
+CPU fit FAILED (exit code: 1)
+End: Tue Apr 14 12:35:09 AM AEST 2026

@@ -1,0 +1,36 @@
+============================================================
+Phase 14 GPU Benchmark
+============================================================
+Job ID:  54801839
+Node:    m3g112
+GPU(s):  0,1
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu
+Start:   Mon Apr 13 09:32:32 PM AEST 2026
+============================================================
+
+JAX devices: [CudaDevice(id=0), CudaDevice(id=1)]
+GPU: cuda:0
+
+Running batched hierarchical benchmark...
+
+============================================================
+BENCHMARK MODE (batched hierarchical path)
+============================================================
+
+GPU: cuda:0
+  nvidia-smi: NVIDIA L40S, 46068 MiB, 10928 MiB
+NVIDIA L40S, 46068 MiB, 45034 MiB
+
+Phase 1: JAX compilation cache test (BENCH-05)...
+  Building tiny cohort for JIT warm-up (N=2/group, 2 chains, 10 draws)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.1s. Running JAX vmap…
+JAX vmap completed in 2.2s.
+  Cold JIT: 825.06s
+  Warm JIT: 1146.86s
+  Cache speedup: 0.7x
+
+Phase 2: Full batched iteration (BENCH-01) at max N=50 (300 participant-sessions × 2 models)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.4s. Running JAX vmap…
+JAX vmap completed in 2.5s.

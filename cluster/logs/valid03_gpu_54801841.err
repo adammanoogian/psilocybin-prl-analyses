@@ -1,0 +1,2 @@
+2026-04-13 23:11:02.474027: W external/xla/xla/service/gpu/nvptx_compiler.cc:836] The NVIDIA driver's CUDA version is 12.8 which is older than the PTX compiler version (12.9.86). Because the driver is older than the PTX compiler version, XLA is disabling parallel compilation, which may slow down compilation. You should update your NVIDIA driver or use the NVIDIA-provided CUDA forward compatibility packages.
+[2026-04-14T03:03:46.009] error: *** JOB 54801841 ON m3g110 CANCELLED AT 2026-04-14T03:03:46 DUE TO TIME LIMIT ***

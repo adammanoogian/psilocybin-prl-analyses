@@ -180,6 +180,24 @@ Plans:
 - [ ] 15-01-PLAN.md -- Pre-flight fixes: dynamic date, push script staging, platform selection
 - [ ] 15-02-PLAN.md -- Production sweep submission, monitoring, and success criteria verification
 
+### Phase 16: NumPyro Direct Sampling + CUDA Fix
+
+**Goal**: Replace PyMC's `pmjax.sample_numpyro_nuts()` with direct numpyro MCMC throughout the fitting pipeline, enabling JIT cache reuse across iterations (data as traced arguments, not closure constants). Fix the CUDA driver/PTX mismatch that disables XLA parallel compilation. Validate with JIT timing baselines and a CUDA environment check.
+**Depends on**: Phase 15 (production run complete with current architecture; Phase 16 is a performance refactor)
+**Requirements**: NPRO-01, NPRO-02, NPRO-03, NPRO-04, NPRO-05, NPRO-06
+**Success Criteria** (what must be TRUE):
+  1. `fit_batch_hierarchical` uses numpyro MCMC directly (no PyMC model construction, no `pmjax.sample_numpyro_nuts`); priors defined in numpyro, data passed as argument to `MCMC.run()` so JIT cache reuses across iterations with different data
+  2. JIT compilation cache verified: second call to `fit_batch_hierarchical` with same shapes but different data shows <5s JIT overhead (vs ~800s cold compile currently)
+  3. CUDA environment check: a startup diagnostic in SLURM scripts verifies PTX compiler version <= driver CUDA version; warns and suggests fix if mismatched
+  4. `nvidia-cuda-nvcc-cu12` pinned to 12.8.x in cluster environment, XLA parallel compilation re-enabled (no "disabling parallel compilation" warning in logs)
+  5. Existing VALID-01/02/03 tests pass with the numpyro-direct path (posterior equivalence within MCSE)
+  6. Benchmark smoke test logs JIT cold/warm times and reports cache hit/miss status
+**Plans**: 2 plans
+
+Plans:
+- [ ] 16-01-PLAN.md -- Core numpyro refactor: build_logp_fn_batched, numpyro model functions, rewrite fit_batch_hierarchical (NPRO-01, NPRO-02)
+- [ ] 16-02-PLAN.md -- Caller updates, CUDA environment check in SLURM scripts, validation tests (NPRO-03, NPRO-04, NPRO-05, NPRO-06)
+
 ---
 
 ## Progress
@@ -201,3 +219,4 @@ Plans:
 | 13 - JAX-Native Cohort Simulation | v1.2 | 3/3 | Complete | 2026-04-12 |
 | 14 - Integration + GPU Benchmark | v1.2 | 0/3 | Pending | — |
 | 15 - Production Run + Results | v1.2 | 0/2 | Pending | — |
+| 16 - NumPyro Direct + CUDA Fix | v1.2 | 0/2 | Planned | — |

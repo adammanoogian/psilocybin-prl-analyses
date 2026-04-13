@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 14 Integration + GPU Benchmark complete (all 3 plans done)
+**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 16 NumPyro Refactor in progress (Plan 01 of 02 complete)
 
 ## Current Position
 
-Phase: 14 of 15 (Integration + GPU Benchmark)
-Plan: 3/3 complete (all plans done)
-Status: Phase complete — apply_decision_gate + _GpuMonitor + rewritten _run_benchmark + tests committed
-Last activity: 2026-04-12 — Completed 14-02-PLAN.md: apply_decision_gate, _GpuMonitor, full _run_benchmark rewrite
+Phase: 16 of 16 (NumPyro Direct Sampling + CUDA Fix)
+Plan: 1/2 complete (numpyro-direct model functions + fit rewrite done)
+Status: In progress — Plan 16-01 complete, Plan 16-02 (CUDA fix + diagnostics) pending
+Last activity: 2026-04-13 — Completed 16-01-PLAN.md: build_logp_fn_batched, numpyro model functions, rewritten fit_batch_hierarchical
 
-[==========████████]   v1.1 code-complete (Phases 1-11); Phases 12-13 verified; Phase 14 complete
+[===========████████=]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 Plan 01 complete
 
 ## Performance Metrics
 
@@ -87,6 +87,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | apply_decision_gate is pure function in iteration.py (not script-local) | Testable independently of benchmark script; importable by any caller needing gate logic | 14-02 |
 | _update_state_md uses string search + last-| -line insertion (not regex) | Simple and robust for the fixed table structure; handles missing STATE.md gracefully | 14-02 |
 | BLE001 noqa on broad except in _GpuMonitor._run | Intentional swallow for nvidia-smi transient failures (missing binary, timeout, parse error) | 14-02 |
+| Additive refactor: all PyTensor Op code kept for VALID-01/02 backward compat | Deprecated functions still importable; no test breakage risk | 16-01 |
+| chain_method="vectorized" for numpyro MCMC | Single kernel for all 4 chains on one GPU; better throughput than sequential+jit_model_args | 16-01 |
+| numpyro.sample() + numpyro.factor() pattern over raw potential_fn | Preserves named parameters for az.from_numpyro(); avoids manual Param:0 renaming | 16-01 |
+| Data passed as kwargs to mcmc.run(), not captured in closures | XLA trace is shape-dependent but value-independent; enables JIT cache reuse across power-sweep iterations | 16-01 |
+| sampler="pymc" raises DeprecationWarning; numpyro path always used | API backward compat preserved; old callers get warning but still work | 16-01 |
 
 ### Pending Todos
 
@@ -102,7 +107,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 - **v1.1 per-participant sequential MCMC is GPU-pessimal** — L40S benchmark showed ~1.5s/NUTS-sample vs ~5ms on CPU due to PCIe dispatch overhead. v1.2 refactor is mandatory for GPU feasibility.
 - **Decision gate at Phase 14:** if batched hierarchical GPU benchmark is still > 50 GPU-hours per chunk, fall back to CPU `comp` partition (new batched code still wins over v1.1 sequential on CPU).
 - pyhgf has no built-in NaN clamping — **RESOLVED in 12-02**: Layer 2 clamping implemented in hierarchical.py using jnp.where + tree_map (|mu_2| < 14 bound).
-- `_init_jitter` PyTensor read-only-array bug means we can't use `pm.sample(...)` directly even with `nuts_sampler="numpyro"`; must call `pmjax.sample_numpyro_nuts()` directly.
+- `_init_jitter` PyTensor read-only-array bug means we can't use `pm.sample(...)` directly even with `nuts_sampler="numpyro"`; must call `pmjax.sample_numpyro_nuts()` directly. **RESOLVED in 16-01**: fit_batch_hierarchical now uses direct numpyro MCMC, bypassing PyMC/PyTensor entirely.
 
 ## Quick Tasks
 
@@ -110,9 +115,13 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 |-----|------|--------|---------|
 | 001 | Cluster GPU Setup & Smoke Test | Complete | M3 SLURM infrastructure + smoke test PASS |
 
+### Roadmap Evolution
+
+- Phase 16 added (2026-04-13): NumPyro direct sampling + CUDA fix — replace PyMC wrapper with direct numpyro MCMC to enable JIT cache reuse; fix CUDA PTX mismatch; add environment diagnostics
+
 ## Session Continuity
 
-Last session: 2026-04-12
-Stopped at: Completed 14-02-PLAN.md — apply_decision_gate + _GpuMonitor + rewritten _run_benchmark + 5 tests (14 total passing)
+Last session: 2026-04-13
+Stopped at: Completed 16-01-PLAN.md — build_logp_fn_batched, numpyro model functions, rewritten fit_batch_hierarchical
 Resume file: None
-Next action: Phase 15 (production sweep configuration and SLURM job scripts)
+Next action: Phase 16 Plan 02 (CUDA fix + environment diagnostics)

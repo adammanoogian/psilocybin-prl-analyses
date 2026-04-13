@@ -3,3 +3,4 @@ There were 20 divergences after tuning. Increase `target_accept` or reparameteri
 The number of samples is too small to check convergence reliably.
 There were 18 divergences after tuning. Increase `target_accept` or reparameterize.
 The number of samples is too small to check convergence reliably.
+[2026-04-14T05:33:56.006] error: *** JOB 54801839 ON m3g112 CANCELLED AT 2026-04-14T05:33:56 DUE TO TIME LIMIT ***

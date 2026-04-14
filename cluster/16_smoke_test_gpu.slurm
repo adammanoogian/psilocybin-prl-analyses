@@ -48,6 +48,15 @@ conda activate /scratch/${_PROJECT}/${USER}/conda/envs/ds_env 2>/dev/null || {
 }
 
 # =============================================================================
+# Add pip-installed ptxas to PATH (nvidia-cuda-nvcc-cu12 puts it in site-packages)
+# =============================================================================
+PTXAS_BIN=$(python -c 'import nvidia.cuda_nvcc, os; print(os.path.join(os.path.dirname(nvidia.cuda_nvcc.__file__), "bin"))' 2>/dev/null)
+if [[ -n "$PTXAS_BIN" && -d "$PTXAS_BIN" ]]; then
+    export PATH="$PTXAS_BIN:$PATH"
+    echo "Added ptxas to PATH: $PTXAS_BIN"
+fi
+
+# =============================================================================
 # CUDA / PTX Version Compatibility Check
 # =============================================================================
 check_cuda_compat() {

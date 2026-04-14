@@ -74,6 +74,12 @@ effects on ω₃.
 - **Jupyter ipywidgets** for GUI (VSCode compatible)
 - All simulations seeded; all MCMC chains saved
 
+## Workflow
+
+- **Always push after committing** — this repo is worked on from both a local
+  machine and the M3 cluster. Every commit must be pushed so the other side
+  can `git pull` before running.
+
 ## Development Phases
 
 1. Foundation (this plan): package skeleton, config system

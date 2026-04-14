@@ -117,6 +117,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | ID  | Name | Status | Summary |
 |-----|------|--------|---------|
 | 001 | Cluster GPU Setup & Smoke Test | Complete | M3 SLURM infrastructure + smoke test PASS |
+| 002 | HGF Fitting Lessons Obsidian Doc | Complete | Comprehensive coding guide in Obsidian Vault covering math, JAX/NumPyro patterns, cluster pitfalls |
 
 ### Roadmap Evolution
 
@@ -124,7 +125,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-13
-Stopped at: Completed 16-02-PLAN.md — caller integration, CUDA PTX check, VALID-01/02/03 updated
+Last session: 2026-04-14
+Stopped at: Added --smoke-test mode + SLURM script; created HGF fitting coding guide in Obsidian Vault
 Resume file: None
-Next action: Phase 16 complete; ready for Phase 15 production runs on cluster
+Next action: Run smoke test on cluster (sbatch cluster/16_smoke_test_gpu.slurm); review smoke_test.json results

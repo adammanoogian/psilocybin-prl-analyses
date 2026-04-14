@@ -96,6 +96,17 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--smoke-test",
+        action="store_true",
+        default=False,
+        help=(
+            "Smoke test mode: lightweight JIT timing at a fixed small N "
+            "(N=5/group, 30 participant-sessions).  Tests cold JIT, warm "
+            "JIT cache reuse, and simulation vmap.  Short enough for a "
+            "2-hour wall time.  Writes smoke_test.json."
+        ),
+    )
+    parser.add_argument(
         "--fit-chains",
         type=int,
         default=2,
@@ -272,6 +283,216 @@ def _update_state_md(
 
     state_md_path.write_text(text, encoding="utf-8")
     print(f"  Appended decision gate row to {state_md_path}")
+
+
+def _run_smoke_test(
+    base_config: object,
+    power_config: object,
+    output_dir: Path,
+    args: argparse.Namespace,
+) -> None:
+    """Lightweight JIT smoke test at fixed small N.
+
+    Tests three things at N=5/group (30 participant-sessions):
+
+    1. Simulation vmap compiles and runs.
+    2. Cold JIT for ``fit_batch_hierarchical`` (first MCMC call).
+    3. Warm JIT cache reuse (second call, same shape, different data).
+
+    Uses minimal MCMC settings (2 chains, 10 draws, 10 tune) to isolate
+    compilation cost from sampling cost.  Writes ``smoke_test.json``.
+
+    Parameters
+    ----------
+    base_config : AnalysisConfig
+        Base analysis configuration loaded from YAML.
+    power_config : PowerConfig
+        Power analysis grid configuration.
+    output_dir : Path
+        Directory for the smoke test JSON output.
+    args : argparse.Namespace
+        Parsed CLI arguments.
+    """
+    import jax
+    import subprocess
+
+    from prl_hgf.fitting.hierarchical import fit_batch_hierarchical
+    from prl_hgf.power.config import make_power_config
+    from prl_hgf.simulation.batch import simulate_batch
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    results: dict = {}
+    n_smoke = 5  # participants per group
+    n_chains_smoke = 2
+    n_draws_smoke = 10
+    n_tune_smoke = 10
+    d_smoke = power_config.effect_size_grid[0]
+
+    print("=" * 60)
+    print("SMOKE TEST MODE (JIT compilation diagnostics)")
+    print("=" * 60)
+
+    # --- GPU info ---
+    devices = jax.devices()
+    gpu_devices = [d for d in devices if d.platform == "gpu"]
+    if gpu_devices:
+        results["gpu_device"] = str(gpu_devices[0])
+        print(f"\nGPU: {gpu_devices[0]}")
+    else:
+        results["gpu_device"] = "none (CPU only)"
+        print("\nWARNING: No GPU detected — running on CPU.")
+
+    try:
+        smi = subprocess.run(
+            [
+                "nvidia-smi",
+                "--query-gpu=name,memory.total,memory.free",
+                "--format=csv,noheader",
+            ],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        if smi.returncode == 0:
+            gpu_info = smi.stdout.strip()
+            results["gpu_nvidia_smi"] = gpu_info
+            print(f"  nvidia-smi: {gpu_info}")
+    except (FileNotFoundError, subprocess.TimeoutExpired):
+        pass
+
+    # --- CUDA/PTX version check ---
+    try:
+        ptxas = subprocess.run(
+            ["ptxas", "--version"],
+            capture_output=True,
+            text=True,
+            timeout=10,
+        )
+        results["ptxas_available"] = ptxas.returncode == 0
+        if ptxas.returncode == 0:
+            results["ptxas_version"] = ptxas.stdout.strip()
+            print(f"  ptxas: {ptxas.stdout.strip()}")
+        else:
+            print("  WARNING: ptxas not functional")
+    except FileNotFoundError:
+        results["ptxas_available"] = False
+        print("  WARNING: ptxas not found — XLA parallel compilation disabled")
+
+    n_participant_sessions = 2 * n_smoke * 3  # 2 groups x N x 3 sessions
+    print(f"\nSmoke test config:")
+    print(f"  N per group:            {n_smoke}")
+    print(f"  Participant-sessions:   {n_participant_sessions}")
+    print(f"  Chains:                 {n_chains_smoke}")
+    print(f"  Draws/tune:             {n_draws_smoke}/{n_tune_smoke}")
+    print(f"  Model:                  hgf_3level")
+
+    # --- Step 1: Simulation vmap ---
+    print(f"\nStep 1: Simulate cohort (N={n_smoke}/group)...")
+    cfg_smoke = make_power_config(base_config, n_smoke, d_smoke, 77777)
+    t0 = time.perf_counter()
+    sim_smoke = simulate_batch(cfg_smoke)
+    sim_s = time.perf_counter() - t0
+    results["sim_vmap_s"] = round(sim_s, 2)
+    print(f"  Simulation: {sim_s:.2f}s")
+
+    # --- Step 2: Cold JIT ---
+    print("\nStep 2: Cold JIT (first MCMC call — includes XLA compilation)...")
+    t0 = time.perf_counter()
+    fit_batch_hierarchical(
+        sim_smoke,
+        "hgf_3level",
+        n_chains=n_chains_smoke,
+        n_draws=n_draws_smoke,
+        n_tune=n_tune_smoke,
+        target_accept=0.9,
+        random_seed=42,
+        progressbar=False,
+    )
+    jit_cold_s = time.perf_counter() - t0
+    results["jit_cold_s"] = round(jit_cold_s, 2)
+    print(f"  Cold JIT: {jit_cold_s:.2f}s")
+
+    # --- Step 3: Warm JIT (same shape, different data) ---
+    print("\nStep 3: Warm JIT (same shape, different seed — tests cache reuse)...")
+    cfg_smoke_2 = make_power_config(base_config, n_smoke, d_smoke, 88888)
+    sim_smoke_2 = simulate_batch(cfg_smoke_2)
+    t0 = time.perf_counter()
+    fit_batch_hierarchical(
+        sim_smoke_2,
+        "hgf_3level",
+        n_chains=n_chains_smoke,
+        n_draws=n_draws_smoke,
+        n_tune=n_tune_smoke,
+        target_accept=0.9,
+        random_seed=43,
+        progressbar=False,
+    )
+    jit_warm_s = time.perf_counter() - t0
+    results["jit_warm_s"] = round(jit_warm_s, 2)
+    print(f"  Warm JIT: {jit_warm_s:.2f}s")
+
+    cache_speedup = jit_cold_s / max(jit_warm_s, 0.001)
+    results["cache_speedup"] = round(cache_speedup, 2)
+
+    # --- Summary ---
+    print("\n" + "=" * 60)
+    print("SMOKE TEST RESULTS")
+    print("=" * 60)
+    print(f"  GPU:                {results.get('gpu_device', 'unknown')}")
+    print(f"  ptxas available:    {results.get('ptxas_available', 'unknown')}")
+    print(f"  Sim vmap:           {results['sim_vmap_s']:.2f}s")
+    print(f"  Cold JIT:           {results['jit_cold_s']:.2f}s")
+    print(f"  Warm JIT:           {results['jit_warm_s']:.2f}s")
+    print(f"  Cache speedup:      {cache_speedup:.1f}x")
+    print()
+
+    # Pass/fail gates
+    cold_ok = jit_cold_s < 600  # 10 min max for cold JIT
+    cache_ok = cache_speedup > 3.0  # warm should be >3x faster than cold
+    warm_ok = jit_warm_s < 120  # warm JIT under 2 min
+
+    results["gate_cold_jit_under_600s"] = cold_ok
+    results["gate_cache_speedup_over_3x"] = cache_ok
+    results["gate_warm_jit_under_120s"] = warm_ok
+    all_pass = cold_ok and cache_ok and warm_ok
+    results["all_gates_pass"] = all_pass
+
+    print("GATES:")
+    print(f"  Cold JIT < 600s:    {'PASS' if cold_ok else 'FAIL'} ({jit_cold_s:.0f}s)")
+    print(f"  Cache speedup > 3x: {'PASS' if cache_ok else 'FAIL'} ({cache_speedup:.1f}x)")
+    print(f"  Warm JIT < 120s:    {'PASS' if warm_ok else 'FAIL'} ({jit_warm_s:.0f}s)")
+    print(f"  Overall:            {'ALL PASS' if all_pass else 'FAIL'}")
+
+    if not all_pass:
+        print()
+        if not cold_ok:
+            print("  FIX: Cold JIT too slow. Check CUDA/PTX version match:")
+            print("       pip install -r cluster/requirements-gpu.txt")
+        if not cache_ok:
+            print("  FIX: XLA cache not reusing compiled kernels.")
+            print("       Verify JAX_COMPILATION_CACHE_DIR is set and writable.")
+            print("       Verify data is passed as dynamic args (not closure).")
+        if not warm_ok:
+            print("  FIX: Even cached JIT is slow. Check GPU memory pressure")
+            print("       and CUDA driver version.")
+
+    print("=" * 60)
+
+    # --- Write JSON ---
+    results["smoke_test_config"] = {
+        "n_per_group": n_smoke,
+        "participant_sessions": n_participant_sessions,
+        "chains": n_chains_smoke,
+        "draws": n_draws_smoke,
+        "tune": n_tune_smoke,
+    }
+    smoke_path = output_dir / "smoke_test.json"
+    with open(smoke_path, "w") as f:
+        json.dump(results, f, indent=2)
+    print(f"\nResults saved to: {smoke_path}")
+
+    if not all_pass:
+        sys.exit(1)
 
 
 def _run_benchmark(
@@ -526,6 +747,10 @@ def main() -> None:
     )
 
     out_path = output_dir / f"job_{args.job_id}_chunk_{args.chunk_id:04d}.parquet"
+
+    if args.smoke_test:
+        _run_smoke_test(base_config, power_config, output_dir, args)
+        return
 
     if args.benchmark:
         _run_benchmark(base_config, power_config, output_dir, args)

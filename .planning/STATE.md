@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 17 BlackJAX NUTS Sampler IN PROGRESS
+**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 17 BlackJAX NUTS Sampler COMPLETE
 
 ## Current Position
 
 Phase: 17 of 17 (BlackJAX NUTS Sampler)
-Plan: 1/2 complete (17-01 BlackJAX core + orchestrator done; 17-02 smoke test pending)
-Status: In progress — BlackJAX default sampler wired, needs smoke test validation
-Last activity: 2026-04-15 — Completed 17-01-PLAN.md: BlackJAX dependency, core helpers, fit_batch_hierarchical rewrite
+Plan: 2/2 complete (17-01 BlackJAX core + orchestrator; 17-02 smoke tests + SLURM updates)
+Status: Phase complete — BlackJAX default sampler with full test coverage and cluster-ready SLURM scripts
+Last activity: 2026-04-15 — Completed 17-02-PLAN.md: BlackJAX smoke tests, VALID-02 convergence test, SLURM updates
 
-[===========██████████░]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 in progress
+[===========███████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete
 
 ## Performance Metrics
 
@@ -100,6 +100,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | numpyro.distributions for standalone prior log_prob | Pure JAX, no model context; matches existing prior specs exactly; avoids jax.scipy.stats standardized-bounds pitfall | 17-01 |
 | pmap when device_count >= n_chains; vmap fallback on single device | Multi-GPU utilization when available; no overhead from pmap on single device | 17-01 |
 | sampler="pymc" deprecation falls through to numpyro (not blackjax) | PyMC users expect NumPyro-style behavior; blackjax path is new and should be explicitly chosen | 17-01 |
+| Separate 2-level/3-level log-posterior smoke tests (not parameterized) | Clearer failure diagnostics when one model variant fails | 17-02 |
+| SLURM default SAMPLER env var changed from numpyro to blackjax | Matches fit_batch_hierarchical default sampler; override with SAMPLER=numpyro if needed | 17-02 |
+| JIT gate thresholds preserved at NumPyro levels with annotation | Thresholds conservative for BlackJAX; will tighten after cluster benchmarking | 17-02 |
 
 ### Pending Todos
 
@@ -129,10 +132,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 - Phase 16 added (2026-04-13): NumPyro direct sampling + CUDA fix — replace PyMC wrapper with direct numpyro MCMC to enable JIT cache reuse; fix CUDA PTX mismatch; add environment diagnostics
 - Phase 17 added (2026-04-15): BlackJAX NUTS sampler — replace NumPyro MCMC with BlackJAX to eliminate ~1800s JIT recompilation per call; restore multi-GPU pmap for chain parallelism
 - Phase 17-01 complete (2026-04-15): BlackJAX core + orchestrator — _build_log_posterior, _run_blackjax_nuts, _samples_to_idata, fit_batch_hierarchical rewrite
+- Phase 17-02 complete (2026-04-15): BlackJAX smoke tests + SLURM updates — 4 new fast tests (logp, gradient, idata), VALID-02 blackjax convergence test, SLURM scripts updated for BlackJAX default
 
 ## Session Continuity
 
 Last session: 2026-04-15
-Stopped at: Completed 17-01-PLAN.md — BlackJAX dependency, core helpers (_build_log_posterior, _run_blackjax_nuts, _samples_to_idata), fit_batch_hierarchical rewritten with default sampler="blackjax"
+Stopped at: Completed 17-02-PLAN.md — BlackJAX smoke tests, VALID-02 convergence test, SLURM scripts updated for BlackJAX default sampler
 Resume file: None
-Next action: Execute 17-02-PLAN.md (smoke test + validation of BlackJAX path)
+Next action: Phase 17 complete. Run slow VALID-02 tests on cluster. Consider next milestone planning.

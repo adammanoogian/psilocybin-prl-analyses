@@ -3,19 +3,19 @@
   "gpu_table": [
     {
       "index": 0,
-      "name": "NVIDIA L40S",
-      "vram_total_mb": 46068,
-      "vram_used_mb": 441,
-      "vram_free_mb": 45028,
+      "name": "NVIDIA A100 80GB PCIe",
+      "vram_total_mb": 81920,
+      "vram_used_mb": 429,
+      "vram_free_mb": 80725,
       "gpu_util_pct": 0,
-      "temp_c": 28,
-      "pci_bus": "00000000:E3:00.0"
+      "temp_c": 37,
+      "pci_bus": "00000000:CA:00.0"
     }
   ],
   "ptxas_available": true,
   "ptxas_version": "Cuda compilation tools, release 12.8, V12.8.93",
   "xla_env": {
-    "JAX_COMPILATION_CACHE_DIR": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g109",
+    "JAX_COMPILATION_CACHE_DIR": "/scratch/fc37/aman0087/.jax_cache_gpu/m3n103",
     "JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES": "0",
     "JAX_LOG_COMPILES": "1",
     "JAX_PLATFORMS": "(unset)",
@@ -26,77 +26,77 @@
     "JAX_ENABLE_X64": "(unset)"
   },
   "cache_before": {
-    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g109",
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3n103",
     "cache_exists": true,
     "n_files": 4,
     "total_size_mb": 0.0
   },
   "jax_version": "0.4.31",
   "jaxlib_version": "0.4.31",
-  "sim_vmap_s": 5.63,
+  "sim_vmap_s": 8.15,
   "gpu_pre_cold_jit": [
     {
       "index": 0,
-      "name": "NVIDIA L40S",
-      "vram_total_mb": 46068,
-      "vram_used_mb": 445,
-      "vram_free_mb": 45024,
+      "name": "NVIDIA A100 80GB PCIe",
+      "vram_total_mb": 81920,
+      "vram_used_mb": 433,
+      "vram_free_mb": 80721,
       "gpu_util_pct": 10,
-      "temp_c": 29,
-      "pci_bus": "00000000:E3:00.0"
+      "temp_c": 38,
+      "pci_bus": "00000000:CA:00.0"
     }
   ],
-  "jit_cold_s": 1834.72,
+  "jit_cold_s": 1610.15,
   "gpu_post_cold_jit": [
     {
       "index": 0,
-      "name": "NVIDIA L40S",
-      "vram_total_mb": 46068,
-      "vram_used_mb": 561,
-      "vram_free_mb": 44908,
-      "gpu_util_pct": 32,
-      "temp_c": 36,
-      "pci_bus": "00000000:E3:00.0"
+      "name": "NVIDIA A100 80GB PCIe",
+      "vram_total_mb": 81920,
+      "vram_used_mb": 573,
+      "vram_free_mb": 80581,
+      "gpu_util_pct": 0,
+      "temp_c": 40,
+      "pci_bus": "00000000:CA:00.0"
     }
   ],
   "cache_after_cold": {
-    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g109",
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3n103",
     "cache_exists": true,
-    "n_files": 484,
-    "total_size_mb": 2.22
+    "n_files": 390,
+    "total_size_mb": 2.36
   },
   "gpu_pre_warm_jit": [
     {
       "index": 0,
-      "name": "NVIDIA L40S",
-      "vram_total_mb": 46068,
-      "vram_used_mb": 561,
-      "vram_free_mb": 44908,
+      "name": "NVIDIA A100 80GB PCIe",
+      "vram_total_mb": 81920,
+      "vram_used_mb": 573,
+      "vram_free_mb": 80581,
       "gpu_util_pct": 10,
-      "temp_c": 36,
-      "pci_bus": "00000000:E3:00.0"
+      "temp_c": 40,
+      "pci_bus": "00000000:CA:00.0"
     }
   ],
-  "jit_warm_s": 1162.07,
+  "jit_warm_s": 2196.35,
   "gpu_post_warm_jit": [
     {
       "index": 0,
-      "name": "NVIDIA L40S",
-      "vram_total_mb": 46068,
-      "vram_used_mb": 563,
-      "vram_free_mb": 44906,
-      "gpu_util_pct": 0,
-      "temp_c": 36,
-      "pci_bus": "00000000:E3:00.0"
+      "name": "NVIDIA A100 80GB PCIe",
+      "vram_total_mb": 81920,
+      "vram_used_mb": 575,
+      "vram_free_mb": 80579,
+      "gpu_util_pct": 100,
+      "temp_c": 41,
+      "pci_bus": "00000000:CA:00.0"
     }
   ],
   "cache_after_warm": {
-    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g109",
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3n103",
     "cache_exists": true,
-    "n_files": 486,
-    "total_size_mb": 2.87
+    "n_files": 400,
+    "total_size_mb": 4.02
   },
-  "cache_speedup": 1.58,
+  "cache_speedup": 0.73,
   "gate_cold_jit_under_600s": false,
   "gate_cache_speedup_over_3x": false,
   "gate_warm_jit_under_120s": false,

@@ -206,10 +206,10 @@ Plans:
 **Success Criteria** (what must be TRUE):
   1. `fit_batch_hierarchical` uses `blackjax.nuts` with `blackjax.window_adaptation` for warmup; compiles the NUTS step function exactly once per shape via `jax.jit`
   2. Cold JIT < 120s on L40S GPU (vs ~1800s with NumPyro); warm JIT < 5s (compiled kernel reuse across power-sweep iterations with same shapes)
-  3. Pure JAX log-posterior function combines truncated-normal/normal priors with `batched_logp_fn`; no NumPyro dependency in the fitting path
+  3. Pure JAX log-posterior function combines truncated-normal/normal priors with `batched_logp_fn`; no NumPyro MCMC dependency in the fitting path (numpyro.distributions used standalone for prior log-probs)
   4. Multi-GPU support: `jax.pmap` across available GPUs for chain parallelism (1 chain per device); falls back to `jax.vmap` on single GPU
   5. ArviZ `InferenceData` output with participant coords preserved; downstream analysis scripts unchanged
-  6. VALID-01/02/03 tests pass with BlackJAX path (posterior equivalence within MCSE vs numpyro-direct baseline)
+  6. VALID-01/02 pass with BlackJAX path (posterior equivalence within MCSE vs numpyro-direct baseline); VALID-03 deferred to Phase 14
   7. SLURM scripts updated; smoke test passes all 3 gates (cold JIT < 600s, cache speedup > 3x, warm JIT < 120s)
 **Plans**: 2 plans
 

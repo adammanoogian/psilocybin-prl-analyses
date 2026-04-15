@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 16 NumPyro Refactor COMPLETE
+**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 17 BlackJAX NUTS Sampler IN PROGRESS
 
 ## Current Position
 
-Phase: 16 of 16 (NumPyro Direct Sampling + CUDA Fix)
-Plan: 2/2 complete (Phase 16 complete)
-Status: Phase complete — numpyro-direct path wired into all callers, CUDA diagnostics added, validation passing
-Last activity: 2026-04-13 — Completed 16-02-PLAN.md: caller integration, CUDA PTX check, VALID-01/02/03 updated
+Phase: 17 of 17 (BlackJAX NUTS Sampler)
+Plan: 1/2 complete (17-01 BlackJAX core + orchestrator done; 17-02 smoke test pending)
+Status: In progress — BlackJAX default sampler wired, needs smoke test validation
+Last activity: 2026-04-15 — Completed 17-01-PLAN.md: BlackJAX dependency, core helpers, fit_batch_hierarchical rewrite
 
-[===========██████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete
+[===========██████████░]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 in progress
 
 ## Performance Metrics
 
@@ -95,6 +95,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | sampler= kwarg removed from batched fit_batch_hierarchical calls; kept in signatures for backward compat | Batched path always uses numpyro-direct; no need to forward sampler to fit function | 16-02 |
 | check_cuda_compat is non-fatal in SLURM scripts | MCMC still works without XLA parallel compilation, just slower; no reason to abort the job | 16-02 |
 | GPU pip deps tracked in cluster/requirements-gpu.txt (separate from main requirements) | Cluster-specific CUDA pins should not pollute the main dev environment | 16-02 |
+| BlackJAX as default sampler (sampler="blackjax"); NumPyro preserved as fallback | Eliminates ~1800s per-call JIT recompilation; BlackJAX compiles NUTS step once via jax.jit | 17-01 |
+| Single warmup replicated across chains (not per-chain warmup) | Simpler implementation; posterior geometry similar across chains with IID priors | 17-01 |
+| numpyro.distributions for standalone prior log_prob | Pure JAX, no model context; matches existing prior specs exactly; avoids jax.scipy.stats standardized-bounds pitfall | 17-01 |
+| pmap when device_count >= n_chains; vmap fallback on single device | Multi-GPU utilization when available; no overhead from pmap on single device | 17-01 |
+| sampler="pymc" deprecation falls through to numpyro (not blackjax) | PyMC users expect NumPyro-style behavior; blackjax path is new and should be explicitly chosen | 17-01 |
 
 ### Pending Todos
 
@@ -122,10 +127,12 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ### Roadmap Evolution
 
 - Phase 16 added (2026-04-13): NumPyro direct sampling + CUDA fix — replace PyMC wrapper with direct numpyro MCMC to enable JIT cache reuse; fix CUDA PTX mismatch; add environment diagnostics
+- Phase 17 added (2026-04-15): BlackJAX NUTS sampler — replace NumPyro MCMC with BlackJAX to eliminate ~1800s JIT recompilation per call; restore multi-GPU pmap for chain parallelism
+- Phase 17-01 complete (2026-04-15): BlackJAX core + orchestrator — _build_log_posterior, _run_blackjax_nuts, _samples_to_idata, fit_batch_hierarchical rewrite
 
 ## Session Continuity
 
-Last session: 2026-04-14
-Stopped at: Added --smoke-test mode + SLURM script; created HGF fitting coding guide in Obsidian Vault
+Last session: 2026-04-15
+Stopped at: Completed 17-01-PLAN.md — BlackJAX dependency, core helpers (_build_log_posterior, _run_blackjax_nuts, _samples_to_idata), fit_batch_hierarchical rewritten with default sampler="blackjax"
 Resume file: None
-Next action: Run smoke test on cluster (sbatch cluster/16_smoke_test_gpu.slurm); review smoke_test.json results
+Next action: Execute 17-02-PLAN.md (smoke test + validation of BlackJAX path)

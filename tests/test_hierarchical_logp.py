@@ -1,6 +1,6 @@
-"""Phase 12 validation tests for the batched hierarchical JAX logp Op.
+"""Phase 12/17 validation tests for the batched hierarchical JAX logp Op.
 
-Tests cover three categories:
+Tests cover four categories:
 
 1. **VALID-01 (bit-exact at P=1 and P=2):** The new
    ``build_logp_ops_batched`` forward pass at ``n_participants=1`` returns
@@ -9,14 +9,17 @@ Tests cover three categories:
    ``atol=1e-12, rtol=0``.
 
 2. **VALID-02 (within-MCSE at P=5):** Fit 5 synthetic participants
-   sequentially via the legacy ``fit_batch`` path on CPU and the same 5
-   participants batched via ``fit_batch_hierarchical`` on CPU, both with
-   matched seeds.  Per-parameter posterior means agree within
-   ``3 x max(mcse_legacy, mcse_batched)``.
+   via ``fit_batch_hierarchical`` and validate convergence quality.
+   BlackJAX (default) and NumPyro (fallback) paths tested separately.
 
 3. **Layer 2 clamping smoke test:** Drive a single participant's logp into
    the unstable region and confirm the batched logp returns a finite value
    (not NaN).
+
+4. **BlackJAX smoke tests (Phase 17):** Validate the pure JAX
+   ``_build_log_posterior`` returns finite scalars and finite gradients,
+   and ``_samples_to_idata`` produces correct ArviZ InferenceData with
+   chain, draw, and participant dimensions.
 
 Run fast tests only::
 
@@ -365,7 +368,7 @@ def test_valid_02_batched_numpyro_convergence(_five_participant_sim_df):
     """VALID-02: numpyro-direct batched fit produces converged posteriors.
 
     Fits 5 synthetic participants via ``fit_batch_hierarchical`` using
-    the numpyro-direct MCMC path (Phase 16) and validates:
+    the numpyro-direct MCMC path (Phase 16 fallback) and validates:
 
     1. **Structure:** InferenceData has posterior group with expected
        parameter names and participant dimension.
@@ -375,13 +378,9 @@ def test_valid_02_batched_numpyro_convergence(_five_participant_sim_df):
     4. **Reasonable values:** omega_2 in [-8, 2], beta in [0, 20],
        zeta in [-2, 5] (within prior support).
 
-    Note: Prior to Phase 16, this test compared the batched path against
-    the legacy sequential path.  Since Phase 16, the batched path uses
-    direct numpyro MCMC while the legacy path uses PyMC's numpyro bridge
-    — fundamentally different MCMC implementations with different warmup
-    adaptation and seed handling.  Cross-implementation posterior mean
-    comparison is not meaningful at low draw counts.  This test now
-    validates convergence quality of the production (numpyro-direct) path.
+    Explicitly passes ``sampler="numpyro"`` to test the fallback path.
+    See ``test_valid_02_batched_blackjax_convergence`` for the default
+    BlackJAX path.
 
     Uses ``model_name="hgf_2level"`` for speed (3 params: omega_2,
     beta, zeta) with ``n_chains=2, n_draws=500, n_tune=500``.
@@ -405,7 +404,7 @@ def test_valid_02_batched_numpyro_convergence(_five_participant_sim_df):
     }
 
     # ------------------------------------------------------------------
-    # Batched path: single-call cohort fit (direct numpyro MCMC)
+    # Batched path: single-call cohort fit (numpyro fallback)
     # ------------------------------------------------------------------
     batched_idata = fit_batch_hierarchical(
         sim_df,
@@ -415,6 +414,7 @@ def test_valid_02_batched_numpyro_convergence(_five_participant_sim_df):
         n_tune=n_tune,
         target_accept=target_accept,
         random_seed=random_seed,
+        sampler="numpyro",
         progressbar=False,
     )
 
@@ -576,4 +576,389 @@ def test_numpyro_model_importable():
     )
     assert callable(_numpyro_model_2level), (
         "_numpyro_model_2level is not callable"
+    )
+
+
+# ---------------------------------------------------------------------------
+# BlackJAX smoke tests (Phase 17)
+# ---------------------------------------------------------------------------
+
+
+def test_blackjax_log_posterior_smoke_3level():
+    """BlackJAX: _build_log_posterior returns finite scalar for 3-level model.
+
+    Builds a batched logp function for ``hgf_3level`` with dummy data
+    at P=2, constructs the log-posterior via ``_build_log_posterior``,
+    and evaluates at prior modes.  Asserts the result is a finite scalar.
+    """
+    import jax.numpy as jnp
+
+    from prl_hgf.fitting.hierarchical import (
+        _build_log_posterior,
+        build_logp_fn_batched,
+    )
+
+    n_trials = 50
+    n_participants = 2
+
+    batched_logp_fn, n_params = build_logp_fn_batched(
+        model_name="hgf_3level", n_trials=n_trials
+    )
+    assert n_params == 5
+
+    # Dummy data arrays
+    input_data = jnp.zeros((n_participants, n_trials, 3))
+    observed = jnp.zeros((n_participants, n_trials, 3), dtype=jnp.int32)
+    choices = jnp.zeros((n_participants, n_trials), dtype=jnp.int32)
+    trial_mask = jnp.ones((n_participants, n_trials))
+
+    logdensity_fn = _build_log_posterior(
+        batched_logp_fn,
+        input_data,
+        observed,
+        choices,
+        trial_mask,
+        n_participants=n_participants,
+        model_name="hgf_3level",
+    )
+
+    params = {
+        "omega_2": jnp.full((n_participants,), -3.0),
+        "omega_3": jnp.full((n_participants,), -6.0),
+        "kappa": jnp.full((n_participants,), 1.0),
+        "log_beta": jnp.full((n_participants,), 0.0),
+        "zeta": jnp.full((n_participants,), 0.0),
+    }
+    result = float(logdensity_fn(params))
+    assert math.isfinite(result), (
+        f"BlackJAX log-posterior 3-level smoke test FAILED: "
+        f"expected finite scalar, got {result}"
+    )
+
+
+def test_blackjax_log_posterior_smoke_2level():
+    """BlackJAX: _build_log_posterior returns finite scalar for 2-level model.
+
+    Same as 3-level test but for ``hgf_2level`` with 3 parameters.
+    """
+    import jax.numpy as jnp
+
+    from prl_hgf.fitting.hierarchical import (
+        _build_log_posterior,
+        build_logp_fn_batched,
+    )
+
+    n_trials = 50
+    n_participants = 2
+
+    batched_logp_fn, n_params = build_logp_fn_batched(
+        model_name="hgf_2level", n_trials=n_trials
+    )
+    assert n_params == 3
+
+    input_data = jnp.zeros((n_participants, n_trials, 3))
+    observed = jnp.zeros((n_participants, n_trials, 3), dtype=jnp.int32)
+    choices = jnp.zeros((n_participants, n_trials), dtype=jnp.int32)
+    trial_mask = jnp.ones((n_participants, n_trials))
+
+    logdensity_fn = _build_log_posterior(
+        batched_logp_fn,
+        input_data,
+        observed,
+        choices,
+        trial_mask,
+        n_participants=n_participants,
+        model_name="hgf_2level",
+    )
+
+    params = {
+        "omega_2": jnp.full((n_participants,), -3.0),
+        "log_beta": jnp.full((n_participants,), 0.0),
+        "zeta": jnp.full((n_participants,), 0.0),
+    }
+    result = float(logdensity_fn(params))
+    assert math.isfinite(result), (
+        f"BlackJAX log-posterior 2-level smoke test FAILED: "
+        f"expected finite scalar, got {result}"
+    )
+
+
+def test_blackjax_log_posterior_gradient_smoke():
+    """BlackJAX: gradient of log-posterior is finite (no NaN/inf).
+
+    Validates that BlackJAX can differentiate through the nested
+    ``lax.scan`` by computing ``jax.grad(logdensity_fn)(params)`` and
+    asserting all gradient values are finite.
+    """
+    import jax
+    import jax.numpy as jnp
+
+    from prl_hgf.fitting.hierarchical import (
+        _build_log_posterior,
+        build_logp_fn_batched,
+    )
+
+    n_trials = 50
+    n_participants = 2
+
+    batched_logp_fn, _ = build_logp_fn_batched(
+        model_name="hgf_3level", n_trials=n_trials
+    )
+
+    input_data = jnp.zeros((n_participants, n_trials, 3))
+    observed = jnp.zeros((n_participants, n_trials, 3), dtype=jnp.int32)
+    choices = jnp.zeros((n_participants, n_trials), dtype=jnp.int32)
+    trial_mask = jnp.ones((n_participants, n_trials))
+
+    logdensity_fn = _build_log_posterior(
+        batched_logp_fn,
+        input_data,
+        observed,
+        choices,
+        trial_mask,
+        n_participants=n_participants,
+        model_name="hgf_3level",
+    )
+
+    params = {
+        "omega_2": jnp.full((n_participants,), -3.0),
+        "omega_3": jnp.full((n_participants,), -6.0),
+        "kappa": jnp.full((n_participants,), 1.0),
+        "log_beta": jnp.full((n_participants,), 0.0),
+        "zeta": jnp.full((n_participants,), 0.0),
+    }
+
+    grad_fn = jax.grad(logdensity_fn)
+    grads = grad_fn(params)
+
+    for name, grad_val in grads.items():
+        assert jnp.all(jnp.isfinite(grad_val)), (
+            f"BlackJAX gradient smoke test FAILED: gradient for "
+            f"{name!r} contains non-finite values: {grad_val}"
+        )
+
+
+def test_blackjax_samples_to_idata_smoke():
+    """BlackJAX: _samples_to_idata produces correct InferenceData.
+
+    Creates dummy positions and sample_stats matching the shapes returned
+    by ``_run_blackjax_nuts`` and validates the ArviZ InferenceData has
+    correct chain, draw, and participant dimensions.
+    """
+    from prl_hgf.fitting.hierarchical import _samples_to_idata
+
+    n_chains = 2
+    n_draws = 100
+    n_participants = 3
+    rng = np.random.default_rng(42)
+
+    # Dummy positions: (n_chains, n_draws, P)
+    positions = {
+        "omega_2": rng.standard_normal((n_chains, n_draws, n_participants)),
+        "log_beta": rng.standard_normal(
+            (n_chains, n_draws, n_participants),
+        ),
+        "zeta": rng.standard_normal((n_chains, n_draws, n_participants)),
+    }
+
+    # Dummy sample stats: (n_chains, n_draws)
+    sample_stats = {
+        "diverging": np.zeros((n_chains, n_draws), dtype=bool),
+        "acceptance_rate": np.ones((n_chains, n_draws)) * 0.95,
+    }
+
+    var_names = ["omega_2", "log_beta", "beta", "zeta"]
+    participant_ids = ["P001", "P002", "P003"]
+    participant_groups = ["placebo"] * 3
+    participant_sessions = ["baseline"] * 3
+
+    idata = _samples_to_idata(
+        positions,
+        sample_stats,
+        var_names,
+        participant_ids,
+        participant_groups,
+        participant_sessions,
+        model_name="hgf_2level",
+    )
+
+    # Check posterior group exists
+    assert hasattr(idata, "posterior"), "InferenceData has no posterior group"
+    posterior = idata.posterior
+
+    # Check expected variables present
+    assert "omega_2" in posterior.data_vars, (
+        f"Missing 'omega_2' in posterior. Found: {list(posterior.data_vars)}"
+    )
+    assert "beta" in posterior.data_vars, (
+        f"Missing 'beta' (deterministic) in posterior. "
+        f"Found: {list(posterior.data_vars)}"
+    )
+    assert "zeta" in posterior.data_vars, (
+        f"Missing 'zeta' in posterior. Found: {list(posterior.data_vars)}"
+    )
+
+    # Check dimensions: chain, draw, participant
+    assert posterior.sizes["chain"] == n_chains, (
+        f"Expected {n_chains} chains, got {posterior.sizes['chain']}"
+    )
+    assert posterior.sizes["draw"] == n_draws, (
+        f"Expected {n_draws} draws, got {posterior.sizes['draw']}"
+    )
+    assert posterior.sizes["participant"] == n_participants, (
+        f"Expected {n_participants} participants, "
+        f"got {posterior.sizes['participant']}"
+    )
+
+    # Check participant coordinate values
+    ppt_coords = list(posterior.coords["participant"].values)
+    assert ppt_coords == participant_ids, (
+        f"Expected participant coords {participant_ids}, got {ppt_coords}"
+    )
+
+    # Check sample_stats group
+    assert hasattr(idata, "sample_stats"), (
+        "InferenceData has no sample_stats group"
+    )
+    assert "diverging" in idata.sample_stats.data_vars, (
+        f"Missing 'diverging' in sample_stats. "
+        f"Found: {list(idata.sample_stats.data_vars)}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# VALID-02 — BlackJAX batched fit convergence quality (Phase 17)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.slow
+def test_valid_02_batched_blackjax_convergence(_five_participant_sim_df):
+    """VALID-02: BlackJAX batched fit produces converged posteriors.
+
+    Fits 5 synthetic participants via ``fit_batch_hierarchical`` using
+    the default BlackJAX NUTS path (Phase 17) and validates:
+
+    1. **Structure:** InferenceData has posterior group with expected
+       parameter names and participant dimension.
+    2. **Finite posteriors:** All posterior means are finite.
+    3. **Reasonable values:** omega_2 in [-8, 2], beta in [0, 20],
+       zeta in [-2, 5] (within prior support).
+
+    Uses ``model_name="hgf_2level"`` for speed (3 params: omega_2,
+    beta, zeta) with ``n_chains=2, n_draws=500, n_tune=500``.
+
+    Note: VALID-03 (cross-platform CPU/GPU consistency) is deferred to
+    Phase 14 and is not tested here.
+    """
+    from prl_hgf.fitting.hierarchical import fit_batch_hierarchical
+
+    sim_df = _five_participant_sim_df
+    model_name = "hgf_2level"
+    n_chains = 2
+    n_draws = 500
+    n_tune = 500
+    target_accept = 0.9
+    random_seed = 42
+    var_names = ["omega_2", "beta", "zeta"]
+
+    # Reasonable parameter bounds (within prior support)
+    param_bounds = {
+        "omega_2": (-8.0, 2.0),
+        "beta": (0.0, 20.0),
+        "zeta": (-2.0, 5.0),
+    }
+
+    # ------------------------------------------------------------------
+    # Batched path: single-call cohort fit (BlackJAX NUTS, default)
+    # ------------------------------------------------------------------
+    batched_idata = fit_batch_hierarchical(
+        sim_df,
+        model_name=model_name,
+        n_chains=n_chains,
+        n_draws=n_draws,
+        n_tune=n_tune,
+        target_accept=target_accept,
+        random_seed=random_seed,
+        progressbar=False,
+    )
+
+    # ------------------------------------------------------------------
+    # Check 1: Structure -- posterior has expected variables
+    # ------------------------------------------------------------------
+    posterior = batched_idata.posterior
+    for var in var_names:
+        assert var in posterior.data_vars, (
+            f"Missing variable {var!r} in BlackJAX posterior. "
+            f"Found: {list(posterior.data_vars)}"
+        )
+
+    # ------------------------------------------------------------------
+    # Check 2: Participant dimension present
+    # ------------------------------------------------------------------
+    participant_ids = sorted(sim_df["participant_id"].unique())
+    n_expected = len(participant_ids)
+    first_var = posterior[var_names[0]]
+    ppt_dims = [d for d in first_var.dims if d not in ("chain", "draw")]
+    assert ppt_dims, (
+        "No participant dimension found in BlackJAX posterior. "
+        f"Dims: {first_var.dims}"
+    )
+    ppt_dim = ppt_dims[0]
+    n_actual = first_var.sizes[ppt_dim]
+    assert n_actual == n_expected, (
+        f"Expected {n_expected} participants, got {n_actual}"
+    )
+
+    # ------------------------------------------------------------------
+    # Check 3: Finiteness and reasonable posterior means
+    # ------------------------------------------------------------------
+    failures = []
+    diagnostics_table = []
+
+    for p_idx, pid in enumerate(participant_ids):
+        for var in var_names:
+            batched_var = posterior[var]
+            samples = batched_var.isel({ppt_dim: p_idx})
+
+            mean_val = float(samples.mean(dim=["chain", "draw"]).values)
+            is_finite = math.isfinite(mean_val)
+
+            lo, hi = param_bounds[var]
+            in_bounds = lo <= mean_val <= hi
+
+            diagnostics_table.append(
+                {
+                    "participant": pid,
+                    "parameter": var,
+                    "mean": mean_val,
+                    "finite": is_finite,
+                    "in_bounds": in_bounds,
+                }
+            )
+
+            if not is_finite:
+                failures.append(
+                    f"  {pid}/{var}: non-finite (mean={mean_val})"
+                )
+            if not in_bounds:
+                failures.append(
+                    f"  {pid}/{var}: mean={mean_val:.4f} outside "
+                    f"[{lo}, {hi}]"
+                )
+
+    # Print diagnostics table
+    print("\n--- VALID-02 BlackJAX Posterior Quality Diagnostics ---")
+    for row in diagnostics_table:
+        status = "PASS" if (
+            row["finite"] and row["in_bounds"]
+        ) else "FAIL"
+        print(
+            f"  {row['participant']}/{row['parameter']}: "
+            f"mean={row['mean']:.4f} [{status}]"
+        )
+
+    assert not failures, (
+        f"VALID-02 BlackJAX FAILED: {len(failures)} issue(s) in batched "
+        f"BlackJAX posteriors:\n"
+        + "\n".join(failures)
     )

@@ -5,17 +5,17 @@
       "index": 0,
       "name": "NVIDIA L40S",
       "vram_total_mb": 46068,
-      "vram_used_mb": 441,
-      "vram_free_mb": 45028,
+      "vram_used_mb": 437,
+      "vram_free_mb": 45032,
       "gpu_util_pct": 0,
-      "temp_c": 28,
-      "pci_bus": "00000000:E3:00.0"
+      "temp_c": 32,
+      "pci_bus": "00000000:02:00.0"
     }
   ],
   "ptxas_available": true,
   "ptxas_version": "Cuda compilation tools, release 12.8, V12.8.93",
   "xla_env": {
-    "JAX_COMPILATION_CACHE_DIR": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g118",
+    "JAX_COMPILATION_CACHE_DIR": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g109",
     "JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES": "0",
     "JAX_LOG_COMPILES": "1",
     "JAX_PLATFORMS": "(unset)",
@@ -26,27 +26,27 @@
     "JAX_ENABLE_X64": "(unset)"
   },
   "cache_before": {
-    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g118",
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g109",
     "cache_exists": true,
-    "n_files": 4,
-    "total_size_mb": 0.0
+    "n_files": 486,
+    "total_size_mb": 2.87
   },
   "jax_version": "0.4.31",
   "jaxlib_version": "0.4.31",
-  "sim_vmap_s": 5.45,
+  "sim_vmap_s": 3.08,
   "gpu_pre_cold_jit": [
     {
       "index": 0,
       "name": "NVIDIA L40S",
       "vram_total_mb": 46068,
-      "vram_used_mb": 445,
-      "vram_free_mb": 45024,
-      "gpu_util_pct": 4,
-      "temp_c": 29,
-      "pci_bus": "00000000:E3:00.0"
+      "vram_used_mb": 441,
+      "vram_free_mb": 45028,
+      "gpu_util_pct": 3,
+      "temp_c": 32,
+      "pci_bus": "00000000:02:00.0"
     }
   ],
-  "jit_cold_s": 1147.81,
+  "jit_cold_s": 1144.36,
   "gpu_post_cold_jit": [
     {
       "index": 0,
@@ -54,16 +54,16 @@
       "vram_total_mb": 46068,
       "vram_used_mb": 585,
       "vram_free_mb": 44884,
-      "gpu_util_pct": 0,
+      "gpu_util_pct": 100,
       "temp_c": 37,
-      "pci_bus": "00000000:E3:00.0"
+      "pci_bus": "00000000:02:00.0"
     }
   ],
   "cache_after_cold": {
-    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g118",
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g109",
     "cache_exists": true,
-    "n_files": 380,
-    "total_size_mb": 2.25
+    "n_files": 654,
+    "total_size_mb": 4.63
   },
   "gpu_pre_warm_jit": [
     {
@@ -72,12 +72,12 @@
       "vram_total_mb": 46068,
       "vram_used_mb": 585,
       "vram_free_mb": 44884,
-      "gpu_util_pct": 10,
-      "temp_c": 37,
-      "pci_bus": "00000000:E3:00.0"
+      "gpu_util_pct": 7,
+      "temp_c": 36,
+      "pci_bus": "00000000:02:00.0"
     }
   ],
-  "jit_warm_s": 1570.39,
+  "jit_warm_s": 1567.99,
   "gpu_post_warm_jit": [
     {
       "index": 0,
@@ -87,14 +87,14 @@
       "vram_free_mb": 44882,
       "gpu_util_pct": 100,
       "temp_c": 37,
-      "pci_bus": "00000000:E3:00.0"
+      "pci_bus": "00000000:02:00.0"
     }
   ],
   "cache_after_warm": {
-    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g118",
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/m3g109",
     "cache_exists": true,
-    "n_files": 390,
-    "total_size_mb": 3.82
+    "n_files": 664,
+    "total_size_mb": 6.2
   },
   "cache_speedup": 0.73,
   "gate_cold_jit_under_600s": false,

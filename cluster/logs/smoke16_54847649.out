@@ -1,0 +1,124 @@
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/nvidia/cuda_nvcc/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 12.8
+ptxas CUDA version:  12.8
+OK: ptxas version <= driver version (XLA parallel compilation enabled)
+XLA autotune: loading cached results from /scratch/fc37/aman0087/.xla_autotune_cache/results.pb
+
+============================================================
+Phase 16/17 GPU Smoke Test (BlackJAX NUTS)
+============================================================
+Job ID:  54847649
+Node:    m3g109
+GPU(s):  0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/m3g109
+Start:   Thu Apr 16 06:32:20 AM AEST 2026
+============================================================
+
+JAX devices: [CudaDevice(id=0)]
+GPU: cuda:0
+
+============================================================
+SMOKE TEST MODE (JIT compilation diagnostics)
+============================================================
+
+JAX devices (1 total, 1 GPU):
+  cuda:0
+
+  GPU   Name                    VRAM Used/Total   Util   Temp
+  ----- -------------------- ------------------ ------ ------
+  0     NVIDIA L40S             437/46068  MB    0%   32C
+
+  ptxas: Cuda compilation tools, release 12.8, V12.8.93
+
+  XLA/JAX environment:
+    JAX_COMPILATION_CACHE_DIR = /scratch/fc37/aman0087/.jax_cache_gpu/m3g109
+    JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES = 0
+    JAX_LOG_COMPILES = 1
+    JAX_PLATFORMS = (unset)
+    XLA_FLAGS = --xla_gpu_dump_autotune_results_to=/scratch/fc37/aman0087/.xla_autotune_cache/results.pb --xla_gpu_load_autotune_results_from=/scratch/fc37/aman0087/.xla_autotune_cache/results.pb
+    XLA_PYTHON_CLIENT_PREALLOCATE = false
+    XLA_PYTHON_CLIENT_MEM_FRACTION = (unset)
+    CUDA_VISIBLE_DEVICES = 0
+    JAX_ENABLE_X64 = (unset)
+
+  JAX cache (before):
+    dir:    /scratch/fc37/aman0087/.jax_cache_gpu/m3g109
+    exists: True
+    files:  486
+    size:   2.87 MB
+
+  JAX 0.4.31, jaxlib 0.4.31
+
+Smoke test config:
+  N per group:            5
+  Participant-sessions:   30
+  Chains:                 2
+  Draws/tune:             10/10
+  Model:                  hgf_3level
+  GPUs available:         1
+  Chain method:           vectorized (jit_model_args=True)
+
+Step 1: Simulate cohort (N=5/group)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.1s. Running JAX vmap…
+JAX vmap completed in 1.0s.
+  Simulation: 3.08s
+
+Step 2: Cold JIT (first MCMC call — includes XLA compilation)...
+  GPU 0 VRAM before: 441/46068 MB
+  Cold JIT: 1144.36s
+  GPU 0 VRAM after:  585/46068 MB
+  Cache delta: +168 files, +1.8 MB
+
+Step 3: Warm JIT (same shape, different seed — tests cache reuse)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.1s. Running JAX vmap…
+JAX vmap completed in 0.4s.
+  Warm JIT: 1567.99s
+  GPU 0 VRAM after:  587/46068 MB
+  Cache delta: +10 files, +1.6 MB
+  WARNING: warm JIT wrote NEW cache entries — cache miss detected
+
+============================================================
+SMOKE TEST RESULTS
+============================================================
+  GPU:                cuda:0
+  ptxas:              Cuda compilation tools, release 12.8, V12.8.93
+  Chain method:       vectorized
+  Sim vmap:           3.08s
+  Cold JIT:           1144.36s
+  Warm JIT:           1567.99s
+  Cache speedup:      0.7x
+  Cache files before: 486
+  Cache files after:  664
+
+GATES:
+  Cold JIT < 600s:    FAIL (1144s)
+  Cache speedup > 3x: FAIL (0.7x)
+  Warm JIT < 120s:    FAIL (1568s)
+  Overall:            FAIL
+
+  FIX: Cold JIT too slow. Check CUDA/PTX version match:
+       pip install -r cluster/requirements-gpu.txt
+  FIX: XLA cache not reusing compiled kernels.
+       Verify JAX_COMPILATION_CACHE_DIR is set and writable.
+       Verify data is passed as dynamic args (not closure).
+       DIAGNOSTIC: warm JIT wrote new cache entries,
+       confirming cache miss (different trace shape?).
+  FIX: Even cached JIT is slow. Check GPU memory pressure
+       and CUDA driver version.
+============================================================
+
+Results saved to: /fs04/fc37/adam/projects/psilocybin-prl-analyses/results/power/smoke_test.json
+
+============================================================
+SMOKE TEST FAILED (exit code: 1)
+  Check: cluster/logs/smoke16_54847649.err
+  Most likely fix: pip install -r cluster/requirements-gpu.txt
+
+End: Thu Apr 16 07:18:45 AM AEST 2026
+============================================================
+
+Pushing smoke test results to git...

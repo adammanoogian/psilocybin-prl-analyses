@@ -166,11 +166,13 @@ def _clamped_scan(
         )
 
         # Hard magnitude bound on level-2 means (tapas convention)
-        mu_2_vals = jnp.array([
-            new_attrs[1]["mean"],
-            new_attrs[3]["mean"],
-            new_attrs[5]["mean"],
-        ])
+        mu_2_vals = jnp.array(
+            [
+                new_attrs[1]["mean"],
+                new_attrs[3]["mean"],
+                new_attrs[5]["mean"],
+            ]
+        )
         mu_2_ok = jnp.all(jnp.abs(mu_2_vals) < _MU_2_BOUND)
 
         is_stable = all_finite & mu_2_ok
@@ -247,9 +249,7 @@ def _compute_logp(
     per_trial_logp = lp[jnp.arange(n_trials), choices_jax]
 
     # Layer 2 mask: unstable trials contribute 0
-    per_trial_logp = per_trial_logp * stability_mask.astype(
-        per_trial_logp.dtype
-    )
+    per_trial_logp = per_trial_logp * stability_mask.astype(per_trial_logp.dtype)
 
     # External trial mask: padded trials contribute 0
     per_trial_logp = per_trial_logp * trial_mask.astype(per_trial_logp.dtype)
@@ -328,10 +328,7 @@ def build_logp_ops_batched(
     # Validate inputs
     # ------------------------------------------------------------------
     if model_name not in _MODEL_NAMES:
-        msg = (
-            f"model_name must be one of {_MODEL_NAMES}, "
-            f"got {model_name!r}"
-        )
+        msg = f"model_name must be one of {_MODEL_NAMES}, got {model_name!r}"
         raise ValueError(msg)
 
     n_participants = input_data_arr.shape[0]
@@ -368,9 +365,7 @@ def build_logp_ops_batched(
         net = build_2level_network()
 
     # Seed with first participant's data to create scan_fn
-    net.input_data(
-        input_data=input_data_arr[0], observed=observed_arr[0]
-    )
+    net.input_data(input_data=input_data_arr[0], observed=observed_arr[0])
     base_attrs = net.attributes
     scan_fn = net.scan_fn
 
@@ -412,9 +407,7 @@ def build_logp_ops_batched(
         # omega_3 and kappa children-side into volatility node 6
         node6 = dict(attrs[6])
         node6["tonic_volatility"] = omega_3
-        node6["volatility_coupling_children"] = jnp.array(
-            [kappa, kappa, kappa]
-        )
+        node6["volatility_coupling_children"] = jnp.array([kappa, kappa, kappa])
         attrs[6] = node6
 
         # kappa parents-side into nodes 1, 3, 5
@@ -424,9 +417,7 @@ def build_logp_ops_batched(
             attrs[idx] = node
 
         # Clamped scan
-        _, (node_traj, stability_mask) = _clamped_scan(
-            scan_fn, attrs, scan_inputs
-        )
+        _, (node_traj, stability_mask) = _clamped_scan(scan_fn, attrs, scan_inputs)
 
         return _compute_logp(
             node_traj,
@@ -457,9 +448,7 @@ def build_logp_ops_batched(
             attrs[idx] = node
 
         # Clamped scan
-        _, (node_traj, stability_mask) = _clamped_scan(
-            scan_fn, attrs, scan_inputs
-        )
+        _, (node_traj, stability_mask) = _clamped_scan(scan_fn, attrs, scan_inputs)
 
         return _compute_logp(
             node_traj,
@@ -524,9 +513,7 @@ def build_logp_ops_batched(
         """Return gradients of batched logp w.r.t. parameter vectors."""
 
         def make_node(self, *inputs):  # noqa: ANN002
-            tensor_inputs = [
-                pt.as_tensor_variable(x) for x in inputs
-            ]
+            tensor_inputs = [pt.as_tensor_variable(x) for x in inputs]
             return Apply(
                 self,
                 tensor_inputs,
@@ -538,9 +525,7 @@ def build_logp_ops_batched(
                 *[np.asarray(x, dtype=np.float64) for x in inputs]
             )
             for i, g in enumerate(grads):
-                outputs[i][0] = np.asarray(
-                    g, dtype=node.outputs[i].dtype
-                )
+                outputs[i][0] = np.asarray(g, dtype=node.outputs[i].dtype)
 
     _grad_op = _BatchedGradOp()
 
@@ -548,9 +533,7 @@ def build_logp_ops_batched(
         """Forward batched logp Op; delegates gradients to _BatchedGradOp."""
 
         def make_node(self, *inputs):  # noqa: ANN002
-            tensor_inputs = [
-                pt.as_tensor_variable(x) for x in inputs
-            ]
+            tensor_inputs = [pt.as_tensor_variable(x) for x in inputs]
             return Apply(
                 self,
                 tensor_inputs,
@@ -559,9 +542,7 @@ def build_logp_ops_batched(
 
         def perform(self, node, inputs, outputs):  # noqa: ANN001
             outputs[0][0] = np.asarray(
-                _jit_logp(
-                    *[np.asarray(x, dtype=np.float64) for x in inputs]
-                ),
+                _jit_logp(*[np.asarray(x, dtype=np.float64) for x in inputs]),
                 dtype=np.float64,
             )
 
@@ -626,10 +607,7 @@ def build_logp_fn_batched(
         If ``model_name`` is not in ``_MODEL_NAMES``.
     """
     if model_name not in _MODEL_NAMES:
-        msg = (
-            f"model_name must be one of {_MODEL_NAMES}, "
-            f"got {model_name!r}"
-        )
+        msg = f"model_name must be one of {_MODEL_NAMES}, got {model_name!r}"
         raise ValueError(msg)
 
     is_3level = model_name == "hgf_3level"
@@ -670,17 +648,13 @@ def build_logp_fn_batched(
             attrs[idx] = node
         node6 = dict(attrs[6])
         node6["tonic_volatility"] = omega_3
-        node6["volatility_coupling_children"] = jnp.array(
-            [kappa, kappa, kappa]
-        )
+        node6["volatility_coupling_children"] = jnp.array([kappa, kappa, kappa])
         attrs[6] = node6
         for idx in _BELIEF_NODES:
             node = dict(attrs[idx])
             node["volatility_coupling_parents"] = jnp.array([kappa])
             attrs[idx] = node
-        _, (node_traj, stability_mask) = _clamped_scan(
-            scan_fn, attrs, scan_inputs
-        )
+        _, (node_traj, stability_mask) = _clamped_scan(scan_fn, attrs, scan_inputs)
         return _compute_logp(
             node_traj,
             choices.astype(jnp.int32),
@@ -706,9 +680,7 @@ def build_logp_fn_batched(
             node = dict(attrs[idx])
             node["tonic_volatility"] = omega_2
             attrs[idx] = node
-        _, (node_traj, stability_mask) = _clamped_scan(
-            scan_fn, attrs, scan_inputs
-        )
+        _, (node_traj, stability_mask) = _clamped_scan(scan_fn, attrs, scan_inputs)
         return _compute_logp(
             node_traj,
             choices.astype(jnp.int32),
@@ -755,6 +727,449 @@ def build_logp_fn_batched(
 
 
 # ---------------------------------------------------------------------------
+# BlackJAX log-posterior and sampling helpers
+# ---------------------------------------------------------------------------
+
+
+def _build_log_posterior(
+    batched_logp_fn,  # noqa: ANN001
+    input_data: jnp.ndarray,
+    observed: jnp.ndarray,
+    choices: jnp.ndarray,
+    trial_mask: jnp.ndarray,
+    n_participants: int,
+    model_name: str = "hgf_3level",
+) -> callable:
+    """Build a pure JAX log-posterior function for BlackJAX.
+
+    Combines independent priors (via ``numpyro.distributions``) with the
+    batched HGF log-likelihood from :func:`build_logp_fn_batched` into a
+    single ``logdensity_fn(params_dict) -> scalar`` callable suitable for
+    BlackJAX NUTS.
+
+    Data arrays are captured in the closure (fixed shape per call),
+    enabling JIT cache reuse across MCMC steps.
+
+    Parameters
+    ----------
+    batched_logp_fn : callable
+        Pure JAX logp from :func:`build_logp_fn_batched`.
+    input_data : jnp.ndarray, shape (P, n_trials, 3)
+        Float reward-value arrays.
+    observed : jnp.ndarray, shape (P, n_trials, 3)
+        Binary observed masks.
+    choices : jnp.ndarray, shape (P, n_trials)
+        Chosen cue indices.
+    trial_mask : jnp.ndarray, shape (P, n_trials)
+        Binary trial mask for variable-length cohorts.
+    n_participants : int
+        Number of participants ``P``.
+    model_name : str, optional
+        ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+
+    Returns
+    -------
+    logdensity_fn : callable
+        ``dict[str, jnp.ndarray] -> scalar``.  Keys match the model
+        parameter names; each value has shape ``(P,)``.
+    """
+    import numpyro.distributions as dist
+
+    is_3level = model_name == "hgf_3level"
+
+    # Define priors matching _numpyro_model_3level / _numpyro_model_2level
+    prior_omega_2 = dist.TruncatedNormal(
+        loc=-3.0,
+        scale=2.0,
+        high=0.0,
+    )
+    prior_log_beta = dist.Normal(0.0, 1.5)
+    prior_zeta = dist.Normal(0.0, 2.0)
+    if is_3level:
+        prior_omega_3 = dist.TruncatedNormal(
+            loc=-6.0,
+            scale=2.0,
+            high=0.0,
+        )
+        prior_kappa = dist.TruncatedNormal(
+            loc=1.0,
+            scale=0.5,
+            low=0.01,
+            high=2.0,
+        )
+
+    def logdensity_fn(params: dict[str, jnp.ndarray]) -> jnp.ndarray:
+        """Compute log-posterior: prior + likelihood.
+
+        Parameters
+        ----------
+        params : dict[str, jnp.ndarray]
+            Parameter dict with keys matching the model.  Each value
+            has shape ``(P,)``.
+
+        Returns
+        -------
+        jnp.ndarray
+            Scalar log-posterior.
+        """
+        omega_2 = params["omega_2"]
+        log_beta = params["log_beta"]
+        beta = jnp.exp(log_beta)
+        zeta = params["zeta"]
+
+        # Sum prior logp across participants
+        prior_lp = jnp.sum(prior_omega_2.log_prob(omega_2))
+        prior_lp = prior_lp + jnp.sum(
+            prior_log_beta.log_prob(log_beta),
+        )
+        prior_lp = prior_lp + jnp.sum(prior_zeta.log_prob(zeta))
+
+        if is_3level:
+            omega_3 = params["omega_3"]
+            kappa = params["kappa"]
+            prior_lp = prior_lp + jnp.sum(
+                prior_omega_3.log_prob(omega_3),
+            )
+            prior_lp = prior_lp + jnp.sum(
+                prior_kappa.log_prob(kappa),
+            )
+            likelihood_lp = batched_logp_fn(
+                omega_2,
+                omega_3,
+                kappa,
+                beta,
+                zeta,
+                input_data,
+                observed,
+                choices,
+                trial_mask,
+            )
+        else:
+            likelihood_lp = batched_logp_fn(
+                omega_2,
+                beta,
+                zeta,
+                input_data,
+                observed,
+                choices,
+                trial_mask,
+            )
+
+        return prior_lp + likelihood_lp
+
+    return logdensity_fn
+
+
+def _run_blackjax_nuts(
+    logdensity_fn,  # noqa: ANN001
+    initial_position: dict[str, jnp.ndarray],
+    rng_key: jnp.ndarray,
+    n_tune: int = 1000,
+    n_draws: int = 1000,
+    n_chains: int = 4,
+    target_accept: float = 0.95,
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], int]:
+    """Run BlackJAX NUTS with window_adaptation warmup and lax.scan sampling.
+
+    Performs a single warmup phase to adapt step size and mass matrix,
+    then replicates the adapted state across chains.  Uses ``jax.pmap``
+    for multi-GPU (one chain per device) or ``jax.vmap`` on a single
+    device.
+
+    Parameters
+    ----------
+    logdensity_fn : callable
+        ``dict -> scalar`` log-posterior from :func:`_build_log_posterior`.
+    initial_position : dict[str, jnp.ndarray]
+        Starting values for each parameter.  Each value has shape ``(P,)``.
+    rng_key : jnp.ndarray
+        JAX PRNGKey.
+    n_tune : int, optional
+        Number of warmup steps.  Default ``1000``.
+    n_draws : int, optional
+        Number of posterior draws per chain.  Default ``1000``.
+    n_chains : int, optional
+        Number of MCMC chains.  Default ``4``.
+    target_accept : float, optional
+        Target acceptance rate for NUTS.  Default ``0.95``.
+
+    Returns
+    -------
+    positions_dict : dict[str, numpy.ndarray]
+        Parameter samples shaped ``(n_chains, n_draws, P)``.
+    sample_stats_dict : dict[str, numpy.ndarray]
+        ``"diverging"`` bool and ``"acceptance_rate"`` float, each
+        shaped ``(n_chains, n_draws)``.
+    n_chains_actual : int
+        Actual number of chains used (may differ from ``n_chains`` if
+        pmap path adjusts it).
+    """
+    import blackjax
+
+    rng_key, warmup_key, sample_key = jax.random.split(rng_key, 3)
+
+    # Phase 1: Window adaptation (single warmup)
+    warmup = blackjax.window_adaptation(
+        blackjax.nuts,
+        logdensity_fn,
+        target_acceptance_rate=target_accept,
+        is_mass_matrix_diagonal=True,
+    )
+    (warmup_state, warmup_params), _warmup_info = warmup.run(
+        warmup_key,
+        initial_position,
+        num_steps=n_tune,
+    )
+
+    # Phase 2: Build NUTS kernel with adapted parameters
+    nuts = blackjax.nuts(logdensity_fn, **warmup_params)
+
+    # Phase 3: Determine chain strategy
+    n_devices = jax.device_count()
+    use_pmap = n_devices >= n_chains
+
+    if use_pmap:
+        # Multi-GPU: one chain per device via pmap
+        positions, stats, n_actual = _run_pmap_chains(
+            nuts,
+            warmup_state,
+            sample_key,
+            n_draws,
+            n_chains,
+        )
+    else:
+        # Single GPU: vectorize chains via vmap
+        positions, stats, n_actual = _run_vmap_chains(
+            nuts,
+            warmup_state,
+            sample_key,
+            n_draws,
+            n_chains,
+        )
+
+    return positions, stats, n_actual
+
+
+def _run_vmap_chains(
+    nuts,  # noqa: ANN001
+    warmup_state,  # noqa: ANN001
+    sample_key: jnp.ndarray,
+    n_draws: int,
+    n_chains: int,
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], int]:
+    """Run multiple MCMC chains via vmap on a single device.
+
+    Parameters
+    ----------
+    nuts : blackjax.mcmc.nuts.SamplingAlgorithm
+        Configured NUTS kernel with adapted parameters.
+    warmup_state : blackjax NUTSState
+        Adapted state from warmup.
+    sample_key : jnp.ndarray
+        JAX PRNGKey for sampling.
+    n_draws : int
+        Number of posterior draws per chain.
+    n_chains : int
+        Number of chains to run.
+
+    Returns
+    -------
+    positions_dict : dict[str, numpy.ndarray]
+        Samples shaped ``(n_chains, n_draws, P)``.
+    sample_stats_dict : dict[str, numpy.ndarray]
+        Diagnostics shaped ``(n_chains, n_draws)``.
+    n_chains_actual : int
+        Number of chains (equals ``n_chains``).
+    """
+    chain_keys = jax.random.split(sample_key, n_chains)
+
+    # Replicate warmup state across chains
+    replicated_state = jax.tree_util.tree_map(
+        lambda x: jnp.broadcast_to(x, (n_chains, *x.shape)),
+        warmup_state,
+    )
+
+    @jax.jit
+    def _one_step(states, rng_key):
+        keys = jax.random.split(rng_key, n_chains)
+        new_states, infos = jax.vmap(nuts.step)(keys, states)
+        return new_states, (new_states, infos)
+
+    # Generate per-draw RNG keys
+    draw_keys = jax.random.split(chain_keys[0], n_draws)
+
+    _, (all_states, all_infos) = lax.scan(
+        _one_step,
+        replicated_state,
+        draw_keys,
+    )
+
+    # all_states.position: dict of (n_draws, n_chains, P)
+    # Transpose to (n_chains, n_draws, P) for ArviZ
+    positions_dict = {
+        k: np.asarray(jnp.transpose(v, (1, 0, 2)))
+        for k, v in all_states.position.items()
+    }
+
+    # Diagnostics: (n_draws, n_chains) -> (n_chains, n_draws)
+    diverging = np.asarray(
+        jnp.transpose(all_infos.is_divergent, (1, 0)),
+    )
+    acceptance_rate = np.asarray(
+        jnp.transpose(all_infos.acceptance_rate, (1, 0)),
+    )
+
+    stats_dict = {
+        "diverging": diverging,
+        "acceptance_rate": acceptance_rate,
+    }
+
+    return positions_dict, stats_dict, n_chains
+
+
+def _run_pmap_chains(
+    nuts,  # noqa: ANN001
+    warmup_state,  # noqa: ANN001
+    sample_key: jnp.ndarray,
+    n_draws: int,
+    n_chains: int,
+) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], int]:
+    """Run multiple MCMC chains via pmap across devices.
+
+    Parameters
+    ----------
+    nuts : blackjax.mcmc.nuts.SamplingAlgorithm
+        Configured NUTS kernel with adapted parameters.
+    warmup_state : blackjax NUTSState
+        Adapted state from warmup.
+    sample_key : jnp.ndarray
+        JAX PRNGKey for sampling.
+    n_draws : int
+        Number of posterior draws per chain.
+    n_chains : int
+        Number of chains to run (one per device).
+
+    Returns
+    -------
+    positions_dict : dict[str, numpy.ndarray]
+        Samples shaped ``(n_chains, n_draws, P)``.
+    sample_stats_dict : dict[str, numpy.ndarray]
+        Diagnostics shaped ``(n_chains, n_draws)``.
+    n_chains_actual : int
+        Number of chains (equals ``n_chains``).
+    """
+    chain_keys = jax.random.split(sample_key, n_chains)
+
+    # Replicate warmup state across devices
+    replicated_state = jax.tree_util.tree_map(
+        lambda x: jnp.broadcast_to(x, (n_chains, *x.shape)),
+        warmup_state,
+    )
+
+    def _sample_one_chain(
+        rng_key: jnp.ndarray,
+        state,  # noqa: ANN001
+    ) -> tuple:
+        @jax.jit
+        def _one_step(s, k):  # noqa: ANN001
+            new_s, info = nuts.step(k, s)
+            return new_s, (new_s, info)
+
+        keys = jax.random.split(rng_key, n_draws)
+        _, (states, infos) = lax.scan(_one_step, state, keys)
+        return states, infos
+
+    # pmap: distribute chains across devices
+    all_states, all_infos = jax.pmap(_sample_one_chain)(
+        chain_keys,
+        replicated_state,
+    )
+
+    # all_states.position: dict of (n_chains, n_draws, P) -- already correct
+    positions_dict = {k: np.asarray(v) for k, v in all_states.position.items()}
+
+    # Diagnostics: (n_chains, n_draws)
+    stats_dict = {
+        "diverging": np.asarray(all_infos.is_divergent),
+        "acceptance_rate": np.asarray(all_infos.acceptance_rate),
+    }
+
+    return positions_dict, stats_dict, n_chains
+
+
+def _samples_to_idata(
+    positions: dict[str, np.ndarray],
+    sample_stats: dict[str, np.ndarray],
+    var_names: list[str],
+    participant_ids: list[str],
+    participant_groups: list[str],
+    participant_sessions: list[str],
+    model_name: str = "hgf_3level",
+) -> az.InferenceData:
+    """Convert BlackJAX sample arrays to ArviZ InferenceData.
+
+    Adds the deterministic ``beta = exp(log_beta)`` transform and
+    constructs an ``InferenceData`` with ``participant`` as a named
+    dimension and ``participant_group`` / ``participant_session`` as
+    additional coordinates.
+
+    Parameters
+    ----------
+    positions : dict[str, numpy.ndarray]
+        Posterior samples.  Each value has shape
+        ``(n_chains, n_draws, P)``.
+    sample_stats : dict[str, numpy.ndarray]
+        ``"diverging"`` and ``"acceptance_rate"``, each shaped
+        ``(n_chains, n_draws)``.
+    var_names : list[str]
+        Names of all variables (including ``"beta"``).
+    participant_ids : list[str]
+        Participant identifier strings.
+    participant_groups : list[str]
+        Group labels per participant.
+    participant_sessions : list[str]
+        Session labels per participant.
+    model_name : str, optional
+        ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+
+    Returns
+    -------
+    arviz.InferenceData
+        Posterior with ``participant`` coord and group/session metadata.
+    """
+    import arviz as az
+
+    # Build posterior dict from sampled positions
+    posterior_dict: dict[str, np.ndarray] = {}
+    for var in var_names:
+        if var == "beta":
+            # Deterministic transform
+            posterior_dict["beta"] = np.exp(positions["log_beta"])
+        elif var in positions:
+            posterior_dict[var] = positions[var]
+
+    dims_dict = {var: ["participant"] for var in posterior_dict}
+    coords_dict: dict[str, list[str]] = {
+        "participant": participant_ids,
+    }
+
+    idata = az.from_dict(
+        posterior=posterior_dict,
+        sample_stats=sample_stats,
+        dims=dims_dict,
+        coords=coords_dict,
+    )
+
+    # Attach group and session metadata as additional coords
+    idata.posterior = idata.posterior.assign_coords(
+        participant_group=("participant", participant_groups),
+        participant_session=("participant", participant_sessions),
+    )
+
+    return idata
+
+
+# ---------------------------------------------------------------------------
 # NumPyro model functions
 # ---------------------------------------------------------------------------
 
@@ -796,19 +1211,26 @@ def _numpyro_model_3level(
     omega_2 = numpyro.sample(
         "omega_2",
         dist.TruncatedNormal(
-            loc=-3.0, scale=2.0, high=0.0,
+            loc=-3.0,
+            scale=2.0,
+            high=0.0,
         ).expand([n_participants]),
     )
     omega_3 = numpyro.sample(
         "omega_3",
         dist.TruncatedNormal(
-            loc=-6.0, scale=2.0, high=0.0,
+            loc=-6.0,
+            scale=2.0,
+            high=0.0,
         ).expand([n_participants]),
     )
     kappa = numpyro.sample(
         "kappa",
         dist.TruncatedNormal(
-            loc=1.0, scale=0.5, low=0.01, high=2.0,
+            loc=1.0,
+            scale=0.5,
+            low=0.01,
+            high=2.0,
         ).expand([n_participants]),
     )
 
@@ -825,8 +1247,15 @@ def _numpyro_model_3level(
 
     # Custom HGF log-likelihood
     logp = batched_logp_fn(
-        omega_2, omega_3, kappa, beta, zeta,
-        input_data, observed, choices, trial_mask,
+        omega_2,
+        omega_3,
+        kappa,
+        beta,
+        zeta,
+        input_data,
+        observed,
+        choices,
+        trial_mask,
     )
     numpyro.factor("hgf_loglike", logp)
 
@@ -866,7 +1295,9 @@ def _numpyro_model_2level(
     omega_2 = numpyro.sample(
         "omega_2",
         dist.TruncatedNormal(
-            loc=-3.0, scale=2.0, high=0.0,
+            loc=-3.0,
+            scale=2.0,
+            high=0.0,
         ).expand([n_participants]),
     )
 
@@ -883,8 +1314,13 @@ def _numpyro_model_2level(
 
     # Custom HGF log-likelihood
     logp = batched_logp_fn(
-        omega_2, beta, zeta,
-        input_data, observed, choices, trial_mask,
+        omega_2,
+        beta,
+        zeta,
+        input_data,
+        observed,
+        choices,
+        trial_mask,
     )
     numpyro.factor("hgf_loglike", logp)
 
@@ -967,10 +1403,7 @@ def build_pymc_model_batched(
         raise ValueError(msg)
 
     if model_name not in _MODEL_NAMES:
-        msg = (
-            f"model_name must be one of {_MODEL_NAMES}, "
-            f"got {model_name!r}"
-        )
+        msg = f"model_name must be one of {_MODEL_NAMES}, got {model_name!r}"
         raise ValueError(msg)
 
     n_participants = input_data_arr.shape[0]
@@ -987,20 +1420,28 @@ def build_pymc_model_batched(
         if model_name == "hgf_2level":
             # Perceptual parameter: tonic volatility (must be < 0)
             omega_2 = pm.TruncatedNormal(
-                "omega_2", mu=-3.0, sigma=2.0, upper=0.0,
+                "omega_2",
+                mu=-3.0,
+                sigma=2.0,
+                upper=0.0,
                 shape=n_participants,
             )
 
             # Response parameters
             log_beta = pm.Normal(
-                "log_beta", mu=0.0, sigma=1.5,
+                "log_beta",
+                mu=0.0,
+                sigma=1.5,
                 shape=n_participants,
             )
             beta = pm.Deterministic(
-                "beta", pm.math.exp(log_beta),
+                "beta",
+                pm.math.exp(log_beta),
             )
             zeta = pm.Normal(
-                "zeta", mu=0.0, sigma=2.0,
+                "zeta",
+                mu=0.0,
+                sigma=2.0,
                 shape=n_participants,
             )
 
@@ -1010,28 +1451,43 @@ def build_pymc_model_batched(
         else:
             # Perceptual parameters
             omega_2 = pm.TruncatedNormal(
-                "omega_2", mu=-3.0, sigma=2.0, upper=0.0,
+                "omega_2",
+                mu=-3.0,
+                sigma=2.0,
+                upper=0.0,
                 shape=n_participants,
             )
             omega_3 = pm.TruncatedNormal(
-                "omega_3", mu=-6.0, sigma=2.0, upper=0.0,
+                "omega_3",
+                mu=-6.0,
+                sigma=2.0,
+                upper=0.0,
                 shape=n_participants,
             )
             kappa = pm.TruncatedNormal(
-                "kappa", mu=1.0, sigma=0.5, lower=0.01, upper=2.0,
+                "kappa",
+                mu=1.0,
+                sigma=0.5,
+                lower=0.01,
+                upper=2.0,
                 shape=n_participants,
             )
 
             # Response parameters
             log_beta = pm.Normal(
-                "log_beta", mu=0.0, sigma=1.5,
+                "log_beta",
+                mu=0.0,
+                sigma=1.5,
                 shape=n_participants,
             )
             beta = pm.Deterministic(
-                "beta", pm.math.exp(log_beta),
+                "beta",
+                pm.math.exp(log_beta),
             )
             zeta = pm.Normal(
-                "zeta", mu=0.0, sigma=2.0,
+                "zeta",
+                mu=0.0,
+                sigma=2.0,
                 shape=n_participants,
             )
 
@@ -1042,7 +1498,6 @@ def build_pymc_model_batched(
             var_names = ["omega_2", "omega_3", "kappa", "beta", "zeta"]
 
     return model, var_names, n_participants
-
 
 
 # ---------------------------------------------------------------------------
@@ -1169,7 +1624,11 @@ def fit_batch_hierarchical(
     # Validate input DataFrame
     # ------------------------------------------------------------------
     required_cols = {
-        "participant_id", "group", "session", "cue_chosen", "reward",
+        "participant_id",
+        "group",
+        "session",
+        "cue_chosen",
+        "reward",
     }
     missing_cols = required_cols - set(sim_df.columns)
     if missing_cols:
@@ -1235,7 +1694,12 @@ def fit_batch_hierarchical(
     if model_name == "hgf_3level":
         model_fn = _numpyro_model_3level
         var_names = [
-            "omega_2", "omega_3", "kappa", "log_beta", "beta", "zeta",
+            "omega_2",
+            "omega_3",
+            "kappa",
+            "log_beta",
+            "beta",
+            "zeta",
         ]
     else:
         model_fn = _numpyro_model_2level
@@ -1248,7 +1712,8 @@ def fit_batch_hierarchical(
     jax_observed = jnp.array(observed_arr, dtype=jnp.int32)
     jax_choices = jnp.array(choices_arr, dtype=jnp.int32)
     jax_trial_mask = jnp.ones(
-        (n_participants, n_trials), dtype=jnp.float32,
+        (n_participants, n_trials),
+        dtype=jnp.float32,
     )
 
     # ------------------------------------------------------------------

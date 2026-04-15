@@ -12,6 +12,7 @@ dependencies = [
     "pyhgf>=0.2.8,<0.3",
     "jax>=0.4.26,<0.4.32",
     "jaxlib>=0.4.26,<0.4.32",
+    "blackjax>=1.2.4",
     "numpy>=2.0.0,<3.0",
     "pymc>=5.25.1",
     "pandas>=2.0",
@@ -77,6 +78,8 @@ module = [
     "jax.*", "jaxlib.*", "pymc.*", "arviz.*", "pyhgf.*",
     "ipywidgets.*", "bambi.*", "pingouin.*", "ptitprince.*",
     "pyarrow.*",
+    "blackjax.*",
+    "numpyro.*",
 ]
 ignore_missing_imports = true
 

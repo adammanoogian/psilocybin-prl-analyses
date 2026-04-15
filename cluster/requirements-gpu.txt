@@ -3,3 +3,4 @@
 # to enable XLA parallel compilation. See 16-RESEARCH.md NPRO-03.
 nvidia-cuda-nvcc-cu12==12.8.93
 nvidia-nvjitlink-cu12==12.8.93
+blackjax>=1.2.4

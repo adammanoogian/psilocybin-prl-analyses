@@ -12,7 +12,7 @@ See: .planning/PROJECT.md (updated 2026-04-07)
 Phase: 17 of 17 (BlackJAX NUTS Sampler)
 Plan: 2/2 complete (17-01 BlackJAX core + orchestrator; 17-02 smoke tests + SLURM updates)
 Status: Phase complete — BlackJAX default sampler with full test coverage and cluster-ready SLURM scripts
-Last activity: 2026-04-15 — Completed 17-02-PLAN.md: BlackJAX smoke tests, VALID-02 convergence test, SLURM updates
+Last activity: 2026-04-15 — Completed quick-003: JIT cache data as traced args
 
 [===========███████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete
 
@@ -103,6 +103,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | Separate 2-level/3-level log-posterior smoke tests (not parameterized) | Clearer failure diagnostics when one model variant fails | 17-02 |
 | SLURM default SAMPLER env var changed from numpyro to blackjax | Matches fit_batch_hierarchical default sampler; override with SAMPLER=numpyro if needed | 17-02 |
 | JIT gate thresholds preserved at NumPyro levels with annotation | Thresholds conservative for BlackJAX; will tighten after cluster benchmarking | 17-02 |
+| _build_sample_loop factory passes data as traced JIT args (not closure) | XLA persistent cache keys on HLO hash; closure data = HLO constants = cache miss; traced args = shape placeholders = cache hit | quick-003 |
+| vmap path @jax.jit, pmap path lets pmap handle compilation | pmap inside JIT boundary is problematic; factory returns different function variants | quick-003 |
+| Legacy fallback when batched_logp_fn is None | Backward compat for callers not providing traced-arg data | quick-003 |
 
 ### Pending Todos
 
@@ -126,6 +129,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 |-----|------|--------|---------|
 | 001 | Cluster GPU Setup & Smoke Test | Complete | M3 SLURM infrastructure + smoke test PASS |
 | 002 | HGF Fitting Lessons Obsidian Doc | Complete | Comprehensive coding guide in Obsidian Vault covering math, JAX/NumPyro patterns, cluster pitfalls |
+| 003 | JIT Cache: Data as Traced Args | Complete | BlackJAX sampling loop restructured so data arrays flow as traced JIT args for persistent XLA cache hits |
 
 ### Roadmap Evolution
 
@@ -137,6 +141,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-15
-Stopped at: Completed 17-02-PLAN.md — BlackJAX smoke tests, VALID-02 convergence test, SLURM scripts updated for BlackJAX default sampler
+Stopped at: Completed quick-003 — JIT cache data as traced args for persistent XLA cache reuse
 Resume file: None
-Next action: Phase 17 complete. Run slow VALID-02 tests on cluster. Consider next milestone planning.
+Next action: Run VALID-02 convergence test on cluster with blackjax. Benchmark persistent cache hit rate across power-sweep iterations.

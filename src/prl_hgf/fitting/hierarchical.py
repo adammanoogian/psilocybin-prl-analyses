@@ -1552,22 +1552,28 @@ def fit_batch_hierarchical(
     n_tune: int = 1000,
     target_accept: float = 0.95,
     random_seed: int = 42,
-    sampler: str = "numpyro",
+    sampler: str = "blackjax",
     progressbar: bool = True,
 ) -> az.InferenceData:
-    """Fit an entire cohort via direct numpyro MCMC (no PyMC bridge).
+    """Fit an entire cohort via BlackJAX NUTS (default) or NumPyro MCMC.
 
     Groups ``sim_df`` by ``(participant_id, group, session)``, builds the
     stacked ``(P, n_trials, 3)`` arrays, constructs a pure JAX logp via
-    :func:`build_logp_fn_batched`, and runs a **single** numpyro NUTS call
-    for the full cohort.  Returns an ``InferenceData`` with a
-    ``participant`` dimension on every parameter so downstream analysis
-    can map posterior slices back to individual participants.
+    :func:`build_logp_fn_batched`, and runs NUTS for the full cohort.
+    Returns an ``InferenceData`` with a ``participant`` dimension on every
+    parameter so downstream analysis can map posterior slices back to
+    individual participants.
 
-    Data arrays are passed as keyword arguments to ``MCMC.run()`` so that
-    JAX traces them as dynamic values.  This makes the XLA compilation
-    shape-dependent but value-independent, enabling JIT cache reuse across
-    power-sweep iterations with different data of the same shape.
+    **BlackJAX path** (default): Builds a pure JAX log-posterior via
+    :func:`_build_log_posterior`, runs NUTS with window adaptation via
+    :func:`_run_blackjax_nuts`, and converts to ArviZ via
+    :func:`_samples_to_idata`.  Compiles the NUTS step function once via
+    ``jax.jit`` and reuses it across all MCMC steps — no per-call
+    recompilation.
+
+    **NumPyro path** (fallback): Uses numpyro MCMC with
+    ``chain_method="vectorized"`` and ``jit_model_args=True``.  Data
+    arrays are passed as kwargs to ``MCMC.run()`` for JIT cache reuse.
 
     Parameters
     ----------
@@ -1587,10 +1593,12 @@ def fit_batch_hierarchical(
     random_seed : int, optional
         RNG seed for reproducibility.  Default ``42``.
     sampler : str, optional
-        Accepted for backward compatibility.  Always uses the numpyro
-        path.  Passing ``"pymc"`` raises :class:`DeprecationWarning`.
+        ``"blackjax"`` (default) uses BlackJAX NUTS with pmap/vmap chain
+        parallelism.  ``"numpyro"`` uses NumPyro MCMC (vectorized vmap).
+        ``"pymc"`` raises :class:`DeprecationWarning` and falls through
+        to the numpyro path.
     progressbar : bool, optional
-        Show MCMC progress bar.  Default ``True``.
+        Show MCMC progress bar (numpyro path only).  Default ``True``.
 
     Returns
     -------
@@ -1607,18 +1615,16 @@ def fit_batch_hierarchical(
     """
     import warnings
 
-    import arviz as az
-    from numpyro.infer import MCMC, NUTS
-
     # Deprecation gate for sampler="pymc"
     if sampler == "pymc":
         warnings.warn(
             "sampler='pymc' is deprecated and ignored. "
-            "fit_batch_hierarchical now always uses the numpyro-direct "
-            "path. The PyMC bridge has been removed from the hot path.",
+            "fit_batch_hierarchical falls through to the numpyro path. "
+            "Use sampler='blackjax' (default) for best performance.",
             DeprecationWarning,
             stacklevel=2,
         )
+        sampler = "numpyro"
 
     # ------------------------------------------------------------------
     # Validate input DataFrame
@@ -1689,23 +1695,6 @@ def fit_batch_hierarchical(
     logp_fn, _n_params = build_logp_fn_batched(model_name, n_trials)
 
     # ------------------------------------------------------------------
-    # Select numpyro model function
-    # ------------------------------------------------------------------
-    if model_name == "hgf_3level":
-        model_fn = _numpyro_model_3level
-        var_names = [
-            "omega_2",
-            "omega_3",
-            "kappa",
-            "log_beta",
-            "beta",
-            "zeta",
-        ]
-    else:
-        model_fn = _numpyro_model_2level
-        var_names = ["omega_2", "log_beta", "beta", "zeta"]
-
-    # ------------------------------------------------------------------
     # Convert data to JAX arrays
     # ------------------------------------------------------------------
     jax_input_data = jnp.array(input_data_arr, dtype=jnp.float32)
@@ -1716,61 +1705,137 @@ def fit_batch_hierarchical(
         dtype=jnp.float32,
     )
 
-    # ------------------------------------------------------------------
-    # Run numpyro MCMC
-    # ------------------------------------------------------------------
     rng_key = jax.random.PRNGKey(random_seed)
 
-    # Always use "vectorized" (vmap): compiles a single fused kernel for
-    # all chains, enables jit_model_args for trace-cache reuse across
-    # calls with the same shapes, and avoids a confirmed L40S pmap bug
-    # (JAX #31626).  A single modern GPU has enough VRAM for 4 chains.
-    #
-    # jit_model_args=True requires all mcmc.run() kwargs to be JAX arrays.
-    # Bind non-array args (batched_logp_fn, n_participants) via partial so
-    # they're captured as static closure values, not traced as dynamic args.
-    from functools import partial
+    if sampler == "blackjax":
+        # ==============================================================
+        # BlackJAX path (default): pure JAX log-posterior + NUTS
+        # ==============================================================
 
-    bound_model = partial(
-        model_fn,
-        n_participants=n_participants,
-        batched_logp_fn=logp_fn,
-    )
-    kernel = NUTS(bound_model, target_accept_prob=target_accept)
-    mcmc = MCMC(
-        kernel,
-        num_warmup=n_tune,
-        num_samples=n_draws,
-        num_chains=n_chains,
-        chain_method="vectorized",
-        jit_model_args=True,
-        progress_bar=progressbar,
-    )
-    mcmc.run(
-        rng_key,
-        input_data=jax_input_data,
-        observed=jax_observed,
-        choices=jax_choices,
-        trial_mask=jax_trial_mask,
-    )
+        # Build log-posterior (priors + batched HGF likelihood)
+        logdensity_fn = _build_log_posterior(
+            logp_fn,
+            jax_input_data,
+            jax_observed,
+            jax_choices,
+            jax_trial_mask,
+            n_participants,
+            model_name,
+        )
 
-    # ------------------------------------------------------------------
-    # Convert to ArviZ InferenceData with participant coords
-    # ------------------------------------------------------------------
-    dims_dict = {vn: ["participant"] for vn in var_names}
-    coords_dict = {"participant": participant_ids}
+        # Build initial position dict at prior modes
+        if model_name == "hgf_3level":
+            initial_position: dict[str, jnp.ndarray] = {
+                "omega_2": jnp.full((n_participants,), -3.0),
+                "omega_3": jnp.full((n_participants,), -6.0),
+                "kappa": jnp.full((n_participants,), 1.0),
+                "log_beta": jnp.full((n_participants,), 0.0),
+                "zeta": jnp.full((n_participants,), 0.0),
+            }
+            var_names = [
+                "omega_2",
+                "omega_3",
+                "kappa",
+                "log_beta",
+                "beta",
+                "zeta",
+            ]
+        else:
+            initial_position = {
+                "omega_2": jnp.full((n_participants,), -3.0),
+                "log_beta": jnp.full((n_participants,), 0.0),
+                "zeta": jnp.full((n_participants,), 0.0),
+            }
+            var_names = ["omega_2", "log_beta", "beta", "zeta"]
 
-    idata = az.from_numpyro(
-        mcmc,
-        dims=dims_dict,
-        coords=coords_dict,
-    )
+        # Run MCMC
+        positions, sample_stats, n_chains_actual = _run_blackjax_nuts(
+            logdensity_fn,
+            initial_position,
+            rng_key,
+            n_tune=n_tune,
+            n_draws=n_draws,
+            n_chains=n_chains,
+            target_accept=target_accept,
+        )
 
-    # Attach group and session metadata as additional coords
-    idata.posterior = idata.posterior.assign_coords(
-        participant_group=("participant", participant_groups),
-        participant_session=("participant", participant_sessions),
-    )
+        # Convert to ArviZ InferenceData
+        idata = _samples_to_idata(
+            positions,
+            sample_stats,
+            var_names,
+            participant_ids,
+            participant_groups,
+            participant_sessions,
+            model_name,
+        )
+
+    else:
+        # ==============================================================
+        # NumPyro path (fallback): numpyro MCMC with vectorized chains
+        # ==============================================================
+        import arviz as az
+        from numpyro.infer import MCMC, NUTS
+
+        if model_name == "hgf_3level":
+            model_fn = _numpyro_model_3level
+            var_names = [
+                "omega_2",
+                "omega_3",
+                "kappa",
+                "log_beta",
+                "beta",
+                "zeta",
+            ]
+        else:
+            model_fn = _numpyro_model_2level
+            var_names = ["omega_2", "log_beta", "beta", "zeta"]
+
+        # Always use "vectorized" (vmap): compiles a single fused kernel
+        # for all chains, enables jit_model_args for trace-cache reuse
+        # across calls with the same shapes.
+        from functools import partial
+
+        bound_model = partial(
+            model_fn,
+            n_participants=n_participants,
+            batched_logp_fn=logp_fn,
+        )
+        kernel = NUTS(bound_model, target_accept_prob=target_accept)
+        mcmc = MCMC(
+            kernel,
+            num_warmup=n_tune,
+            num_samples=n_draws,
+            num_chains=n_chains,
+            chain_method="vectorized",
+            jit_model_args=True,
+            progress_bar=progressbar,
+        )
+        mcmc.run(
+            rng_key,
+            input_data=jax_input_data,
+            observed=jax_observed,
+            choices=jax_choices,
+            trial_mask=jax_trial_mask,
+        )
+
+        # Convert to ArviZ InferenceData with participant coords
+        dims_dict = {vn: ["participant"] for vn in var_names}
+        coords_dict: dict[str, list[str]] = {
+            "participant": participant_ids,
+        }
+
+        idata = az.from_numpyro(
+            mcmc,
+            dims=dims_dict,
+            coords=coords_dict,
+        )
+
+        # Attach group and session metadata as additional coords
+        idata.posterior = idata.posterior.assign_coords(
+            participant_group=("participant", participant_groups),
+            participant_session=("participant", participant_sessions),
+        )
 
     return idata
 

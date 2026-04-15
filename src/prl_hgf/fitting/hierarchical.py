@@ -1255,12 +1255,23 @@ def fit_batch_hierarchical(
     # Run numpyro MCMC
     # ------------------------------------------------------------------
     rng_key = jax.random.PRNGKey(random_seed)
-    kernel = NUTS(model_fn, target_accept_prob=target_accept)
 
     # Always use "vectorized" (vmap): compiles a single fused kernel for
     # all chains, enables jit_model_args for trace-cache reuse across
     # calls with the same shapes, and avoids a confirmed L40S pmap bug
     # (JAX #31626).  A single modern GPU has enough VRAM for 4 chains.
+    #
+    # jit_model_args=True requires all mcmc.run() kwargs to be JAX arrays.
+    # Bind non-array args (batched_logp_fn, n_participants) via partial so
+    # they're captured as static closure values, not traced as dynamic args.
+    from functools import partial
+
+    bound_model = partial(
+        model_fn,
+        n_participants=n_participants,
+        batched_logp_fn=logp_fn,
+    )
+    kernel = NUTS(bound_model, target_accept_prob=target_accept)
     mcmc = MCMC(
         kernel,
         num_warmup=n_tune,
@@ -1276,8 +1287,6 @@ def fit_batch_hierarchical(
         observed=jax_observed,
         choices=jax_choices,
         trial_mask=jax_trial_mask,
-        n_participants=n_participants,
-        batched_logp_fn=logp_fn,
     )
 
     # ------------------------------------------------------------------

@@ -951,14 +951,10 @@ def _run_blackjax_nuts(
     import blackjax
 
     rng_key, warmup_key, sample_key = jax.random.split(rng_key, 3)
+    warmup_state = None  # Set by window_adaptation if warmup runs
 
     # Phase 1: Window adaptation (skip if pre-adapted params provided)
-    if warmup_params is not None:
-        # Reuse adapted parameters — build initial state from position
-        warmup_state = blackjax.nuts(
-            logdensity_fn, **warmup_params,
-        ).init(initial_position)
-    else:
+    if warmup_params is None:
         warmup = blackjax.window_adaptation(
             blackjax.nuts,
             logdensity_fn,
@@ -994,8 +990,18 @@ def _run_blackjax_nuts(
             use_pmap,
         )
 
+        # init_position: use adapted position from warmup if available,
+        # otherwise the prior-mode initial_position passed in.  Either
+        # way, sample_loop calls nuts.init() inside JIT — value_and_grad
+        # of the closure-free logdensity is compiled with traced data
+        # and cached.
+        init_pos = (
+            warmup_state.position if warmup_state is not None
+            else initial_position
+        )
+
         all_states, all_infos = sample_loop(
-            warmup_state,
+            init_pos,
             warmup_params,
             sample_key,
             input_data,
@@ -1031,6 +1037,11 @@ def _run_blackjax_nuts(
 
     # Legacy fallback: closure-based chain runners
     nuts = blackjax.nuts(logdensity_fn, **warmup_params)
+
+    # Build warmup_state if it wasn't created by window_adaptation
+    # (happens when warmup_params was provided to skip warmup)
+    if warmup_state is None:
+        warmup_state = nuts.init(initial_position)
 
     if use_pmap:
         positions, stats, n_actual = _run_pmap_chains(
@@ -1243,9 +1254,12 @@ def _build_sample_loop(
     Returns
     -------
     sample_loop : callable
-        ``(warmup_state, warmup_params, sample_key, input_data, observed,
+        ``(init_position, warmup_params, sample_key, input_data, observed,
         choices, trial_mask) -> (all_states, all_infos)`` where data
-        arrays are traced JIT arguments (not closure constants).
+        arrays and ``init_position`` are traced JIT arguments (not
+        closure constants).  ``nuts.init()`` is called inside the JIT
+        body so ``value_and_grad`` of the traced-data logdensity is
+        compiled and cached together with the sampling loop.
     """
     import blackjax
     import numpyro.distributions as dist
@@ -1272,7 +1286,7 @@ def _build_sample_loop(
     if use_pmap:
         # pmap path: pmap handles its own JIT compilation
         def sample_loop_pmap(
-            warmup_state,  # noqa: ANN001
+            init_position: dict[str, jnp.ndarray],
             warmup_params: dict,
             sample_key: jnp.ndarray,
             input_data: jnp.ndarray,
@@ -1326,11 +1340,13 @@ def _build_sample_loop(
                 return prior_lp + likelihood_lp
 
             nuts = blackjax.nuts(logdensity_fn, **warmup_params)
+            # Build initial state INSIDE JIT — value_and_grad uses traced data
+            initial_state = nuts.init(init_position)
             chain_keys = jax.random.split(sample_key, n_chains)
 
             replicated_state = jax.tree_util.tree_map(
                 lambda x: jnp.broadcast_to(x, (n_chains, *x.shape)),
-                warmup_state,
+                initial_state,
             )
 
             def _sample_one_chain(
@@ -1357,7 +1373,7 @@ def _build_sample_loop(
     # vmap path: wrap with @jax.jit for persistent cache
     @jax.jit
     def sample_loop_vmap(
-        warmup_state,  # noqa: ANN001
+        init_position: dict[str, jnp.ndarray],
         warmup_params: dict,
         sample_key: jnp.ndarray,
         input_data: jnp.ndarray,
@@ -1409,11 +1425,13 @@ def _build_sample_loop(
             return prior_lp + likelihood_lp
 
         nuts = blackjax.nuts(logdensity_fn, **warmup_params)
+        # Build initial state INSIDE JIT — value_and_grad uses traced data
+        initial_state = nuts.init(init_position)
         chain_keys = jax.random.split(sample_key, n_chains)
 
         replicated_state = jax.tree_util.tree_map(
             lambda x: jnp.broadcast_to(x, (n_chains, *x.shape)),
-            warmup_state,
+            initial_state,
         )
 
         def _one_step(states, rng_key):  # noqa: ANN001

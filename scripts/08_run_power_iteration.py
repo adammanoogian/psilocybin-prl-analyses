@@ -539,7 +539,8 @@ def _run_smoke_test(
             )
 
     t0 = time.perf_counter()
-    fit_batch_hierarchical(
+    # Cold call: full warmup, returns (idata, adapted_params)
+    _idata_cold, adapted_params = fit_batch_hierarchical(
         sim_smoke,
         "hgf_3level",
         n_chains=n_chains_smoke,
@@ -578,6 +579,7 @@ def _run_smoke_test(
     results["gpu_pre_warm_jit"] = gpus_pre_warm
 
     t0 = time.perf_counter()
+    # Warm call: skip warmup by reusing adapted params from cold call
     fit_batch_hierarchical(
         sim_smoke_2,
         "hgf_3level",
@@ -587,10 +589,11 @@ def _run_smoke_test(
         target_accept=0.9,
         random_seed=43,
         progressbar=False,
+        warmup_params=adapted_params,
     )
     jit_warm_s = time.perf_counter() - t0
     results["jit_warm_s"] = round(jit_warm_s, 2)
-    print(f"  Warm JIT: {jit_warm_s:.2f}s")
+    print(f"  Warm JIT: {jit_warm_s:.2f}s (warmup skipped via warmup_params)")
 
     gpus_post_warm = _query_gpu_table()
     results["gpu_post_warm_jit"] = gpus_post_warm

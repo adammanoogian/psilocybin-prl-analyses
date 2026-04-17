@@ -243,9 +243,12 @@ def _make_single_logp_fn(
             }
 
         # 2) Build scan inputs: binary state as float input, 1D time_steps.
-        values = state.astype(jnp.float32)[:, None]  # (T, 1)
+        # Use float64 to match pyhgf attribute dtype (network primed with
+        # float64 numpy arrays; jax.lax.cond inside pyhgf requires dtype
+        # consistency between branches and the existing precision arrays).
+        values = state.astype(jnp.float64)[:, None]  # (T, 1)
         observed = jnp.ones((n_trials,), dtype=jnp.int32)  # (T,)
-        time_steps = jnp.ones((n_trials,), dtype=jnp.float32)  # (T,)
+        time_steps = jnp.ones((n_trials,), dtype=jnp.float64)  # (T,)
 
         # 3) Tapas-style Layer-2 clamped scan.
         #    _MU_2_BOUND = 14.0 (defined at module level; NOT imported from
@@ -282,8 +285,8 @@ def _make_single_logp_fn(
         logp_per_trial = model_a_logp(
             mu2_traj,
             choices.astype(jnp.int32),
-            reward.astype(jnp.float32),
-            shock.astype(jnp.float32),
+            reward.astype(jnp.float64),
+            shock.astype(jnp.float64),
             params["beta"],
         )
 

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 18 PAT-RL Task Adaptation (HEART2ADAPT) — Plan 1/6 complete
+**Current focus:** Phase 18 PAT-RL Task Adaptation (HEART2ADAPT) — Plan 2/6 complete
 
 ## Current Position
 
 Phase: 18 of 18 (PAT-RL Task Adaptation)
-Plan: 1/6 complete (18-01 PAT-RL config surface: YAML + dataclass tree + tests)
-Status: In progress — Phase 18 Plan 1 complete; Plans 2-6 (trial generator, HGF builders, fitting, trajectory export, validation) pending
-Last activity: 2026-04-17 — Completed 18-01: PAT-RL config surface
+Plan: 2/6 complete (18-02 PAT-RL trial sequence generator: PATRLTrial + generate_session_patrl)
+Status: In progress — Phase 18 Plans 1-2 complete; Plans 3-6 (HGF builders, fitting, trajectory export, validation) pending
+Last activity: 2026-04-17 — Completed 18-02: PAT-RL trial sequence generator
 
-[===========████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (1/6)
+[===========████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (2/6)
 
 ## Performance Metrics
 
@@ -108,6 +108,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | Legacy fallback when batched_logp_fn is None | Backward compat for callers not providing traced-arg data | quick-003 |
 | PAT-RL uses fully parallel loader (pat_rl_config.py) with zero imports from task_config.py | task_config.py has 21 callsites and TaskConfig.__post_init__ would reject PAT-RL structure; parallel stack keeps pick_best_cue tests isolated | 18-01 |
 | env/__init__.py deliberately not updated with PAT-RL exports | Adding exports risks side-effects on pick_best_cue imports; PAT-RL callers use direct module import | 18-01 |
+| SeedSequence 4-way spawn for PAT-RL trial generator (state/mag/dHR/reserved) | Independent child streams for each RNG role; reserved 4th stream lets Plan 18-04 add outcome draws without changing existing seeds | 18-02 |
+| State carried forward across run boundaries in generate_session_patrl | Biological realism: context state is continuous; artificial reset at run boundaries would bias run-1 outcomes | 18-02 |
 | PhenotypeParams uses PriorGaussian for kappa/mu3_0 (sd=0 allowed) | Avoids over-engineering separate FixedParam type before Models B/C/D clarify param variation needs | 18-01 |
 
 ### Pending Todos
@@ -145,6 +147,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-17
-Stopped at: Completed 18-01-PLAN.md — PAT-RL config surface (YAML + dataclass tree + tests)
+Stopped at: Completed 18-02-PLAN.md — PAT-RL trial sequence generator (PATRLTrial + generate_session_patrl + 9 tests)
 Resume file: None
-Next action: Execute 18-02 (pat_rl_sequence.py — binary-state hazard generator, PATRLTrial, magnitudes, Delta-HR stub). Note: blackjax not installed in ds_env — pre-existing issue causing test_valid_02_batched_blackjax_convergence to fail.
+Next action: Execute 18-03 (PAT-RL HGF model builders — binary-input 2-level and 3-level pyhgf models). Note: blackjax not installed in ds_env — pre-existing issue causing test_valid_02_batched_blackjax_convergence to fail.

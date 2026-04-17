@@ -552,6 +552,15 @@ def _run_smoke_test(
     n_chains_smoke = int(os.environ.get("PRL_SMOKE_CHAINS", "2"))
     n_draws_smoke = int(os.environ.get("PRL_SMOKE_DRAWS", "10"))
     n_tune_smoke = int(os.environ.get("PRL_SMOKE_TUNE", "10"))
+    # Periodic progress logging: emit NUTS diagnostics every PRL_SMOKE_LOG_EVERY
+    # draws during sampling.  0 disables (default).  Intended for long runs
+    # where we want to kill the job early once takeaway is clear.
+    log_every_smoke = int(os.environ.get("PRL_SMOKE_LOG_EVERY", "0"))
+    # Model selection: default to hgf_2level (primary target; no ω₃×κ
+    # ridge).  Set PRL_SMOKE_MODEL=hgf_3level to exercise the κ-frozen
+    # 3-level geometry.  Set to "both" to run 2-level THEN 3-level in
+    # the same SLURM job so we get both diagnostics in one cluster call.
+    model_smoke = os.environ.get("PRL_SMOKE_MODEL", "hgf_2level")
     d_smoke = power_config.effect_size_grid[0]
 
     print("=" * 60)
@@ -615,12 +624,34 @@ def _run_smoke_test(
     # and avoids confirmed L40S pmap bug (JAX #31626)
     chain_method = "vectorized"
 
+    if model_smoke == "both":
+        msg = (
+            "PRL_SMOKE_MODEL=both is handled at the SLURM level by running "
+            "two separate invocations.  Set PRL_SMOKE_MODEL to either "
+            "'hgf_2level' or 'hgf_3level' for a single-model smoke."
+        )
+        raise ValueError(msg)
+    if model_smoke not in ("hgf_2level", "hgf_3level"):
+        msg = (
+            f"PRL_SMOKE_MODEL must be 'hgf_2level' or 'hgf_3level', "
+            f"got {model_smoke!r}"
+        )
+        raise ValueError(msg)
+    results["model_name"] = model_smoke
+    results["log_every"] = log_every_smoke
+    # κ frozen at 1.0 (see prl_hgf.fitting.hierarchical._KAPPA_FIXED).  For
+    # the 3-level smoke this is the geometry fix — logs should show
+    # integration_steps dropping below the max_tree_depth cap.
+    results["kappa_frozen_at"] = 1.0
+
     print(f"\nSmoke test config:")
     print(f"  N per group:            {n_smoke}")
     print(f"  Participant-sessions:   {n_participant_sessions}")
     print(f"  Chains:                 {n_chains_smoke}")
     print(f"  Draws/tune:             {n_draws_smoke}/{n_tune_smoke}")
-    print(f"  Model:                  hgf_3level")
+    print(f"  Model:                  {model_smoke}")
+    print("  κ frozen at:            1.0 (geometry fix — see _KAPPA_FIXED)")
+    print(f"  log_every:              {log_every_smoke} (0 = off)")
     print(f"  GPUs available:         {n_gpus}")
     print(f"  Chain method:           {chain_method} (jit_model_args=True)")
 
@@ -648,13 +679,14 @@ def _run_smoke_test(
     # Cold call: full warmup, returns (idata, adapted_params)
     idata_cold, adapted_params = fit_batch_hierarchical(
         sim_smoke,
-        "hgf_3level",
+        model_smoke,
         n_chains=n_chains_smoke,
         n_draws=n_draws_smoke,
         n_tune=n_tune_smoke,
         target_accept=0.9,
         random_seed=42,
         progressbar=False,
+        log_every=log_every_smoke,
     )
     jit_cold_s = time.perf_counter() - t0
     results["jit_cold_s"] = round(jit_cold_s, 2)
@@ -691,7 +723,7 @@ def _run_smoke_test(
     # but XLA compile should hit the persistent on-disk cache.
     idata_warm1 = fit_batch_hierarchical(
         sim_smoke_2,
-        "hgf_3level",
+        model_smoke,
         n_chains=n_chains_smoke,
         n_draws=n_draws_smoke,
         n_tune=n_tune_smoke,
@@ -699,6 +731,7 @@ def _run_smoke_test(
         random_seed=43,
         progressbar=False,
         warmup_params=adapted_params,
+        log_every=log_every_smoke,
     )
     jit_warm_s = time.perf_counter() - t0
     results["jit_warm_s"] = round(jit_warm_s, 2)
@@ -714,7 +747,7 @@ def _run_smoke_test(
     t0 = time.perf_counter()
     idata_warm2 = fit_batch_hierarchical(
         sim_smoke_2,
-        "hgf_3level",
+        model_smoke,
         n_chains=n_chains_smoke,
         n_draws=n_draws_smoke,
         n_tune=n_tune_smoke,
@@ -722,6 +755,7 @@ def _run_smoke_test(
         random_seed=44,
         progressbar=False,
         warmup_params=adapted_params,
+        log_every=log_every_smoke,
     )
     jit_warm2_s = time.perf_counter() - t0
     results["jit_warm2_s"] = round(jit_warm2_s, 2)

@@ -88,6 +88,16 @@ export PRL_SMOKE_TUNE="${PRL_SMOKE_TUNE:-500}"
 export PRL_SMOKE_DRAWS="${PRL_SMOKE_DRAWS:-500}"
 export PRL_SMOKE_CHAINS="${PRL_SMOKE_CHAINS:-2}"
 export PRL_SMOKE_N_PER_GROUP="${PRL_SMOKE_N_PER_GROUP:-5}"
+# Periodic progress logging: emit NUTS diagnostics every N draws during
+# sampling.  Intended for long runs where we want to kill the job early
+# once takeaway is clear.  0 disables.  Default 25 → ~20 log lines per
+# 500-draw run.
+export PRL_SMOKE_LOG_EVERY="${PRL_SMOKE_LOG_EVERY:-25}"
+# Model sequence.  Default: run 2-level first (primary target, no ω₃×κ
+# geometry issue), then 3-level with κ frozen (tests whether freezing
+# κ collapses the NUTS tree-depth saturation).  Override with a single
+# model name to run only one:  PRL_SMOKE_MODELS="hgf_2level"
+export PRL_SMOKE_MODELS="${PRL_SMOKE_MODELS:-hgf_2level hgf_3level}"
 MCMC_SUFFIX="tune${PRL_SMOKE_TUNE}_draws${PRL_SMOKE_DRAWS}"
 
 # =============================================================================
@@ -97,13 +107,16 @@ echo ""
 echo "============================================================"
 echo "Phase 16/17 CPU Smoke Test (BlackJAX NUTS)"
 echo "============================================================"
-echo "Job ID:    ${SLURM_JOB_ID:-local}"
-echo "Node:      ${SLURMD_NODENAME:-$(hostname)}"
-echo "Partition: comp (CPU only)"
-echo "Precision: ${PRECISION}  (PRL_ENABLE_X64=${PRL_ENABLE_X64:-0})"
-echo "MCMC:      tune=${PRL_SMOKE_TUNE} draws=${PRL_SMOKE_DRAWS} chains=${PRL_SMOKE_CHAINS} N/group=${PRL_SMOKE_N_PER_GROUP}"
-echo "JAX cache: ${JAX_COMPILATION_CACHE_DIR:-disabled}"
-echo "Start:     $(date)"
+echo "Job ID:     ${SLURM_JOB_ID:-local}"
+echo "Node:       ${SLURMD_NODENAME:-$(hostname)}"
+echo "Partition:  comp (CPU only)"
+echo "Precision:  ${PRECISION}  (PRL_ENABLE_X64=${PRL_ENABLE_X64:-0})"
+echo "MCMC:       tune=${PRL_SMOKE_TUNE} draws=${PRL_SMOKE_DRAWS} chains=${PRL_SMOKE_CHAINS} N/group=${PRL_SMOKE_N_PER_GROUP}"
+echo "log_every:  ${PRL_SMOKE_LOG_EVERY} (0=off; per-draw NUTS diagnostics)"
+echo "Models:     ${PRL_SMOKE_MODELS}"
+echo "κ:          FROZEN at 1.0 for 3-level (see _KAPPA_FIXED in hierarchical.py)"
+echo "JAX cache:  ${JAX_COMPILATION_CACHE_DIR:-disabled}"
+echo "Start:      $(date)"
 echo "============================================================"
 echo ""
 
@@ -114,25 +127,52 @@ print(f'jax_enable_x64 (pre-run): {jax.config.jax_enable_x64}')
 "
 echo ""
 
-python scripts/08_run_power_iteration.py \
-    --smoke-test \
-    --chunk-id 0 \
-    --job-id "${SLURM_JOB_ID:-smoke16cpu}" \
-    ${EXTRA_ARGS}
+# Loop over requested models (default runs 2-level then 3-level).  Each
+# invocation writes results/power/smoke_test.json which we then rename
+# to carry the model name alongside precision + MCMC scale, so multiple
+# runs in one SLURM job don't clobber each other.
+OVERALL_EXIT=0
+_ALL_RESULT_JSONS=()
+for _MODEL in ${PRL_SMOKE_MODELS}; do
+    export PRL_SMOKE_MODEL="${_MODEL}"
+    echo ""
+    echo "############################################################"
+    echo "# Running smoke for model: ${_MODEL}"
+    echo "# (${PRECISION}, tune=${PRL_SMOKE_TUNE}, draws=${PRL_SMOKE_DRAWS},"
+    echo "#  log_every=${PRL_SMOKE_LOG_EVERY})"
+    echo "############################################################"
+    echo ""
 
-EXIT_CODE=$?
+    python scripts/08_run_power_iteration.py \
+        --smoke-test \
+        --chunk-id 0 \
+        --job-id "${SLURM_JOB_ID:-smoke16cpu}" \
+        ${EXTRA_ARGS}
 
-# Rename the JSON so fp32/fp64 × quick/production runs don't clobber each other
-_RESULT_JSON="results/power/smoke_test_cpu_${PRECISION}_${MCMC_SUFFIX}.json"
-if [[ -f "results/power/smoke_test.json" ]]; then
-    mv "results/power/smoke_test.json" "${_RESULT_JSON}"
-    echo "Renamed results → ${_RESULT_JSON}"
-fi
+    _MODEL_EXIT=$?
+    if [[ ${_MODEL_EXIT} -ne 0 ]]; then
+        OVERALL_EXIT=${_MODEL_EXIT}
+    fi
+
+    # Rename per-model so fp32/fp64 × scale × model don't clobber
+    _RESULT_JSON="results/power/smoke_test_cpu_${PRECISION}_${_MODEL}_${MCMC_SUFFIX}.json"
+    if [[ -f "results/power/smoke_test.json" ]]; then
+        mv "results/power/smoke_test.json" "${_RESULT_JSON}"
+        echo "Renamed results → ${_RESULT_JSON}"
+        _ALL_RESULT_JSONS+=("${_RESULT_JSON}")
+    fi
+
+    echo ""
+    echo "--- Finished ${_MODEL} (exit=${_MODEL_EXIT}) at $(date) ---"
+    echo ""
+done
+
+EXIT_CODE=${OVERALL_EXIT}
 
 echo ""
 echo "============================================================"
 if [[ $EXIT_CODE -eq 0 ]]; then
-    echo "CPU SMOKE TEST PASSED (BlackJAX NUTS, ${PRECISION})"
+    echo "CPU SMOKE TEST PASSED (BlackJAX NUTS, ${PRECISION}, models: ${PRL_SMOKE_MODELS})"
 else
     echo "CPU SMOKE TEST FAILED (exit code: $EXIT_CODE, ${PRECISION})"
     echo "  Check: cluster/logs/smoke16cpu_${SLURM_JOB_ID}.err"
@@ -148,9 +188,10 @@ echo "Pushing CPU smoke test results to git..."
 _SMOKE_LOG_OUT="cluster/logs/smoke16cpu_${SLURM_JOB_ID}.out"
 _SMOKE_LOG_ERR="cluster/logs/smoke16cpu_${SLURM_JOB_ID}.err"
 
-git add "${_SMOKE_LOG_OUT}" "${_SMOKE_LOG_ERR}" "${_RESULT_JSON}" 2>/dev/null
+git add "${_SMOKE_LOG_OUT}" "${_SMOKE_LOG_ERR}" "${_ALL_RESULT_JSONS[@]}" 2>/dev/null
 if ! git diff --cached --quiet 2>/dev/null; then
-    git commit -m "smoke cpu ${PRECISION} ${MCMC_SUFFIX} (job ${SLURM_JOB_ID})"
+    _MODEL_LIST_COMMIT="${PRL_SMOKE_MODELS// /+}"
+    git commit -m "smoke cpu ${PRECISION} ${_MODEL_LIST_COMMIT} ${MCMC_SUFFIX} κ-frozen (job ${SLURM_JOB_ID})"
     if git push origin main 2>/dev/null; then
         echo "Pushed CPU smoke test results to origin/main"
     else

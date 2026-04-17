@@ -62,6 +62,18 @@ pytensor.config.cxx = ""
 #: Tapas magnitude bound on level-2 means (``tapas_ehgf_binary.m``).
 _MU_2_BOUND: float = 14.0
 
+#: Frozen volatility-coupling strength for 3-level HGF fitting.
+#:
+#: The ω₃ × κ product is multiplicatively confounded in the HGF likelihood
+#: (high ω₃ + low κ ≈ low ω₃ + high κ for observable learning-rate
+#: dynamics), producing a curved ridge that diagonal-mass-matrix NUTS
+#: cannot navigate without saturating ``max_tree_depth``.  Freezing κ at
+#: 1.0 collapses the ridge to a line; matches the TAPAS convention where
+#: κ is fixed in most PRL/volatility applications (Mathys 2011).  The
+#: batched logp function still accepts κ as an argument for legacy
+#: simulator compatibility — callers in the fitting path always pass 1.0.
+_KAPPA_FIXED: float = 1.0
+
 #: Supported model names.
 _MODEL_NAMES: tuple[str, ...] = ("hgf_2level", "hgf_3level")
 
@@ -791,12 +803,8 @@ def _build_log_posterior(
             scale=2.0,
             high=0.0,
         )
-        prior_kappa = dist.TruncatedNormal(
-            loc=1.0,
-            scale=0.5,
-            low=0.01,
-            high=2.0,
-        )
+        # κ is frozen at _KAPPA_FIXED (1.0) — see module docstring.  No prior
+        # needed because κ is not sampled.
 
     def logdensity_fn(params: dict[str, jnp.ndarray]) -> jnp.ndarray:
         """Compute log-posterior: prior + likelihood.
@@ -826,13 +834,11 @@ def _build_log_posterior(
 
         if is_3level:
             omega_3 = params["omega_3"]
-            kappa = params["kappa"]
             prior_lp = prior_lp + jnp.sum(
                 prior_omega_3.log_prob(omega_3),
             )
-            prior_lp = prior_lp + jnp.sum(
-                prior_kappa.log_prob(kappa),
-            )
+            # κ frozen at 1.0 — pass as broadcast constant to batched logp.
+            kappa = jnp.full_like(omega_2, _KAPPA_FIXED)
             likelihood_lp = batched_logp_fn(
                 omega_2,
                 omega_3,
@@ -914,6 +920,8 @@ def _run_blackjax_nuts(
     trial_mask: jnp.ndarray | None = None,
     model_name: str = "hgf_3level",
     warmup_params: dict | None = None,
+    log_every: int = 0,
+    phase_label: str = "sample",
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], int, dict]:
     """Run BlackJAX NUTS with window_adaptation warmup and lax.scan sampling.
 
@@ -1027,6 +1035,8 @@ def _run_blackjax_nuts(
             n_chains,
             n_draws,
             use_pmap,
+            log_every=log_every,
+            phase_label=phase_label,
         )
 
         # init_position: use adapted position from warmup if available,
@@ -1226,12 +1236,79 @@ def _run_pmap_chains(
     return positions_dict, stats_dict, n_chains
 
 
+def _build_progress_callback(
+    log_every: int,
+    n_chains: int,
+    phase_label: str,
+):  # noqa: ANN205
+    """Build a host-side callback emitting NUTS progress every ``log_every`` draws.
+
+    Called from inside ``jax.debug.callback`` so it runs on the host while
+    the compiled scan continues on the accelerator.  Logs cumulative wall
+    time, per-chain integration-step distribution, trajectory-expansion
+    distribution, acceptance rate, and divergence count.
+
+    Parameters
+    ----------
+    log_every : int
+        Emit a line every ``log_every`` draws.  ``0`` disables.
+    n_chains : int
+        Number of chains, used for divergence denominator.
+    phase_label : str
+        Short tag included in each log line (e.g. ``"cold"``, ``"warm1"``).
+
+    Returns
+    -------
+    callable or None
+        Host callback ``(step_idx, int_steps, accept, div, expansions) -> None``.
+        ``None`` if ``log_every <= 0``.
+    """
+    if log_every <= 0:
+        return None
+
+    import time
+
+    start = [time.time()]
+    last = [start[0]]
+
+    def _cb(step_idx, int_steps, accept, div, expansions):  # noqa: ANN001
+        step = int(step_idx)
+        # Log draw 1, every log_every draws, and nothing else
+        if step == 0:
+            return
+        if step % log_every != 0:
+            return
+        now = time.time()
+        int_steps_np = np.asarray(int_steps)
+        accept_np = np.asarray(accept)
+        div_np = np.asarray(div)
+        exp_np = np.asarray(expansions)
+        elapsed = now - start[0]
+        since_last = now - last[0]
+        print(
+            f"  [{phase_label}] draw {step:>5d} | "
+            f"t={elapsed:7.1f}s Δ={since_last:5.1f}s | "
+            f"int_steps mean={int_steps_np.mean():6.1f} "
+            f"p50={int(np.percentile(int_steps_np, 50)):>4d} "
+            f"max={int(int_steps_np.max()):>4d} | "
+            f"exp mean={exp_np.mean():.1f} max={int(exp_np.max())} | "
+            f"accept={accept_np.mean():.3f} "
+            f"div={int(div_np.sum())}/{n_chains}",
+            flush=True,
+        )
+        last[0] = now
+
+    return _cb
+
+
 def _build_sample_loop(
     batched_logp_fn,  # noqa: ANN001
     model_name: str,
     n_chains: int,
     n_draws: int,
     use_pmap: bool,
+    log_every: int = 0,
+    phase_label: str = "sample",
 ):  # noqa: ANN205
     """Build a JIT'd sampling function where data flows as traced arguments.
 
@@ -1292,12 +1369,7 @@ def _build_sample_loop(
             scale=2.0,
             high=0.0,
         )
-        prior_kappa = dist.TruncatedNormal(
-            loc=1.0,
-            scale=0.5,
-            low=0.01,
-            high=2.0,
-        )
+        # κ frozen at _KAPPA_FIXED (1.0); no sampled prior.
 
     if use_pmap:
         # pmap path: pmap handles its own JIT compilation
@@ -1325,13 +1397,10 @@ def _build_sample_loop(
                 )
                 if is_3level:
                     omega_3 = params["omega_3"]
-                    kappa = params["kappa"]
                     prior_lp = prior_lp + jnp.sum(
                         prior_omega_3.log_prob(omega_3),
                     )
-                    prior_lp = prior_lp + jnp.sum(
-                        prior_kappa.log_prob(kappa),
-                    )
+                    kappa = jnp.full_like(omega_2, _KAPPA_FIXED)
                     likelihood_lp = batched_logp_fn(
                         omega_2,
                         omega_3,
@@ -1410,13 +1479,10 @@ def _build_sample_loop(
             prior_lp = prior_lp + jnp.sum(prior_zeta.log_prob(zeta))
             if is_3level:
                 omega_3 = params["omega_3"]
-                kappa = params["kappa"]
                 prior_lp = prior_lp + jnp.sum(
                     prior_omega_3.log_prob(omega_3),
                 )
-                prior_lp = prior_lp + jnp.sum(
-                    prior_kappa.log_prob(kappa),
-                )
+                kappa = jnp.full_like(omega_2, _KAPPA_FIXED)
                 likelihood_lp = batched_logp_fn(
                     omega_2,
                     omega_3,
@@ -1450,16 +1516,36 @@ def _build_sample_loop(
             initial_state,
         )
 
-        def _one_step(states, rng_key):  # noqa: ANN001
+        # Progress callback (closure-captured so different phase_label /
+        # log_every produce distinct HLO — OK because smoke test recompiles
+        # per phase anyway).  Host callback is async (ordered=False) so it
+        # does not block the scan.
+        progress_cb = _build_progress_callback(
+            log_every, n_chains, phase_label,
+        )
+
+        def _one_step(states, scan_in):  # noqa: ANN001
+            rng_key, step_idx = scan_in
             keys = jax.random.split(rng_key, n_chains)
             new_states, infos = jax.vmap(nuts.step)(keys, states)
+            if progress_cb is not None:
+                jax.debug.callback(
+                    progress_cb,
+                    step_idx + 1,
+                    infos.num_integration_steps,
+                    infos.acceptance_rate,
+                    infos.is_divergent.astype(jnp.int32),
+                    infos.num_trajectory_expansions,
+                    ordered=False,
+                )
             return new_states, (new_states, infos)
 
         draw_keys = jax.random.split(chain_keys[0], n_draws)
+        step_idxs = jnp.arange(n_draws, dtype=jnp.int32)
         _, (all_states, all_infos) = lax.scan(
             _one_step,
             replicated_state,
-            draw_keys,
+            (draw_keys, step_idxs),
         )
         return all_states, all_infos
 
@@ -1593,15 +1679,9 @@ def _numpyro_model_3level(
             high=0.0,
         ).expand([n_participants]),
     )
-    kappa = numpyro.sample(
-        "kappa",
-        dist.TruncatedNormal(
-            loc=1.0,
-            scale=0.5,
-            low=0.01,
-            high=2.0,
-        ).expand([n_participants]),
-    )
+    # κ frozen at _KAPPA_FIXED (1.0) — collapses ω₃×κ ridge that otherwise
+    # saturates NUTS tree depth (see module constant docstring).
+    kappa = jnp.full((n_participants,), _KAPPA_FIXED)
 
     # Response parameters
     log_beta = numpyro.sample(
@@ -1915,7 +1995,7 @@ def _build_arrays_single(
 
 def fit_batch_hierarchical(
     sim_df: pd.DataFrame,
-    model_name: str = "hgf_3level",
+    model_name: str = "hgf_2level",
     n_chains: int = 4,
     n_draws: int = 1000,
     n_tune: int = 1000,
@@ -1924,6 +2004,7 @@ def fit_batch_hierarchical(
     sampler: str = "blackjax",
     progressbar: bool = True,
     warmup_params: dict | None = None,
+    log_every: int = 0,
 ) -> az.InferenceData | tuple[az.InferenceData, dict]:
     """Fit an entire cohort via BlackJAX NUTS (default) or NumPyro MCMC.
 
@@ -1951,7 +2032,10 @@ def fit_batch_hierarchical(
         Trial-level DataFrame with columns ``participant_id``, ``group``,
         ``session``, ``cue_chosen``, ``reward``.
     model_name : str, optional
-        ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+        ``"hgf_2level"`` (default — primary target; no ω₃×κ ridge) or
+        ``"hgf_3level"`` (exploratory; κ frozen at 1.0 per
+        :data:`_KAPPA_FIXED` to avoid ω₃×κ multiplicative ridge that
+        otherwise saturates NUTS ``max_tree_depth``).
     n_chains : int, optional
         Number of MCMC chains.  Default ``4``.
     n_draws : int, optional
@@ -1974,6 +2058,15 @@ def fit_batch_hierarchical(
         provided, warmup is skipped (~1100s savings per call).  Pass
         the second element of the return tuple from a prior call.
         Only used with the BlackJAX path.
+    log_every : int, optional
+        If ``> 0``, emit NUTS progress diagnostics every ``log_every``
+        draws via ``jax.debug.callback`` fired from inside the JIT'd
+        scan.  Reports wall time, integration-step distribution,
+        trajectory-expansion distribution, acceptance rate, and
+        divergence count.  ``0`` (default) disables — keeps the
+        production HLO identical to pre-instrumentation runs so the
+        XLA persistent cache keeps hitting.  Only used with the
+        BlackJAX path, vmap variant (single-device).
 
     Returns
     -------
@@ -2099,19 +2192,18 @@ def fit_batch_hierarchical(
             model_name,
         )
 
-        # Build initial position dict at prior modes
+        # Build initial position dict at prior modes.
+        # κ is frozen at _KAPPA_FIXED (1.0) — not sampled, not in initial_position.
         if model_name == "hgf_3level":
             initial_position: dict[str, jnp.ndarray] = {
                 "omega_2": jnp.full((n_participants,), -3.0),
                 "omega_3": jnp.full((n_participants,), -6.0),
-                "kappa": jnp.full((n_participants,), 1.0),
                 "log_beta": jnp.full((n_participants,), 0.0),
                 "zeta": jnp.full((n_participants,), 0.0),
             }
             var_names = [
                 "omega_2",
                 "omega_3",
-                "kappa",
                 "log_beta",
                 "beta",
                 "zeta",
@@ -2141,6 +2233,8 @@ def fit_batch_hierarchical(
                 trial_mask=jax_trial_mask,
                 model_name=model_name,
                 warmup_params=warmup_params,
+                log_every=log_every,
+                phase_label=model_name.replace("hgf_", ""),
             )
         )
 
@@ -2170,10 +2264,10 @@ def fit_batch_hierarchical(
 
         if model_name == "hgf_3level":
             model_fn = _numpyro_model_3level
+            # κ frozen — not in fitted var_names (see _KAPPA_FIXED docstring).
             var_names = [
                 "omega_2",
                 "omega_3",
-                "kappa",
                 "log_beta",
                 "beta",
                 "zeta",

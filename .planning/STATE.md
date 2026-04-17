@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 18 PAT-RL Task Adaptation (HEART2ADAPT) — Plan 2/6 complete
+**Current focus:** Phase 18 PAT-RL Task Adaptation (HEART2ADAPT) — Plan 3/6 complete
 
 ## Current Position
 
 Phase: 18 of 18 (PAT-RL Task Adaptation)
-Plan: 2/6 complete (18-02 PAT-RL trial sequence generator: PATRLTrial + generate_session_patrl)
-Status: In progress — Phase 18 Plans 1-2 complete; Plans 3-6 (HGF builders, fitting, trajectory export, validation) pending
-Last activity: 2026-04-17 — Completed 18-02: PAT-RL trial sequence generator
+Plan: 3/6 complete (18-03 PAT-RL HGF builders + Model A response)
+Status: In progress — Phase 18 Plans 1-3 complete; Plans 4-6 (fitting, trajectory export, validation) pending
+Last activity: 2026-04-17 — Completed 18-03: PAT-RL HGF builders (2-level, 3-level) + Model A response
 
-[===========████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (2/6)
+[===========████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (3/6)
 
 ## Performance Metrics
 
@@ -111,6 +111,10 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | SeedSequence 4-way spawn for PAT-RL trial generator (state/mag/dHR/reserved) | Independent child streams for each RNG role; reserved 4th stream lets Plan 18-04 add outcome draws without changing existing seeds | 18-02 |
 | State carried forward across run boundaries in generate_session_patrl | Biological realism: context state is continuous; artificial reset at run boundaries would bias run-1 outcomes | 18-02 |
 | PhenotypeParams uses PriorGaussian for kappa/mu3_0 (sd=0 allowed) | Avoids over-engineering separate FixedParam type before Models B/C/D clarify param variation needs | 18-01 |
+| PAT-RL Model A EV direction: sigmoid(mu2)=P(dangerous); EV_approach=(1-P_danger)*V_rew - P_danger*V_shk | Consistent with state=1 meaning dangerous; at mu2=0,V_shk>>V_rew: P(approach)<<0.01 (validated in test 7) | 18-03 |
+| pyhgf 0.2.8 kappa coupling via volatility_children=([child],[kappa]) not node_parameters | node_parameters dict does not accept coupling strength keys in pyhgf 0.2.8; tuple-of-lists is correct API | 18-03 |
+| pyhgf 0.2.8 time_steps must be 1D np.ones(n_trials) not 2D matrix | 2D time_steps causes JAX carry-type shape mismatch in scan_fn | 18-03 |
+| model_a_logp MU2_CLIP=30 (outer envelope); HGF-level clamping at |mu2|<14 (inner) | Conservative outer clip keeps sigmoid finite at export time; inner clamping handles fitting instability | 18-03 |
 
 ### Pending Todos
 
@@ -147,6 +151,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-17
-Stopped at: Completed 18-02-PLAN.md — PAT-RL trial sequence generator (PATRLTrial + generate_session_patrl + 9 tests)
+Stopped at: Completed 18-03-PLAN.md — PAT-RL HGF builders (hgf_2level_patrl, hgf_3level_patrl, response_patrl) + 9 tests
 Resume file: None
-Next action: Execute 18-03 (PAT-RL HGF model builders — binary-input 2-level and 3-level pyhgf models). Note: blackjax not installed in ds_env — pre-existing issue causing test_valid_02_batched_blackjax_convergence to fail.
+Next action: Execute 18-04 (PAT-RL batched logp for MCMC fitting — BlackJAX integration). Note: blackjax not installed in ds_env — pre-existing issue causing test_valid_02_batched_blackjax_convergence to fail.

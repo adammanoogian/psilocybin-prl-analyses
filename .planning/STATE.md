@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 18 PAT-RL Task Adaptation (the consumer study) — Plan 3/6 complete
+**Current focus:** Phase 18 PAT-RL Task Adaptation (the consumer study) — Plan 4/6 complete
 
 ## Current Position
 
 Phase: 18 of 18 (PAT-RL Task Adaptation)
-Plan: 3/6 complete (18-03 PAT-RL HGF builders + Model A response)
-Status: In progress — Phase 18 Plans 1-3 complete; Plans 4-6 (fitting, trajectory export, validation) pending
-Last activity: 2026-04-17 — Completed 18-03: PAT-RL HGF builders (2-level, 3-level) + Model A response
+Plan: 4/6 complete (18-04 PAT-RL batched logp + BlackJAX orchestrator)
+Status: In progress — Phase 18 Plans 1-4 complete; Plans 5-6 (trajectory export, validation) pending
+Last activity: 2026-04-18 — Completed 18-04: PAT-RL batched logp factory + fit_batch_hierarchical_patrl
 
-[===========████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (3/6)
+[===========████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (4/6)
 
 ## Performance Metrics
 
@@ -115,6 +115,10 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | pyhgf 0.2.8 kappa coupling via volatility_children=([child],[kappa]) not node_parameters | node_parameters dict does not accept coupling strength keys in pyhgf 0.2.8; tuple-of-lists is correct API | 18-03 |
 | pyhgf 0.2.8 time_steps must be 1D np.ones(n_trials) not 2D matrix | 2D time_steps causes JAX carry-type shape mismatch in scan_fn | 18-03 |
 | model_a_logp MU2_CLIP=30 (outer envelope); HGF-level clamping at |mu2|<14 (inner) | Conservative outer clip keeps sigmoid finite at export time; inner clamping handles fitting instability | 18-03 |
+| float64 scan inputs in hierarchical_patrl._single_logp | pyhgf attrs are float64; jax.lax.cond in continuous_node_posterior_update requires dtype consistency between branches; float32 inputs cause TypeError when vmap'd | 18-04 |
+| PAT-RL closure-based logdensity_fn (not traced-arg sample loop) | _build_sample_loop hardcodes pick_best_cue 7-arg logp signature; re-use would require modifying hierarchical.py (parallel-stack violation); closure path is correct for Phase 18 smoke | 18-04 |
+| kappa injected via attrs[2]["volatility_coupling_children"] = jnp.asarray([kappa_i]) | Confirmed at runtime: kappa coupling strength is stored in attributes dict (not only edges), enabling per-participant dynamic injection inside lax.scan | 18-04 |
+| log_beta parameterisation: beta sampled in log-space; prior N(log(beta_mean), beta_sd/beta_mean) | NUTS can freely explore without positivity boundary; delta-method approximation centres prior near config beta.mean | 18-04 |
 
 ### Pending Todos
 
@@ -131,6 +135,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 - **Decision gate at Phase 14:** if batched hierarchical GPU benchmark is still > 50 GPU-hours per chunk, fall back to CPU `comp` partition (new batched code still wins over v1.1 sequential on CPU).
 - pyhgf has no built-in NaN clamping — **RESOLVED in 12-02**: Layer 2 clamping implemented in hierarchical.py using jnp.where + tree_map (|mu_2| < 14 bound).
 - `_init_jitter` PyTensor read-only-array bug means we can't use `pm.sample(...)` directly even with `nuts_sampler="numpyro"`; must call `pmjax.sample_numpyro_nuts()` directly. **RESOLVED in 16-01**: fit_batch_hierarchical now uses direct numpyro MCMC, bypassing PyMC/PyTensor entirely.
+- **blackjax not installed in ds_env** — PAT-RL smoke tests (18-04 tests 5-6) skip via importorskip. Install blackjax on cluster before running smoke validation. Pre-existing: test_valid_02_batched_blackjax_convergence also fails for same reason.
 
 ## Quick Tasks
 
@@ -150,7 +155,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-17
-Stopped at: Completed 18-03-PLAN.md — PAT-RL HGF builders (hgf_2level_patrl, hgf_3level_patrl, response_patrl) + 9 tests
+Last session: 2026-04-18
+Stopped at: Completed 18-04-PLAN.md — PAT-RL batched logp factory + fit_batch_hierarchical_patrl + 8 tests
 Resume file: None
-Next action: Execute 18-04 (PAT-RL batched logp for MCMC fitting — BlackJAX integration). Note: blackjax not installed in ds_env — pre-existing issue causing test_valid_02_batched_blackjax_convergence to fail.
+Next action: Execute 18-05 (PAT-RL trajectory export — InferenceData → CSV per participant).

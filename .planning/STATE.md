@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 18 PAT-RL Task Adaptation (HEART2ADAPT) — Plan 4/6 complete
+**Current focus:** Phase 18 PAT-RL Task Adaptation (HEART2ADAPT) — Plan 5/6 complete
 
 ## Current Position
 
 Phase: 18 of 18 (PAT-RL Task Adaptation)
-Plan: 4/6 complete (18-04 PAT-RL batched logp + BlackJAX orchestrator)
-Status: In progress — Phase 18 Plans 1-4 complete; Plans 5-6 (trajectory export, validation) pending
-Last activity: 2026-04-18 — Completed 18-04: PAT-RL batched logp factory + fit_batch_hierarchical_patrl
+Plan: 5/6 complete (18-05 DCM integration surface — trajectory export)
+Status: In progress — Phase 18 Plans 1-5 complete; Plan 6 (validation) pending
+Last activity: 2026-04-17 — Completed 18-05: trajectory export, parameter summary, dcm_pytorch audit
 
-[===========████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (4/6)
+[===========█████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (5/6)
 
 ## Performance Metrics
 
@@ -119,6 +119,12 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | PAT-RL closure-based logdensity_fn (not traced-arg sample loop) | _build_sample_loop hardcodes pick_best_cue 7-arg logp signature; re-use would require modifying hierarchical.py (parallel-stack violation); closure path is correct for Phase 18 smoke | 18-04 |
 | kappa injected via attrs[2]["volatility_coupling_children"] = jnp.asarray([kappa_i]) | Confirmed at runtime: kappa coupling strength is stored in attributes dict (not only edges), enabling per-participant dynamic injection inside lax.scan | 18-04 |
 | log_beta parameterisation: beta sampled in log-space; prior N(log(beta_mean), beta_sd/beta_mean) | NUTS can freely explore without positivity boundary; delta-method approximation centres prior near config beta.mean | 18-04 |
+| dcm_pytorch bilinear B-matrix path is LIVE in v0.3.0 (not deferred): parameterize_B + compute_effective_A in neural_state.py | Plan sketch was wrong; read neural_state.py:4-15 + coupled_system.py:20-73 in Task 1 audit | 18-05 |
+| Modulator channel values for dcm_pytorch: raw float64, no bounding or normalization | dcm_pytorch neural_state.py:104-113: off-diagonal pass through via pure mask; N(0,1) prior does regularization | 18-05 |
+| outcome_time_s feeds stimulus["times"] directly: both are absolute seconds from session start | Confirmed in task_simulator.py:74, ode_integrator.py:35-39; no time-axis transform needed | 18-05 |
+| az.hdi returns "lower"/"higher" coordinate labels (not "low"/"high") in ArviZ 0.22+ | Verified at runtime; pivot in export_subject_parameters uses hdi="lower" and hdi="higher" selectors | 18-05 |
+| pyhgf 0.2.8 temp keys confirmed: value_prediction_error, effective_precision, volatility_prediction_error all present | Runtime inspection in test_pyhgf_temp_keys_extracted canary test | 18-05 |
+| 3-level-only cols (mu3/sigma3/epsilon3) present as NaN in 2-level trajectory CSV | Schema consistency: downstream concat/join across model variants works without column-presence check | 18-05 |
 
 ### Pending Todos
 
@@ -155,7 +161,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-18
-Stopped at: Completed 18-04-PLAN.md — PAT-RL batched logp factory + fit_batch_hierarchical_patrl + 8 tests
+Last session: 2026-04-17
+Stopped at: Completed 18-05-PLAN.md — DCM integration surface: trajectory export, parameter summary, dcm_pytorch consumer audit
 Resume file: None
-Next action: Execute 18-05 (PAT-RL trajectory export — InferenceData → CSV per participant).
+Next action: Execute 18-06 (PAT-RL scientific validation — parameter recovery + sanity checks).

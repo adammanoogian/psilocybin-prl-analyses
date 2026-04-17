@@ -860,6 +860,45 @@ def _build_log_posterior(
     return logdensity_fn
 
 
+def _extract_nuts_stats(
+    infos,  # blackjax NUTSInfo pytree
+    transpose: bool,
+) -> dict[str, np.ndarray]:
+    """Convert a stacked NUTSInfo pytree into an ArviZ-friendly dict.
+
+    Carries ``diverging``, ``acceptance_rate``, ``num_integration_steps``,
+    ``num_trajectory_expansions``, and ``energy`` so downstream diagnostics
+    can measure per-draw integrator work, not just acceptance.
+
+    Parameters
+    ----------
+    infos : blackjax.mcmc.nuts.NUTSInfo
+        Stacked info output from a sampling scan.
+    transpose : bool
+        True when leading axes are ``(n_draws, n_chains)`` (vmap scan
+        layout) and need to be swapped to ``(n_chains, n_draws)`` for
+        ArviZ.  False when already ``(n_chains, n_draws)`` (pmap layout).
+
+    Returns
+    -------
+    dict[str, numpy.ndarray]
+        Each value has shape ``(n_chains, n_draws)``.
+    """
+
+    def _to_np(x: jnp.ndarray) -> np.ndarray:
+        if transpose:
+            return np.asarray(jnp.transpose(x, (1, 0)))
+        return np.asarray(x)
+
+    return {
+        "diverging": _to_np(infos.is_divergent),
+        "acceptance_rate": _to_np(infos.acceptance_rate),
+        "num_integration_steps": _to_np(infos.num_integration_steps),
+        "num_trajectory_expansions": _to_np(infos.num_trajectory_expansions),
+        "energy": _to_np(infos.energy),
+    }
+
+
 def _run_blackjax_nuts(
     logdensity_fn,  # noqa: ANN001
     initial_position: dict[str, jnp.ndarray],
@@ -1014,24 +1053,14 @@ def _run_blackjax_nuts(
         if use_pmap:
             # pmap: (n_chains, n_draws, P) -- already correct layout
             positions_dict = {k: np.asarray(v) for k, v in all_states.position.items()}
-            stats_dict = {
-                "diverging": np.asarray(all_infos.is_divergent),
-                "acceptance_rate": np.asarray(all_infos.acceptance_rate),
-            }
+            stats_dict = _extract_nuts_stats(all_infos, transpose=False)
         else:
             # vmap: (n_draws, n_chains, P) -> (n_chains, n_draws, P)
             positions_dict = {
                 k: np.asarray(jnp.transpose(v, (1, 0, 2)))
                 for k, v in all_states.position.items()
             }
-            stats_dict = {
-                "diverging": np.asarray(
-                    jnp.transpose(all_infos.is_divergent, (1, 0)),
-                ),
-                "acceptance_rate": np.asarray(
-                    jnp.transpose(all_infos.acceptance_rate, (1, 0)),
-                ),
-            }
+            stats_dict = _extract_nuts_stats(all_infos, transpose=True)
 
         return positions_dict, stats_dict, n_chains, warmup_params
 
@@ -1125,17 +1154,7 @@ def _run_vmap_chains(
     }
 
     # Diagnostics: (n_draws, n_chains) -> (n_chains, n_draws)
-    diverging = np.asarray(
-        jnp.transpose(all_infos.is_divergent, (1, 0)),
-    )
-    acceptance_rate = np.asarray(
-        jnp.transpose(all_infos.acceptance_rate, (1, 0)),
-    )
-
-    stats_dict = {
-        "diverging": diverging,
-        "acceptance_rate": acceptance_rate,
-    }
+    stats_dict = _extract_nuts_stats(all_infos, transpose=True)
 
     return positions_dict, stats_dict, n_chains
 
@@ -1202,10 +1221,7 @@ def _run_pmap_chains(
     positions_dict = {k: np.asarray(v) for k, v in all_states.position.items()}
 
     # Diagnostics: (n_chains, n_draws)
-    stats_dict = {
-        "diverging": np.asarray(all_infos.is_divergent),
-        "acceptance_rate": np.asarray(all_infos.acceptance_rate),
-    }
+    stats_dict = _extract_nuts_stats(all_infos, transpose=False)
 
     return positions_dict, stats_dict, n_chains
 

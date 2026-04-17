@@ -27,6 +27,7 @@ from __future__ import annotations
 import argparse
 import json
 import logging
+import os
 import subprocess
 import sys
 import threading
@@ -36,6 +37,12 @@ from pathlib import Path
 # Ensure project root is on sys.path so imports work on cluster
 # without an editable install.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+
+# Pre-parse --enable-x64 before importing jax so JAX_ENABLE_X64 takes effect.
+# Config must be set before any jnp array is created, so env var is the
+# reliable channel.
+if "--enable-x64" in sys.argv:
+    os.environ["JAX_ENABLE_X64"] = "1"
 
 import jax
 
@@ -154,6 +161,17 @@ def parse_args() -> argparse.Namespace:
             "Use the v1.1 legacy per-participant sequential fitting path "
             "instead of the v1.2 batched hierarchical path. Preserved for "
             "reproducibility and debugging (VALID-05)."
+        ),
+    )
+    parser.add_argument(
+        "--enable-x64",
+        action="store_true",
+        default=False,
+        help=(
+            "Enable JAX float64 precision (sets JAX_ENABLE_X64=1 before "
+            "jax import).  Diagnostic flag for the smoke test: lets us "
+            "compare fp32 vs fp64 stability and runtime for the HGF + "
+            "BlackJAX NUTS path."
         ),
     )
     return parser.parse_args()
@@ -403,6 +421,79 @@ def _print_gpu_table(gpus: list[dict]) -> None:
         )
 
 
+def _summarize_nuts_stats(
+    idata: object,
+    label: str,
+) -> dict:
+    """Print and return aggregate NUTS diagnostics from an idata object.
+
+    Reports per-draw integrator-step counts, divergence rate, and mean
+    acceptance.  When ``num_integration_steps`` saturates at the BlackJAX
+    default cap (1024 = 2**10 doublings), this is the signature of a
+    step size too small for the posterior curvature (the primary suspect
+    when warm sampling is slow despite a JIT-cache hit).
+
+    Parameters
+    ----------
+    idata : arviz.InferenceData
+        Must have ``sample_stats`` with ``num_integration_steps``,
+        ``acceptance_rate``, ``diverging``.
+    label : str
+        Short label printed next to the stats (``"cold"``, ``"warm1"``,
+        ``"warm2"``).
+
+    Returns
+    -------
+    dict
+        Numeric summary fields suitable for the smoke_test.json blob.
+    """
+    import numpy as np
+
+    stats = idata.sample_stats
+    steps = np.asarray(stats["num_integration_steps"]).ravel()
+    accept = np.asarray(stats["acceptance_rate"]).ravel()
+    diverging = np.asarray(stats["diverging"]).ravel()
+    expansions = (
+        np.asarray(stats["num_trajectory_expansions"]).ravel()
+        if "num_trajectory_expansions" in stats
+        else None
+    )
+
+    n_draws_total = steps.size
+    summary = {
+        "n_draws_total": int(n_draws_total),
+        "integration_steps_mean": float(np.mean(steps)),
+        "integration_steps_p50": float(np.percentile(steps, 50)),
+        "integration_steps_p95": float(np.percentile(steps, 95)),
+        "integration_steps_max": int(np.max(steps)),
+        "acceptance_mean": float(np.mean(accept)),
+        "divergence_rate": float(np.mean(diverging)),
+    }
+    if expansions is not None:
+        summary["trajectory_expansions_max"] = int(np.max(expansions))
+        summary["trajectory_expansions_mean"] = float(np.mean(expansions))
+
+    print(f"  NUTS stats ({label}):")
+    print(
+        f"    integration_steps: mean={summary['integration_steps_mean']:.0f} "
+        f"p50={summary['integration_steps_p50']:.0f} "
+        f"p95={summary['integration_steps_p95']:.0f} "
+        f"max={summary['integration_steps_max']}"
+    )
+    if expansions is not None:
+        print(
+            f"    trajectory_expansions: mean="
+            f"{summary['trajectory_expansions_mean']:.1f} "
+            f"max={summary['trajectory_expansions_max']} "
+            "(10 = hit max_tree_depth cap)"
+        )
+    print(
+        f"    acceptance_rate: mean={summary['acceptance_mean']:.3f}  "
+        f"divergence_rate: {summary['divergence_rate']:.3f}"
+    )
+    return summary
+
+
 def _run_smoke_test(
     base_config: object,
     power_config: object,
@@ -439,6 +530,15 @@ def _run_smoke_test(
 
     # Enable cache miss diagnostics (logs why tracing cache misses)
     jax.config.update("jax_explain_cache_misses", True)
+
+    # PyTensor's jax link silently flips jax_enable_x64 to True when it's
+    # imported (via prl_hgf.fitting.hierarchical → jax_funcify).  If the
+    # user did NOT pass --enable-x64, force it back to False before any
+    # jnp array is created so the sampler actually runs in fp32 for the
+    # precision comparison.  When --enable-x64 was passed, the env var
+    # preparse at the top of the module already set it; no-op here.
+    if not getattr(args, "enable_x64", False):
+        jax.config.update("jax_enable_x64", False)
 
     output_dir.mkdir(parents=True, exist_ok=True)
     results: dict = {}
@@ -540,7 +640,7 @@ def _run_smoke_test(
 
     t0 = time.perf_counter()
     # Cold call: full warmup, returns (idata, adapted_params)
-    _idata_cold, adapted_params = fit_batch_hierarchical(
+    idata_cold, adapted_params = fit_batch_hierarchical(
         sim_smoke,
         "hgf_3level",
         n_chains=n_chains_smoke,
@@ -553,6 +653,7 @@ def _run_smoke_test(
     jit_cold_s = time.perf_counter() - t0
     results["jit_cold_s"] = round(jit_cold_s, 2)
     print(f"  Cold JIT: {jit_cold_s:.2f}s")
+    results["nuts_stats_cold"] = _summarize_nuts_stats(idata_cold, "cold")
 
     gpus_post_cold = _query_gpu_table()
     results["gpu_post_cold_jit"] = gpus_post_cold
@@ -579,8 +680,10 @@ def _run_smoke_test(
     results["gpu_pre_warm_jit"] = gpus_pre_warm
 
     t0 = time.perf_counter()
-    # Warm call: skip warmup by reusing adapted params from cold call
-    fit_batch_hierarchical(
+    # Warm call 1: skip warmup by reusing adapted params from cold call.
+    # Still incurs Python-level retrace of sample_loop_vmap (new closure),
+    # but XLA compile should hit the persistent on-disk cache.
+    idata_warm1 = fit_batch_hierarchical(
         sim_smoke_2,
         "hgf_3level",
         n_chains=n_chains_smoke,
@@ -594,6 +697,38 @@ def _run_smoke_test(
     jit_warm_s = time.perf_counter() - t0
     results["jit_warm_s"] = round(jit_warm_s, 2)
     print(f"  Warm JIT: {jit_warm_s:.2f}s (warmup skipped via warmup_params)")
+    results["nuts_stats_warm1"] = _summarize_nuts_stats(idata_warm1, "warm1")
+
+    # --- Step 3b: Warm JIT call #2 (compile vs execute split) ---
+    # Second warm call with yet another seed.  If XLA trace cache is
+    # healthy, this should be much faster than warm1 (pure execute, no
+    # Python retrace overhead).  If warm2 ≈ warm1, sampling itself is
+    # the bottleneck; if warm2 << warm1, tracing/compile dominates.
+    print("\nStep 3b: Warm JIT #2 (pure execute — trace cache reuse)...")
+    t0 = time.perf_counter()
+    idata_warm2 = fit_batch_hierarchical(
+        sim_smoke_2,
+        "hgf_3level",
+        n_chains=n_chains_smoke,
+        n_draws=n_draws_smoke,
+        n_tune=n_tune_smoke,
+        target_accept=0.9,
+        random_seed=44,
+        progressbar=False,
+        warmup_params=adapted_params,
+    )
+    jit_warm2_s = time.perf_counter() - t0
+    results["jit_warm2_s"] = round(jit_warm2_s, 2)
+    print(f"  Warm JIT #2: {jit_warm2_s:.2f}s")
+    results["nuts_stats_warm2"] = _summarize_nuts_stats(idata_warm2, "warm2")
+
+    warm1_minus_warm2 = jit_warm_s - jit_warm2_s
+    results["warm1_minus_warm2_s"] = round(warm1_minus_warm2, 2)
+    print(
+        f"  warm1 - warm2 = {warm1_minus_warm2:.2f}s "
+        "(estimate of Python retrace + XLA compile cost per call)"
+    )
+    print(f"  warm2 ≈ pure sampling execute time")
 
     gpus_post_warm = _query_gpu_table()
     results["gpu_post_warm_jit"] = gpus_post_warm
@@ -693,6 +828,7 @@ def _run_smoke_test(
         "tune": n_tune_smoke,
         "n_gpus": n_gpus,
         "chain_method": chain_method,
+        "jax_enable_x64": bool(jax.config.jax_enable_x64),
     }
     smoke_path = output_dir / "smoke_test.json"
     with open(smoke_path, "w") as f:

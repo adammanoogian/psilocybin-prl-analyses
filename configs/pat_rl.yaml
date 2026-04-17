@@ -1,0 +1,114 @@
+# PAT-RL (Predator Avoidance Task — Reinforcement Learning variant)
+# Single source of truth for task structure and analysis parameters.
+# All PAT-RL phases and scripts read from this file via
+# prl_hgf.env.pat_rl_config.load_pat_rl_config().
+# This file is INDEPENDENT of configs/prl_analysis.yaml.
+
+# ---------------------------------------------------------------------------
+# Task structure
+# ---------------------------------------------------------------------------
+task:
+  name: pat_rl
+  description: >
+    Predator Avoidance Task — Reinforcement Learning variant. Binary
+    safe/dangerous context state, approach/avoid action, 2x2 reward/shock
+    magnitude design, hazard-driven reversals. 192 trials across 4 runs.
+  n_trials: 192
+  n_runs: 4
+  trials_per_run: 48
+
+  # Hazard-rate-driven reversal (Behrens 2007 / Browning 2015 pattern).
+  # Two counterbalanced regimes across the 4 runs: stable/volatile.
+  hazards:
+    stable: 0.03
+    volatile: 0.10
+  run_order: ["stable", "volatile", "stable", "volatile"]
+
+  # Outcome contingencies given state:
+  # state=safe (0): P(reward | approach)=0.75, P(shock | approach)=0.00,
+  #                 P(nothing | approach)=0.25
+  # state=dangerous (1): P(reward | approach)=0.25, P(shock | approach)=0.50,
+  #                      P(nothing | approach)=0.25
+  # avoid action always yields nothing (no outcome).
+  contingencies:
+    safe:
+      reward: 0.75
+      shock: 0.00
+      nothing: 0.25
+    dangerous:
+      reward: 0.25
+      shock: 0.50
+      nothing: 0.25
+
+  # 2x2 reward/shock magnitude design crossed within-subject per trial.
+  # Each trial drawn uniformly at random from the 4 cells.
+  magnitudes:
+    reward_levels: [1.0, 5.0]
+    shock_levels: [1.0, 5.0]
+
+  # Trial timing in seconds (needed for trajectory export outcome_time_s).
+  timing:
+    cue_duration_s: 1.5
+    anticipation_s: 5.5
+    outcome_duration_s: 2.0
+    iti_s: 2.0
+    # total per trial = 11.0 s nominal; run gap = 15.0 s
+
+  # Delta-HR stub distribution (caller may override with real data).
+  # anticipatory bradycardia: N(-3, 3) on dangerous anticipation,
+  # N(0, 3) on safe anticipation; hard bounds [-15, 10] bpm.
+  delta_hr_stub:
+    dangerous: {mean: -3.0, sd: 3.0}
+    safe: {mean: 0.0, sd: 3.0}
+    bounds: [-15.0, 10.0]
+
+# ---------------------------------------------------------------------------
+# Simulation parameters — phenotype 2x2 grid (anxiety x reward_sensitivity)
+# Values grounded in: Browning et al. 2015 (Nat Neurosci), Daw 2006,
+# Schönberg 2007. omega_2 direction: higher (less negative) = faster
+# updating = anxiety. beta direction: higher = more reward-driven.
+# ---------------------------------------------------------------------------
+simulation:
+  n_participants_per_phenotype: 8   # 4 phenotypes x 8 = 32 for V1/V2
+  master_seed: 5678
+
+  # Phenotype 2x2 grid (anxiety x reward_sensitivity) per research addendum.
+  # Numbers are Browning 2015 / Daw 2006 / Schönberg 2007 grounded; tune in V2.
+  phenotypes:
+    healthy:
+      omega_2: {mean: -6.0, sd: 0.5}
+      beta:    {mean: 2.0, sd: 0.5}
+      kappa:   {mean: 1.0, sd: 0.0}    # fixed
+      mu3_0:   {mean: 1.0, sd: 0.0}
+    anxious:
+      omega_2: {mean: -3.5, sd: 0.5}
+      beta:    {mean: 2.0, sd: 0.5}
+      kappa:   {mean: 1.0, sd: 0.0}
+      mu3_0:   {mean: 1.0, sd: 0.0}
+    reward_sensitive:
+      omega_2: {mean: -6.0, sd: 0.5}
+      beta:    {mean: 8.0, sd: 0.5}
+      kappa:   {mean: 1.0, sd: 0.0}
+      mu3_0:   {mean: 1.0, sd: 0.0}
+    anxious_reward_sensitive:
+      omega_2: {mean: -3.5, sd: 0.5}
+      beta:    {mean: 8.0, sd: 0.5}
+      kappa:   {mean: 1.0, sd: 0.0}
+      mu3_0:   {mean: 1.0, sd: 0.0}
+
+# ---------------------------------------------------------------------------
+# Fitting parameters — MCMC settings and prior distributions
+# ---------------------------------------------------------------------------
+fitting:
+  # MCMC defaults for smoke run; production values live in SLURM scripts.
+  n_chains: 2
+  n_tune: 500
+  n_draws: 500
+  target_accept: 0.90
+  random_seed: 42
+  priors:
+    omega_2: {mean: -4.0, sd: 2.0}
+    omega_3: {mean: -6.0, sd: 2.0}
+    kappa:   {lower: 0.0, upper: 2.0, mean: 1.0, sd: 0.5}   # truncated normal
+    beta:    {lower: 0.0, upper: 20.0, mean: 4.0, sd: 3.0}  # truncated normal
+    mu3_0:   {mean: 1.0, sd: 1.0}

@@ -30,7 +30,7 @@
 #SBATCH --job-name=prl_smoke16cpu
 #SBATCH --output=cluster/logs/smoke16cpu_%j.out
 #SBATCH --error=cluster/logs/smoke16cpu_%j.err
-#SBATCH --time=04:00:00
+#SBATCH --time=08:00:00
 #SBATCH --mem=64G
 #SBATCH --partition=comp
 #SBATCH --cpus-per-task=8
@@ -80,6 +80,16 @@ else
     PRECISION="fp32"
 fi
 
+# MCMC config: default to production-scale warmup + draws so the smoke
+# test exercises the real adaptation budget (the original 10/10 was
+# chosen for JIT-cache diagnostics, not sampler health).  Override via
+# env at submission:  sbatch --export=ALL,PRL_SMOKE_TUNE=500,PRL_SMOKE_DRAWS=500 ...
+export PRL_SMOKE_TUNE="${PRL_SMOKE_TUNE:-500}"
+export PRL_SMOKE_DRAWS="${PRL_SMOKE_DRAWS:-500}"
+export PRL_SMOKE_CHAINS="${PRL_SMOKE_CHAINS:-2}"
+export PRL_SMOKE_N_PER_GROUP="${PRL_SMOKE_N_PER_GROUP:-5}"
+MCMC_SUFFIX="tune${PRL_SMOKE_TUNE}_draws${PRL_SMOKE_DRAWS}"
+
 # =============================================================================
 # Run Smoke Test
 # =============================================================================
@@ -91,6 +101,7 @@ echo "Job ID:    ${SLURM_JOB_ID:-local}"
 echo "Node:      ${SLURMD_NODENAME:-$(hostname)}"
 echo "Partition: comp (CPU only)"
 echo "Precision: ${PRECISION}  (PRL_ENABLE_X64=${PRL_ENABLE_X64:-0})"
+echo "MCMC:      tune=${PRL_SMOKE_TUNE} draws=${PRL_SMOKE_DRAWS} chains=${PRL_SMOKE_CHAINS} N/group=${PRL_SMOKE_N_PER_GROUP}"
 echo "JAX cache: ${JAX_COMPILATION_CACHE_DIR:-disabled}"
 echo "Start:     $(date)"
 echo "============================================================"
@@ -111,11 +122,11 @@ python scripts/08_run_power_iteration.py \
 
 EXIT_CODE=$?
 
-# Rename the JSON so fp32 and fp64 runs don't clobber each other
+# Rename the JSON so fp32/fp64 × quick/production runs don't clobber each other
+_RESULT_JSON="results/power/smoke_test_cpu_${PRECISION}_${MCMC_SUFFIX}.json"
 if [[ -f "results/power/smoke_test.json" ]]; then
-    mv "results/power/smoke_test.json" \
-       "results/power/smoke_test_cpu_${PRECISION}.json"
-    echo "Renamed results → results/power/smoke_test_cpu_${PRECISION}.json"
+    mv "results/power/smoke_test.json" "${_RESULT_JSON}"
+    echo "Renamed results → ${_RESULT_JSON}"
 fi
 
 echo ""
@@ -136,11 +147,10 @@ echo ""
 echo "Pushing CPU smoke test results to git..."
 _SMOKE_LOG_OUT="cluster/logs/smoke16cpu_${SLURM_JOB_ID}.out"
 _SMOKE_LOG_ERR="cluster/logs/smoke16cpu_${SLURM_JOB_ID}.err"
-_SMOKE_JSON="results/power/smoke_test_cpu_${PRECISION}.json"
 
-git add "${_SMOKE_LOG_OUT}" "${_SMOKE_LOG_ERR}" "${_SMOKE_JSON}" 2>/dev/null
+git add "${_SMOKE_LOG_OUT}" "${_SMOKE_LOG_ERR}" "${_RESULT_JSON}" 2>/dev/null
 if ! git diff --cached --quiet 2>/dev/null; then
-    git commit -m "smoke test cpu blackjax run ${PRECISION} (job ${SLURM_JOB_ID})"
+    git commit -m "smoke cpu ${PRECISION} ${MCMC_SUFFIX} (job ${SLURM_JOB_ID})"
     if git push origin main 2>/dev/null; then
         echo "Pushed CPU smoke test results to origin/main"
     else

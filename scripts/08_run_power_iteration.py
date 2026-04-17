@@ -542,10 +542,16 @@ def _run_smoke_test(
 
     output_dir.mkdir(parents=True, exist_ok=True)
     results: dict = {}
-    n_smoke = 5  # participants per group
-    n_chains_smoke = 2
-    n_draws_smoke = 10
-    n_tune_smoke = 10
+    # Defaults match the original JIT-cache smoke test (cheap: 10 tune / 10
+    # draws).  Override via env for adaptation diagnostics — e.g., set
+    # PRL_SMOKE_TUNE=500 PRL_SMOKE_DRAWS=500 to match the --fit-tune /
+    # --fit-draws production argparse defaults and see whether
+    # window_adaptation finds a step size that gets off the
+    # max_tree_depth cap.
+    n_smoke = int(os.environ.get("PRL_SMOKE_N_PER_GROUP", "5"))
+    n_chains_smoke = int(os.environ.get("PRL_SMOKE_CHAINS", "2"))
+    n_draws_smoke = int(os.environ.get("PRL_SMOKE_DRAWS", "10"))
+    n_tune_smoke = int(os.environ.get("PRL_SMOKE_TUNE", "10"))
     d_smoke = power_config.effect_size_grid[0]
 
     print("=" * 60)
@@ -829,6 +835,16 @@ def _run_smoke_test(
         "n_gpus": n_gpus,
         "chain_method": chain_method,
         "jax_enable_x64": bool(jax.config.jax_enable_x64),
+        "env_overrides": {
+            k: os.environ[k]
+            for k in (
+                "PRL_SMOKE_TUNE",
+                "PRL_SMOKE_DRAWS",
+                "PRL_SMOKE_CHAINS",
+                "PRL_SMOKE_N_PER_GROUP",
+            )
+            if k in os.environ
+        },
     }
     smoke_path = output_dir / "smoke_test.json"
     with open(smoke_path, "w") as f:

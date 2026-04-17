@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Milestone v1.2 Hierarchical GPU Fitting — Phase 17 BlackJAX NUTS Sampler COMPLETE
+**Current focus:** Phase 18 PAT-RL Task Adaptation (the consumer study) — Plan 1/6 complete
 
 ## Current Position
 
-Phase: 17 of 17 (BlackJAX NUTS Sampler)
-Plan: 2/2 complete (17-01 BlackJAX core + orchestrator; 17-02 smoke tests + SLURM updates)
-Status: Phase complete — BlackJAX default sampler with full test coverage and cluster-ready SLURM scripts
-Last activity: 2026-04-15 — Completed quick-003: JIT cache data as traced args
+Phase: 18 of 18 (PAT-RL Task Adaptation)
+Plan: 1/6 complete (18-01 PAT-RL config surface: YAML + dataclass tree + tests)
+Status: In progress — Phase 18 Plan 1 complete; Plans 2-6 (trial generator, HGF builders, fitting, trajectory export, validation) pending
+Last activity: 2026-04-17 — Completed 18-01: PAT-RL config surface
 
-[===========███████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete
+[===========████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (1/6)
 
 ## Performance Metrics
 
@@ -106,6 +106,9 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | _build_sample_loop factory passes data as traced JIT args (not closure) | XLA persistent cache keys on HLO hash; closure data = HLO constants = cache miss; traced args = shape placeholders = cache hit | quick-003 |
 | vmap path @jax.jit, pmap path lets pmap handle compilation | pmap inside JIT boundary is problematic; factory returns different function variants | quick-003 |
 | Legacy fallback when batched_logp_fn is None | Backward compat for callers not providing traced-arg data | quick-003 |
+| PAT-RL uses fully parallel loader (pat_rl_config.py) with zero imports from task_config.py | task_config.py has 21 callsites and TaskConfig.__post_init__ would reject PAT-RL structure; parallel stack keeps pick_best_cue tests isolated | 18-01 |
+| env/__init__.py deliberately not updated with PAT-RL exports | Adding exports risks side-effects on pick_best_cue imports; PAT-RL callers use direct module import | 18-01 |
+| PhenotypeParams uses PriorGaussian for kappa/mu3_0 (sd=0 allowed) | Avoids over-engineering separate FixedParam type before Models B/C/D clarify param variation needs | 18-01 |
 
 ### Pending Todos
 
@@ -137,10 +140,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 - Phase 17 added (2026-04-15): BlackJAX NUTS sampler — replace NumPyro MCMC with BlackJAX to eliminate ~1800s JIT recompilation per call; restore multi-GPU pmap for chain parallelism
 - Phase 17-01 complete (2026-04-15): BlackJAX core + orchestrator — _build_log_posterior, _run_blackjax_nuts, _samples_to_idata, fit_batch_hierarchical rewrite
 - Phase 17-02 complete (2026-04-15): BlackJAX smoke tests + SLURM updates — 4 new fast tests (logp, gradient, idata), VALID-02 blackjax convergence test, SLURM scripts updated for BlackJAX default
+- Phase 18 added (2026-04-17): PAT-RL Task Adaptation (the consumer study) — new binary-state approach/avoid task config, trial generator, response models A-D (including trial-varying omega), trajectory export for DCM bridge, and phenotype-stratified BMS. Source: GSD_prl_hgf.yaml. **Caveat**: Multiple YAML assumptions conflict with repo (config loader is task-specific, no `trial_sequence.py` exists, response model signature differs, Delta-HR plumbing absent, no phenotype framework). Integration notes captured inline in ROADMAP.md Phase 18 entry. Consider promoting to v1.3 the consumer study milestone before planning.
 
 ## Session Continuity
 
-Last session: 2026-04-15
-Stopped at: Completed quick-003 — JIT cache data as traced args for persistent XLA cache reuse
+Last session: 2026-04-17
+Stopped at: Completed 18-01-PLAN.md — PAT-RL config surface (YAML + dataclass tree + tests)
 Resume file: None
-Next action: Run VALID-02 convergence test on cluster with blackjax. Benchmark persistent cache hit rate across power-sweep iterations.
+Next action: Execute 18-02 (pat_rl_sequence.py — binary-state hazard generator, PATRLTrial, magnitudes, Delta-HR stub). Note: blackjax not installed in ds_env — pre-existing issue causing test_valid_02_batched_blackjax_convergence to fail.

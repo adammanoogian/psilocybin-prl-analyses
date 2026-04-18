@@ -217,6 +217,24 @@ Shape parity with `fit_batch_hierarchical_patrl`: **both paths return
 InferenceData with the SAME variable names, dims, and `participant_id`
 coords.** Downstream exporters accept either without a rename shim.
 
+> ⚠ **Documented Laplace limitation (confirmed by cluster job 54896739
+> dual-fit Gate #5 run; see `VB_LAPLACE_CLOSURE_MEMO.md`):**
+>
+> Posterior MEANS agree with NUTS to ~0.06 on ω₂ and ~0.25 on β for 4 of
+> 5 agents. POSTERIOR WIDTHS diverge asymmetrically:
+>
+> | Quantity | Laplace-vs-NUTS sd ratio | Interpretation |
+> |----------|--------------------------|----------------|
+> | ω₂ | 0.5-0.7 (Laplace under-wide) | Laplace underestimates uncertainty |
+> | β (natural scale) | 1.5-2.1 (Laplace over-wide) | Log→natural transform inflates sd at the tails |
+>
+> **Use Laplace posteriors for point estimates / CI / rapid iteration.
+> Use NUTS posteriors for any uncertainty-sensitive downstream
+> computation** (HDI coverage, Bayesian model comparison, PEB credible
+> intervals). The dispatch is a one-line switch at the bridge layer since
+> shape parity is guaranteed. See `VB_LAPLACE_CLOSURE_MEMO.md` §
+> "Recommendation" for the use-case table.
+
 **Diagnostics**: Laplace output carries custom `sample_stats` keys
 `hessian_min_eigval`, `hessian_max_eigval`, `n_eigenvalues_clipped`,
 `ridge_added`, `converged`, `n_iterations`, `logp_at_mode`. NUTS output

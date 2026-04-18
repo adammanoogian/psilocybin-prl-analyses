@@ -862,6 +862,7 @@ def fit_batch_hierarchical_patrl(
         participant_groups=participant_groups,
         participant_sessions=participant_sessions,
         model_name=model_name,
+        coord_name="participant_id",
     )
 
     return idata

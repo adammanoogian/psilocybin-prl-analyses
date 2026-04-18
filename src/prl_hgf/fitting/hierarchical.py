@@ -1560,11 +1560,12 @@ def _samples_to_idata(
     participant_groups: list[str],
     participant_sessions: list[str],
     model_name: str = "hgf_3level",
+    coord_name: str = "participant",
 ) -> az.InferenceData:
     """Convert BlackJAX sample arrays to ArviZ InferenceData.
 
     Adds the deterministic ``beta = exp(log_beta)`` transform and
-    constructs an ``InferenceData`` with ``participant`` as a named
+    constructs an ``InferenceData`` with ``coord_name`` as a named
     dimension and ``participant_group`` / ``participant_session`` as
     additional coordinates.
 
@@ -1586,11 +1587,16 @@ def _samples_to_idata(
         Session labels per participant.
     model_name : str, optional
         ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+    coord_name : str, optional
+        Name for the participant dimension/coordinate.  Defaults to
+        ``"participant"`` for the PRL pipeline; PAT-RL passes
+        ``"participant_id"`` to match downstream exporter expectations.
 
     Returns
     -------
     arviz.InferenceData
-        Posterior with ``participant`` coord and group/session metadata.
+        Posterior with the chosen participant coord and
+        ``participant_group``/``participant_session`` metadata.
     """
     import arviz as az
 
@@ -1603,9 +1609,9 @@ def _samples_to_idata(
         elif var in positions:
             posterior_dict[var] = positions[var]
 
-    dims_dict = {var: ["participant"] for var in posterior_dict}
+    dims_dict = {var: [coord_name] for var in posterior_dict}
     coords_dict: dict[str, list[str]] = {
-        "participant": participant_ids,
+        coord_name: participant_ids,
     }
 
     idata = az.from_dict(
@@ -1617,8 +1623,8 @@ def _samples_to_idata(
 
     # Attach group and session metadata as additional coords
     idata.posterior = idata.posterior.assign_coords(
-        participant_group=("participant", participant_groups),
-        participant_session=("participant", participant_sessions),
+        participant_group=(coord_name, participant_groups),
+        participant_session=(coord_name, participant_sessions),
     )
 
     return idata

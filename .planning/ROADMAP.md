@@ -4,7 +4,7 @@
 
 - **v1.0 Simulation-to-Inference Pipeline** — Phases 1-7 (shipped 2026-04-07)
 - **v1.1 BFDA Power Analysis** — Phases 8-11 (code-complete 2026-04-07)
-- **v1.2 Hierarchical GPU Fitting** — Phases 12-19 (in progress; Phase 18 HEART2ADAPT adaptation + Phase 19 VB-Laplace parity fit path appended — see notes)
+- **v1.2 Hierarchical GPU Fitting** — Phases 12-20 (in progress; Phase 18 HEART2ADAPT adaptation + Phase 19 VB-Laplace parity fit path + Phase 20 HEART2ADAPT scientific completion appended — see notes)
 
 ---
 
@@ -156,12 +156,20 @@ Plans:
   3. Decision rule applied: if `per_iter_seconds × 600 / 3600 > 50`, recommendation = CPU `comp` partition; else = GPU. Decision recorded in benchmark JSON and STATE.md
   4. JAX compilation cache verified: a second chunk started after a first chunk completes shows < 5 s of JIT time (vs ~60 s cold), confirming `JAX_COMPILATION_CACHE_DIR` persistence
   5. VALID-03: same small fit run on CPU and GPU — posterior means agree within 1 % relative error
-**Plans**: 3 plans
+**Plans**: 3 plans + 6 gap-closure plans (14.1)
 
 Plans:
-- [ ] 14-01-PLAN.md — Wire run_sbf_iteration to use fit_batch_hierarchical by default, _idata_to_fit_df + _split_idata helpers, --legacy flag (BENCH-03, VALID-05)
-- [ ] 14-02-PLAN.md — Rewrite _run_benchmark for full batched iteration, _GpuMonitor, decision gate, JAX cache test (BENCH-01, BENCH-02, BENCH-04, BENCH-05)
-- [ ] 14-03-PLAN.md — VALID-03 cross-platform consistency validation script + comparison tests
+- [x] 14-01-PLAN.md — Wire run_sbf_iteration to use fit_batch_hierarchical by default, _idata_to_fit_df + _split_idata helpers, --legacy flag (BENCH-03, VALID-05)
+- [x] 14-02-PLAN.md — Rewrite _run_benchmark for full batched iteration, _GpuMonitor, decision gate, JAX cache test (BENCH-01, BENCH-02, BENCH-04, BENCH-05)
+- [x] 14-03-PLAN.md — VALID-03 cross-platform consistency validation script + comparison tests
+
+Gap-closure (14.1): code complete post-verification, operational gaps remain (cluster runs never executed; sampler drift post-Phase 17)
+- [ ] 14.1-01-PLAN.md — SLURM auto-push + SAMPLER env var on cluster/14_benchmark_gpu.slurm
+- [ ] 14.1-02-PLAN.md — Triage in-flight numpyro benchmark, backfill STATE.md decision-gate row if needed
+- [ ] 14.1-03-PLAN.md — BlackJAX benchmark re-run for Phase 15 production sampler gate
+- [ ] 14.1-04-PLAN.md — VALID-03 CPU vs GPU run (auto-push patch + submit + compare verdict)
+- [ ] 14.1-05-PLAN.md — Cross-chunk JIT cache persistence test (BENCH-05 human-verify #2)
+- [ ] 14.1-06-PLAN.md — Phase 14 re-verification; flip VERIFICATION.md status; unblock Phase 15
 
 ### Phase 15: Production Run + Results
 
@@ -281,6 +289,44 @@ Plans:
 - Downgrade triggers live in STATE.md blockers; this phase executes under Option C unless the cluster smoke (Phase 18 validation) returns numbers that force a downgrade. If downgrade happens, the planner revisits but the parallel-stack module boundaries stay valid.
 - A decision memo at phase close reports Laplace-vs-NUTS agreement on real cluster data and recommends whether to keep both paths or consolidate on one.
 
+### Phase 20: HEART2ADAPT Scientific Completion — Models B/C/D + Cohort Scale + Config-Correctness
+
+**Goal**: Close every remaining gap between `prl_hgf`'s current PAT-RL surface and the HEART2ADAPT study hypotheses documented in `dcm_hgf_mixed_models/docs/files/GSD_heart2adapt_sim.yaml`. Specifically: (a) correct `configs/pat_rl.yaml` to match the HEART2ADAPT spec (contingencies safe 70/10/20, dangerous 10/70/20, avoid 10/10/80; run order SVVS; magnitudes [1, 3]; phenotype priors ω=-3/-2, β=2/3.5, b=0/±0.3, ϑ=0.005/0.01); (b) add response-bias parameter `b` to Model A and implement Models B (ΔHR bias γ), C (ΔHR × value sensitivity α + γ), D (trial-varying ω_eff = ω + λ·ΔHR); (c) implement phenotype-specific, ε₂-coupled ΔHR generative model (healthy N(-2, 0.5), high-anxiety N(-0.5, 0.8), ε₂-modulated freezing); (d) scale cohort simulation to 40 agents × 4 phenotypes = 160 with deterministic per-phenotype RNG; (e) phenotype-stratified random-effects BMS in `analysis/bms.py` with per-subject Δ-evidence PEB covariate export; (f) formal PRL-V1 (ω/κ/β recovery r ≥ 0.7 at 192 trials) and PRL-V2 (phenotype 2x2 Cohen's d ≥ 0.5, cor(ω, β) < 0.5) gates. Unblocks `dcm_hgf_mixed_models` v2 bridge wiring (H2A.1.4, H2A.1.5, H2A.1.6 + H2A.2.4 PEB).
+**Depends on**: Phase 19 (consumes `fit_vb_laplace_patrl`, `fit_batch_hierarchical_patrl`, trajectory export, Laplace InferenceData factory)
+**Requirements**: PRL-02.1 (config correctness), PRL-03.1 (Model A + `b`), PRL-03.2 (Models B, C, D including trial-varying ω scan body for D), PRL-V1 (formal r ≥ 0.7 recovery at 192 trials), PRL-V2 (phenotype 2x2 identifiability), PRL-05 (phenotype-stratified BMS + PEB Δ-evidence export), PRL-06 (phenotype-specific ε₂-coupled ΔHR generative model), PRL-07 (cohort scale 40×4=160), PRL-08 (config-driven adaptation of existing scripts)
+**Success Criteria** (what must be TRUE):
+  1. `configs/pat_rl.yaml` contingencies match HEART2ADAPT spec **exactly**: `safe.p_reward_approach=0.70, p_shock_approach=0.10, p_nothing_approach=0.20`; `dangerous.10/0.70/0.20`; `avoid.0.10/0.10/0.80` (non-zero baseline avoid outcomes). Run order = `[stable, volatile, volatile, stable]` (SVVS counterbalance). Magnitudes `reward_levels=[1, 3], shock_levels=[1, 3]`. Phenotype priors: HEALTHY ω=-3.0, β=2.0, b=0.0, ϑ=0.005, μ₃⁰=1.0; REWARD-SUSCEPTIBLE ω=-3.0, β=3.5, b=+0.3, ϑ=0.005, μ₃⁰=1.0; HIGH-ANXIETY ω=-2.0, β=2.0, b=-0.3, ϑ=0.01, μ₃⁰=2.0; ANXIOUS+REWARD ω=-2.0, β=3.5, b=0.0, ϑ=0.01, μ₃⁰=2.0
+  2. Response model A extended with bias `b`: `p(approach) = σ(β·EV + b)`. Model B adds ΔHR bias: `σ(β·EV + b + γ·ΔHR)`. Model C adds ΔHR-modulated value sensitivity: `σ((β + α·ΔHR)·EV + b + γ·ΔHR)`. Model D leaves response form as A but swaps perceptual ω for `ω_eff(t) = ω + λ·ΔHR(t)`. All four fit cleanly through BOTH `fit_batch_hierarchical_patrl` and `fit_vb_laplace_patrl` on the 5-agent CPU smoke
+  3. Model D's trial-varying ω is implemented by injecting per-trial `ω_eff(t)` into the scan body of the batched logp (mirror the Phase 18-04 kappa-via-attrs pattern: `attrs[1]["tonic_volatility"] = ω + λ·ΔHR[t]` inside `_clamped_step`). Layer-2 clamp (`|μ₂| < 14`) and fp64 dtype invariants preserved. Recovery smoke of λ at 5 agents shows posterior-mean within 0.3 of truth when data simulated under Model D
+  4. Phenotype-specific ΔHR generative model lives in `env/pat_rl_simulator.py`: `simulate_patrl_cohort` generates trial-level ΔHR as `base ~ N(phenotype.dhr_mean, phenotype.dhr_sd) + ε₂_coupling_coef · ε₂(t)` where `base` comes from the phenotype (healthy N(-2, 0.5); high-anxiety N(-0.5, 0.8); literature-calibrated — see citation gate in SC10). ε₂ computed inline from the forward HGF pass at true parameters
+  5. Cohort scale: `simulate_patrl_cohort(n_per_phenotype=40, config, master_seed)` produces 40 × 4 = 160 agents with deterministic per-phenotype RNG (SeedSequence spawn-per-phenotype pattern). All 4 phenotype groups populated from `config.simulation.phenotypes`. Cluster SLURM default updated to `PRL_PATRL_SMOKE_N=40 PRL_PATRL_SMOKE_PHENOTYPES=all`
+  6. Phenotype-stratified BMS: `analysis/bms.py::compute_stratified_bms(fit_df, phenotype_col="phenotype")` returns per-phenotype posterior model probabilities + exceedance probabilities for the 2-level-vs-3-level comparison. Per-subject ΔWAIC + ΔF exported via new `bms.py::export_peb_covariates(fit_df_2level, fit_df_3level, output_path)` — single CSV with columns `participant_id, phenotype, delta_waic, delta_f`
+  7. Formal PRL-V1 recovery gate: `scripts/05_run_validation.py` extended (NOT a new script) with a `--task=patrl` config toggle that runs the PAT-RL recovery loop. Gate criterion: r(ω_2) ≥ 0.7, r(κ) ≥ 0.7, r(β) ≥ 0.7 across the 160-agent cohort; μ₃⁰ and ω₃ labeled "exploratory — upper bound" per 09-01 precedent
+  8. Formal PRL-V2 phenotype-separability gate: `scripts/06_group_analysis.py` extended (NOT a new script) with `--task=patrl --analysis=phenotype_separability` that computes Cohen's d(ω | anxiety_high vs anxiety_low) ≥ 0.5, Cohen's d(β | reward_high vs reward_low) ≥ 0.5, and |cor(ω, β)| < 0.5 across the 160-agent cohort. Output: publication-quality figure + summary CSV
+  9. **No new scripts created**: every analysis lives in an existing numbered script (`03_simulate_participants.py`, `04_fit_participants.py`, `05_run_validation.py`, `06_group_analysis.py`, `scripts/12_smoke_patrl_foundation.py`) or in the corresponding `src/prl_hgf/` module, made config-driven via `configs/pat_rl.yaml` flags. Verify via `git diff --stat scripts/` showing ONLY modifications (zero additions) to scripts/
+  10. **Citation hygiene enforced**: every literature citation in config files, docstrings, and planning docs is dated 2020 or later. Prefer **Karin Roelofs' group** (Nijmegen Donders/Behavioural Science Institute — fear bradycardia, approach-avoidance conflict, threat anticipation cardiac deceleration): e.g. Klaassen et al. 2021 *Neuroimage* / 2024 *Biol Psychiatry*, Terburg et al. 2020+, Hulsman et al. 2020+, Ly et al. 2022+, Roelofs 2017/2020 reviews. Explicitly retire the Browning 2015 / Daw 2006 / Schönberg 2007 defaults from Phase 18's config where they conflict with HEART2ADAPT spec numbers (which supersede literature)
+  11. Parallel-stack invariant preserved where possible; where config-driven adaptation necessarily extends existing modules (e.g. `models/response_patrl.py` adding `b`, B, C, D; `env/pat_rl_simulator.py` adding ε₂-coupled ΔHR; `analysis/bms.py` adding stratified variant), the extensions are ADDITIVE (new kwargs with safe defaults; existing Phase 18/19 tests remain green)
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 20 to break down)
+
+**Sources of record**:
+- `C:/Users/aman0087/Documents/Github/dcm_hgf_mixed_models/docs/files/GSD_heart2adapt_sim.yaml` — HEART2ADAPT study-level hypotheses (§H2A.1.1–H2A.1.6 + §H2A.2.4). The phenotype table in H2A.1.2 is the source-of-truth for phenotype priors; the contingency block in H2A.1.1 is the source-of-truth for `configs/pat_rl.yaml`
+- `C:/Users/aman0087/Documents/Github/dcm_hgf_mixed_models/docs/files/GSD_prl_hgf.yaml` — PRL implementation spec (PRL.1-5, V1-V2); response-model signatures for B/C/D come from here
+- `docs/PAT_RL_API_HANDOFF.md` (quick-005) — current public API surface; Phase 20 extends this, does NOT break it
+- Phase 18 gap analysis — see STATE.md decision 114 (EV direction), 121 (log_beta parameterisation), 114-128 (PAT-RL runtime lessons)
+
+**Architectural directives (USER-SPECIFIED, non-negotiable)**:
+- **No new scripts.** All new behaviour lives in existing numbered scripts (`scripts/{03,04,05,06}_*.py`, `scripts/12_smoke_patrl_foundation.py`) made config-driven via `configs/pat_rl.yaml` toggles. If a new concern genuinely doesn't fit any existing script, the planner must surface it as a checkpoint before proceeding. Verify via `git diff --stat scripts/` at phase close
+- **Citations must be 2020 or later, Roelofs-group-first.** Retire Browning 2015 / Daw 2006 / Schönberg 2007 defaults from the Phase 18 config. Substitute with Klaassen 2021/2024, Terburg 2020+, Hulsman 2020+, Ly 2022+, Roelofs 2020+ reviews. The HEART2ADAPT spec is the primary source of truth for parameter values; literature is secondary grounding for direction/magnitude
+- **Config-driven adaptation.** Every behavioural variant (Model choice, phenotype group, ε₂-coupling coefficient, cohort size, stratified-BMS toggle) must be reachable via a `configs/pat_rl.yaml` key. No hardcoded magic numbers. No new CLI flags for things that belong in YAML
+
+**Scope notes**:
+- This phase supersedes the Phase 18 "Option A Minimum Viable" deferrals (Models B/C/D, full PRL-V1 gate, PRL-V2 gate, stratified BMS, PEB export)
+- This phase DOES NOT open v1.3 HEART2ADAPT milestone — it completes v1.2 per user's explicit "Option B" choice
+- Post-Phase-20 the `dcm_hgf_mixed_models` v2 bridge layer has everything it needs to fit H2A.1.4-1.6 end-to-end
+
 ---
 
 ## Progress
@@ -305,4 +351,5 @@ Plans:
 | 16 - NumPyro Direct + CUDA Fix | v1.2 | 2/2 | Complete | 2026-04-13 |
 | 17 - BlackJAX NUTS Sampler | v1.2 | 2/2 | Complete | 2026-04-15 |
 | 18 - PAT-RL Task Adaptation (HEART2ADAPT) | v1.2 | 6/6 | Complete (Option A scope) | 2026-04-18 |
-| 19 - VB-Laplace Fit Path (Tapas-Parity) | v1.2 | 0/0 | Not planned | -- |
+| 19 - VB-Laplace Fit Path (Tapas-Parity) | v1.2 | 5/5 | Complete | 2026-04-18 |
+| 20 - HEART2ADAPT Scientific Completion | v1.2 | 0/0 | Not planned | -- |

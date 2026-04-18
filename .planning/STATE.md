@@ -142,6 +142,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 - pyhgf has no built-in NaN clamping — **RESOLVED in 12-02**: Layer 2 clamping implemented in hierarchical.py using jnp.where + tree_map (|mu_2| < 14 bound).
 - `_init_jitter` PyTensor read-only-array bug means we can't use `pm.sample(...)` directly even with `nuts_sampler="numpyro"`; must call `pmjax.sample_numpyro_nuts()` directly. **RESOLVED in 16-01**: fit_batch_hierarchical now uses direct numpyro MCMC, bypassing PyMC/PyTensor entirely.
 - **blackjax not installed in ds_env** — PAT-RL smoke tests (18-04 tests 5-6) skip via importorskip. Install blackjax on cluster before running smoke validation. Pre-existing: test_valid_02_batched_blackjax_convergence also fails for same reason.
+- **VB-Laplace quick-005 decision pending**: quick-004 memo recommends Option C (dual NUTS + Laplace paths). If first `sbatch cluster/18_smoke_patrl_cpu.slurm` blows past 6h or shows >20% divergences on 2-level, downgrade to Option A (Laplace primary). If Laplace unit tests show >2× underestimation of ω₂ posterior width, downgrade to Option B (NUTS only). See `.planning/quick/004-.../VB_LAPLACE_FEASIBILITY.md` §6.
 
 ## Quick Tasks
 
@@ -150,6 +151,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | 001 | Cluster GPU Setup & Smoke Test | Complete | M3 SLURM infrastructure + smoke test PASS |
 | 002 | HGF Fitting Lessons Obsidian Doc | Complete | Comprehensive coding guide in Obsidian Vault covering math, JAX/NumPyro patterns, cluster pitfalls |
 | 003 | JIT Cache: Data as Traced Args | Complete | BlackJAX sampling loop restructured so data arrays flow as traced JIT args for persistent XLA cache hits |
+| 004 | PAT-RL Smoke + VB-Laplace Feasibility | Complete | Cluster SLURM for Phase 18 PAT-RL smoke; --dry-run flag; 5 structural tests; 4 scratch files deleted; 6 PLAN.md files tracked; VB-Laplace Option C recommendation | [004-SUMMARY](./quick/004-patrl-smoke-and-vb-laplace-feasibility/004-SUMMARY.md) |
 
 ### Roadmap Evolution
 
@@ -161,7 +163,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 
 ## Session Continuity
 
-Last session: 2026-04-17
-Stopped at: Completed 18-05-PLAN.md — DCM integration surface: trajectory export, parameter summary, dcm_pytorch consumer audit
+Last session: 2026-04-18
+Stopped at: Completed quick-004 — PAT-RL smoke infrastructure + VB-Laplace feasibility memo
 Resume file: None
-Next action: Execute 18-06 (PAT-RL scientific validation — parameter recovery + sanity checks).
+Next action: Execute quick-005 (implement fit_vb_laplace_patrl.py — Option C dual path) OR sbatch cluster/18_smoke_patrl_cpu.slurm to get first real PAT-RL NUTS numbers.

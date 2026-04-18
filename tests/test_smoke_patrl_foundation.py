@@ -342,3 +342,148 @@ def test_smoke_laplace_recovery_sanity_4_of_5(tmp_path: Path) -> None:
         f"got {n_pass}/5.\n"
         f"Details:\n{omega2[['participant_id', 'true_value', 'posterior_mean', 'abs_diff']].to_string()}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Plan 20-02: --response-model flag structural check
+# ---------------------------------------------------------------------------
+
+
+def test_script_accepts_response_model_flag() -> None:
+    """``--help`` must list ``--response-model`` with choices model_a/b/c.
+
+    Verifies that Plan 20-02's CLI extension is present.  Fast subprocess test.
+    """
+    result = subprocess.run(
+        [sys.executable, str(_SCRIPT), "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"Expected exit 0 for --help; got {result.returncode}.\n"
+        f"stderr:\n{result.stderr}"
+    )
+    assert "--response-model" in result.stdout, (
+        f"Expected '--response-model' in --help stdout; got:\n{result.stdout}"
+    )
+    for choice in ("model_a", "model_b", "model_c"):
+        assert choice in result.stdout, (
+            f"Expected choice '{choice}' in --help stdout; got:\n{result.stdout}"
+        )
+
+
+def test_script_accepts_all_models_flag() -> None:
+    """``--help`` must list ``--all-models`` flag.
+
+    Verifies that Plan 20-02's --all-models CLI extension is present.
+    Fast subprocess test.
+    """
+    result = subprocess.run(
+        [sys.executable, str(_SCRIPT), "--help"],
+        capture_output=True,
+        text=True,
+    )
+    assert result.returncode == 0, (
+        f"Expected exit 0 for --help; got {result.returncode}.\n"
+        f"stderr:\n{result.stderr}"
+    )
+    assert "--all-models" in result.stdout, (
+        f"Expected '--all-models' in --help stdout; got:\n{result.stdout}"
+    )
+
+
+# ---------------------------------------------------------------------------
+# Plan 20-02: Laplace smoke for Models A+b, B, C
+# ---------------------------------------------------------------------------
+
+#: Expected posterior variable sets per response model (Plan 20-02 contract).
+_EXPECTED_POSTERIOR_VARS: dict[str, set[str]] = {
+    "model_a": {"omega_2", "log_beta", "b", "beta"},
+    "model_b": {"omega_2", "log_beta", "b", "gamma", "beta"},
+    "model_c": {"omega_2", "log_beta", "b", "gamma", "alpha", "beta"},
+}
+
+
+class TestPhase20SmokeModelDispatch:
+    """Parametrized Laplace smoke tests for Models A+b, B, and C.
+
+    Runs a 2-agent healthy cohort fit for each response model and checks that
+    the posterior InferenceData contains the expected variables.  All marked
+    ``@pytest.mark.slow`` and guarded by ``RUN_SMOKE_TESTS=1``.
+
+    The NUTS path for Models B/C is cluster-only (blackjax not in ds_env);
+    documented in 20-02-SUMMARY.md.
+    """
+
+    @_SLOW_SKIP
+    @pytest.mark.parametrize("response_model", ["model_a", "model_b", "model_c"])
+    def test_smoke_patrl_foundation_supports_all_response_models(
+        self,
+        response_model: str,
+        tmp_path: Path,
+    ) -> None:
+        """Laplace smoke for 2-agent cohort passes for each response_model.
+
+        Asserts that fit_vb_laplace_patrl no longer raises NotImplementedError
+        for model_b/model_c, and that the InferenceData posterior contains the
+        expected variables (b for all; gamma for B/C; alpha for C).
+
+        Parameters
+        ----------
+        response_model : str
+            One of 'model_a', 'model_b', 'model_c'.
+        tmp_path : Path
+            pytest tmp directory.
+        """
+        import numpy as np  # noqa: PLC0415
+
+        from prl_hgf.env.pat_rl_config import load_pat_rl_config  # noqa: PLC0415
+        from prl_hgf.env.pat_rl_simulator import simulate_patrl_cohort  # noqa: PLC0415
+        from prl_hgf.fitting.fit_vb_laplace_patrl import fit_vb_laplace_patrl  # noqa: PLC0415
+
+        config = load_pat_rl_config()
+        sim_df, _, _ = simulate_patrl_cohort(
+            n_participants=2,
+            level=2,
+            master_seed=20_02,
+            config=config,
+        )
+
+        idata = fit_vb_laplace_patrl(
+            sim_df,
+            model_name="hgf_2level_patrl",
+            response_model=response_model,
+            n_pseudo_draws=100,
+            max_iter=50,
+            config=config,
+            random_seed=0,
+        )
+
+        assert idata.posterior is not None, (
+            f"response_model={response_model!r}: idata.posterior is None"
+        )
+
+        expected = _EXPECTED_POSTERIOR_VARS[response_model]
+        actual = set(idata.posterior.data_vars)
+        missing = expected - actual
+        assert not missing, (
+            f"response_model={response_model!r}: missing posterior vars "
+            f"{missing}. Got: {sorted(actual)}"
+        )
+
+        # All expected vars must be finite
+        for var in expected:
+            vals = np.asarray(idata.posterior[var].values)
+            assert np.all(np.isfinite(vals)), (
+                f"response_model={response_model!r}: "
+                f"posterior[{var!r}] contains non-finite values"
+            )
+
+        # Shape sanity: (chain=1, draw=100, participant_id=2)
+        shape = idata.posterior["omega_2"].shape
+        assert shape[2] == 2, (
+            f"Expected participant_id dim = 2, got shape {shape}"
+        )
+        assert shape[1] == 100, (
+            f"Expected draw dim = 100, got shape {shape}"
+        )

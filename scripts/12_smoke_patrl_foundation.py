@@ -149,6 +149,26 @@ def _parse_args() -> argparse.Namespace:
             "validation/vbl06_laplace_vs_nuts.py is importable."
         ),
     )
+    parser.add_argument(
+        "--response-model",
+        choices=("model_a", "model_b", "model_c"),
+        default="model_a",
+        help=(
+            "Response model to use for the Laplace/BlackJAX fit. "
+            "Default 'model_a' preserves Phase 18/19 behavior. "
+            "'model_b' adds ΔHR additive bias; 'model_c' adds ΔHR × EV. "
+            "Use --all-models to loop over all three. (Plan 20-02)"
+        ),
+    )
+    parser.add_argument(
+        "--all-models",
+        action="store_true",
+        help=(
+            "Loop over response_model in ['model_a', 'model_b', 'model_c'] "
+            "using the Laplace fit path. Overrides --response-model and "
+            "--fit-method (forces 'laplace'). (Plan 20-02)"
+        ),
+    )
     return parser.parse_args()
 
 
@@ -227,6 +247,7 @@ def _fit_laplace(
     n_pseudo_draws: int,
     seed: int,
     config: object,
+    response_model: str = "model_a",
 ) -> object:
     """Run PAT-RL VB-Laplace fit via jaxopt.LBFGS MAP + Hessian.
 
@@ -244,6 +265,9 @@ def _fit_laplace(
         Base random seed for pseudo-sample draws and restart perturbations.
     config : PATRLConfig
         Loaded PAT-RL configuration.
+    response_model : str, default "model_a"
+        Response model for the Laplace fit.  One of 'model_a', 'model_b',
+        'model_c'.  (Plan 20-02)
 
     Returns
     -------
@@ -252,8 +276,9 @@ def _fit_laplace(
     """
     model_name = "hgf_2level_patrl" if level == 2 else "hgf_3level_patrl"
     logger.info(
-        "Fitting %s via VB-Laplace  n_pseudo_draws=%d  seed=%d",
+        "Fitting %s via VB-Laplace  response_model=%s  n_pseudo_draws=%d  seed=%d",
         model_name,
+        response_model,
         n_pseudo_draws,
         seed,
     )
@@ -261,7 +286,7 @@ def _fit_laplace(
     idata = fit_vb_laplace_patrl(
         sim_df,
         model_name=model_name,
-        response_model="model_a",
+        response_model=response_model,
         config=config,  # type: ignore[arg-type]
         n_pseudo_draws=n_pseudo_draws,
         random_seed=seed,
@@ -280,6 +305,7 @@ def _fit(
     seed: int,
     config: object,
     n_pseudo_draws: int = 1000,
+    response_model: str = "model_a",
 ) -> tuple[object, object | None]:
     """Dispatch fit by method; returns (primary_idata, optional_secondary).
 
@@ -305,6 +331,9 @@ def _fit(
         Loaded PAT-RL configuration.
     n_pseudo_draws : int, default 1000
         Number of pseudo-samples for Laplace path.
+    response_model : str, default "model_a"
+        Response model for fit. One of 'model_a', 'model_b', 'model_c'.
+        (Plan 20-02)
 
     Returns
     -------
@@ -317,10 +346,16 @@ def _fit(
         idata = _fit_blackjax(sim_df, level, n_tune, n_draws, seed, config)
         return idata, None
     if method == "laplace":
-        idata = _fit_laplace(sim_df, level, n_pseudo_draws, seed, config)
+        idata = _fit_laplace(
+            sim_df, level, n_pseudo_draws, seed, config,
+            response_model=response_model,
+        )
         return idata, None
     # method == "both": primary = laplace, secondary = blackjax
-    idata_lap = _fit_laplace(sim_df, level, n_pseudo_draws, seed, config)
+    idata_lap = _fit_laplace(
+        sim_df, level, n_pseudo_draws, seed, config,
+        response_model=response_model,
+    )
     idata_nuts = _fit_blackjax(sim_df, level, n_tune, n_draws, seed, config)
     return idata_lap, idata_nuts
 
@@ -618,13 +653,23 @@ def main() -> int:
     )
 
     method: str = args.fit_method
+    response_model: str = args.response_model
+    all_models: bool = args.all_models
+
+    # --all-models forces laplace path and loops over model_a/b/c
+    if all_models:
+        method = "laplace"
 
     print("=" * 60)
-    print("PAT-RL foundation smoke — Phase 18/19")
+    print("PAT-RL foundation smoke — Phase 18/19/20")
     print("=" * 60)
     print(f"  level={args.level}  n_participants={args.n_participants}")
     print(f"  n_tune={args.n_tune}  n_draws={args.n_draws}  seed={args.seed}")
     print(f"  fit_method={method}")
+    if all_models:
+        print("  response_models=[model_a, model_b, model_c] (--all-models)")
+    else:
+        print(f"  response_model={response_model}")
     if args.dry_run:
         print("  mode=DRY-RUN (simulate + forward pass only; fit skipped)")
 
@@ -682,38 +727,104 @@ def main() -> int:
             logger.info("PAT-RL foundation smoke DRY-RUN PASSED in %.2f s", elapsed_dry)
             return 0
 
-        # 3. Fit.
+        # 3. Fit (single-model or all-models loop).
         logger.info("Starting fit (method=%s)...", method)
-        try:
-            primary, secondary = _fit(
-                sim_df=sim_df,
-                level=args.level,
-                method=method,
-                n_tune=args.n_tune,
-                n_draws=args.n_draws,
-                seed=args.seed,
-                config=config,
-            )
-        except ImportError as exc:
-            logger.error(
-                "blackjax is not installed.  "
-                "Install it with: pip install blackjax>=1.2.4\n"
-                "Original error: %s",
-                exc,
-            )
-            return 2
 
-        # 4. Sanity-check fit diagnostics.
-        logger.info("Running sanity checks...")
-        if method == "both":
-            # Call each leaf separately — do NOT recurse via 'both' branch.
-            _sanity_check(primary, "laplace")
-            _sanity_check(secondary, "blackjax")
+        # Expected posterior vars per response_model (Plan 20-02).
+        _EXPECTED_VARS: dict[str, set[str]] = {
+            "model_a": {"omega_2", "log_beta", "b"},
+            "model_b": {"omega_2", "log_beta", "b", "gamma"},
+            "model_c": {"omega_2", "log_beta", "b", "gamma", "alpha"},
+        }
+
+        if all_models:
+            # Loop over all three response models on the Laplace path.
+            for rm in ("model_a", "model_b", "model_c"):
+                logger.info("--- response_model=%s ---", rm)
+                try:
+                    lap_idata, _ = _fit(
+                        sim_df=sim_df,
+                        level=args.level,
+                        method="laplace",
+                        n_tune=args.n_tune,
+                        n_draws=args.n_draws,
+                        seed=args.seed,
+                        config=config,
+                        response_model=rm,
+                    )
+                except ImportError as exc:
+                    logger.error(
+                        "Import error during --all-models run for %s: %s", rm, exc
+                    )
+                    return 2
+                _sanity_check(lap_idata, "laplace")
+                expected = _EXPECTED_VARS[rm]
+                actual = set(lap_idata.posterior.data_vars.keys())  # type: ignore[attr-defined]
+                missing = expected - actual
+                if missing:
+                    raise RuntimeError(
+                        f"--all-models response_model={rm}: "
+                        f"missing posterior vars: {missing}. Got: {actual}"
+                    )
+                logger.info(
+                    "response_model=%s posterior vars OK: %s",
+                    rm,
+                    sorted(actual & expected),
+                )
+            _write_true_params_csv(true_params, output_dir)
+            logger.info("--all-models complete.")
+            # Use last lap_idata for export below.
+            primary = lap_idata  # type: ignore[assignment]
+            secondary = None
         else:
-            _sanity_check(primary, method)
+            try:
+                primary, secondary = _fit(
+                    sim_df=sim_df,
+                    level=args.level,
+                    method=method,
+                    n_tune=args.n_tune,
+                    n_draws=args.n_draws,
+                    seed=args.seed,
+                    config=config,
+                    response_model=response_model,
+                )
+            except ImportError as exc:
+                logger.error(
+                    "blackjax is not installed.  "
+                    "Install it with: pip install blackjax>=1.2.4\n"
+                    "Original error: %s",
+                    exc,
+                )
+                return 2
+
+            # 4. Sanity-check fit diagnostics.
+            logger.info("Running sanity checks...")
+            if method == "both":
+                # Call each leaf separately — do NOT recurse via 'both' branch.
+                _sanity_check(primary, "laplace")
+                _sanity_check(secondary, "blackjax")
+            else:
+                _sanity_check(primary, method)
+
+            # Assert expected posterior vars when using Laplace path (Plan 20-02)
+            if method in ("laplace", "both"):
+                expected = _EXPECTED_VARS.get(response_model, set())
+                if expected:
+                    actual = set(primary.posterior.data_vars.keys())  # type: ignore[attr-defined]
+                    missing = expected - actual
+                    if missing:
+                        raise RuntimeError(
+                            f"response_model={response_model}: "
+                            f"missing posterior vars: {missing}. Got: {actual}"
+                        )
+                    logger.info(
+                        "Posterior vars assertion PASSED for %s: %s",
+                        response_model,
+                        sorted(actual & expected),
+                    )
 
         # 5. Write true_params.csv for laplace / both paths.
-        if method in ("laplace", "both"):
+        if not all_models and method in ("laplace", "both"):
             _write_true_params_csv(true_params, output_dir)
 
         # 6. Export trajectories + parameter summary from PRIMARY idata.

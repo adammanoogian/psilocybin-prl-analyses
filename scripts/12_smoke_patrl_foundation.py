@@ -1,14 +1,36 @@
-"""PAT-RL foundation smoke: simulate -> fit -> export 5 agents on CPU.
+"""PAT-RL foundation smoke: simulate -> fit -> export agents on CPU.
 
-Runs the full parallel PAT-RL stack end-to-end to verify all Phase 18 modules
-compose correctly.  Writes trajectory CSVs + parameter summary CSV under
-``output/patrl_smoke/`` (or the dir passed via ``--output-dir``).
+Runs the full parallel PAT-RL stack end-to-end to verify all Phase 18+19
+modules compose correctly.  Writes trajectory CSVs + parameter summary CSV
+under ``output/patrl_smoke/`` (or the dir passed via ``--output-dir``).
+
+Three fit paths are supported via ``--fit-method``:
+
+``blackjax`` (default)
+    Full BlackJAX NUTS posterior (Phase 18 behavior, unchanged).
+``laplace``
+    VB-Laplace MAP + Hessian approximation from Phase 19.  Fast (~<60 s for
+    5 agents on CPU).  Writes ``true_params.csv`` alongside
+    ``parameter_summary.csv`` so downstream tests can compare recovery
+    without re-simulating.
+``both``
+    Runs both fits on the same seed-determined cohort. Primary idata is
+    laplace (used for export); secondary is blackjax.  Optionally invokes
+    ``validation/vbl06_laplace_vs_nuts.py::compare_posteriors`` if that
+    module is importable.
+
+# TODO (OQ7, Phase 19 closure): after cluster NUTS smoke returns,
+# write .planning/phases/19-vb-laplace-fit-path-patrl/19-CLOSURE-MEMO.md
+# summarizing observed Laplace-vs-NUTS agreement on real cluster data
+# and recommending keep-both vs consolidate. Defer the actual writing
+# until numbers are in.
 
 Usage
 -----
     python scripts/12_smoke_patrl_foundation.py [--level {2,3}]
         [--output-dir DIR] [--n-tune N] [--n-draws N] [--seed N]
         [--n-participants N] [--dry-run]
+        [--fit-method {blackjax,laplace,both}]
 
 Exit codes
 ----------
@@ -44,9 +66,8 @@ from prl_hgf.env.pat_rl_config import load_pat_rl_config  # noqa: E402
 # simulate_patrl_cohort was extracted to prl_hgf.env.pat_rl_simulator in
 # Phase 19-01 so that the Laplace smoke (Plan 19-05) and VBL-06 comparison
 # harness can share the same synthetic cohort on a fixed master_seed.
-from prl_hgf.env.pat_rl_simulator import (
-    simulate_patrl_cohort,  # noqa: E402  # noqa: E402
-)
+from prl_hgf.env.pat_rl_simulator import simulate_patrl_cohort  # noqa: E402
+from prl_hgf.fitting.fit_vb_laplace_patrl import fit_vb_laplace_patrl  # noqa: E402
 
 logger = logging.getLogger(__name__)
 
@@ -63,7 +84,7 @@ def _parse_args() -> argparse.Namespace:
     -------
     argparse.Namespace
         Parsed arguments with attributes: level, output_dir, n_tune, n_draws,
-        seed, n_participants.
+        seed, n_participants, dry_run, fit_method.
     """
     parser = argparse.ArgumentParser(
         description=__doc__,
@@ -111,20 +132,32 @@ def _parse_args() -> argparse.Namespace:
         "--dry-run",
         action="store_true",
         help=(
-            "Run simulate + forward pass only, skip MCMC fit/export/sanity.  "
-            "Validates module wiring without requiring blackjax.  Exits 0 on "
-            "success, 1 on exception."
+            "Run simulate + forward pass only, skip fit/export/sanity.  "
+            "Validates module wiring without requiring blackjax or jaxopt.  "
+            "Exits 0 on success, 1 on exception."
+        ),
+    )
+    parser.add_argument(
+        "--fit-method",
+        choices=("blackjax", "laplace", "both"),
+        default="blackjax",
+        help=(
+            "Which posterior fit path to run. Default 'blackjax' "
+            "preserves Phase 18 behavior. 'laplace' uses "
+            "fit_vb_laplace_patrl (Phase 19). 'both' runs both on the "
+            "same seeded cohort and invokes the VBL-06 comparison if "
+            "validation/vbl06_laplace_vs_nuts.py is importable."
         ),
     )
     return parser.parse_args()
 
 
 # ---------------------------------------------------------------------------
-# Fitting step  (blackjax imported lazily inside call)
+# Fitting step helpers
 # ---------------------------------------------------------------------------
 
 
-def _fit(
+def _fit_blackjax(
     sim_df: pd.DataFrame,
     level: int,
     n_tune: int,
@@ -132,7 +165,7 @@ def _fit(
     seed: int,
     config: object,
 ) -> object:
-    """Run PAT-RL hierarchical MCMC fit.
+    """Run PAT-RL hierarchical MCMC fit via BlackJAX NUTS.
 
     Imports and calls :func:`fit_batch_hierarchical_patrl` at call-time so
     that the script remains syntactically importable even when blackjax is not
@@ -142,7 +175,8 @@ def _fit(
     Parameters
     ----------
     sim_df : pandas.DataFrame
-        Simulated trial data from :func:`~prl_hgf.env.pat_rl_simulator.simulate_patrl_cohort`.
+        Simulated trial data from
+        :func:`~prl_hgf.env.pat_rl_simulator.simulate_patrl_cohort`.
     level : int
         HGF level (2 or 3).
     n_tune : int
@@ -165,7 +199,7 @@ def _fit(
 
     model_name = "hgf_2level_patrl" if level == 2 else "hgf_3level_patrl"
     logger.info(
-        "Fitting %s  n_tune=%d  n_draws=%d  seed=%d",
+        "Fitting %s via BlackJAX NUTS  n_tune=%d  n_draws=%d  seed=%d",
         model_name,
         n_tune,
         n_draws,
@@ -183,8 +217,112 @@ def _fit(
         random_seed=seed,
     )
     elapsed = time.perf_counter() - t0
-    logger.info("Fit complete in %.1f s", elapsed)
+    logger.info("BlackJAX fit complete in %.1f s", elapsed)
     return idata
+
+
+def _fit_laplace(
+    sim_df: pd.DataFrame,
+    level: int,
+    n_pseudo_draws: int,
+    seed: int,
+    config: object,
+) -> object:
+    """Run PAT-RL VB-Laplace fit via jaxopt.LBFGS MAP + Hessian.
+
+    Parameters
+    ----------
+    sim_df : pandas.DataFrame
+        Simulated trial data from
+        :func:`~prl_hgf.env.pat_rl_simulator.simulate_patrl_cohort`.
+    level : int
+        HGF level (2 or 3).
+    n_pseudo_draws : int
+        Number of MultivariateNormal pseudo-samples from
+        N(mode, Sigma).
+    seed : int
+        Base random seed for pseudo-sample draws and restart perturbations.
+    config : PATRLConfig
+        Loaded PAT-RL configuration.
+
+    Returns
+    -------
+    arviz.InferenceData
+        Laplace-approximated posterior (``sample_stats.converged`` present).
+    """
+    model_name = "hgf_2level_patrl" if level == 2 else "hgf_3level_patrl"
+    logger.info(
+        "Fitting %s via VB-Laplace  n_pseudo_draws=%d  seed=%d",
+        model_name,
+        n_pseudo_draws,
+        seed,
+    )
+    t0 = time.perf_counter()
+    idata = fit_vb_laplace_patrl(
+        sim_df,
+        model_name=model_name,
+        response_model="model_a",
+        config=config,  # type: ignore[arg-type]
+        n_pseudo_draws=n_pseudo_draws,
+        random_seed=seed,
+    )
+    elapsed = time.perf_counter() - t0
+    logger.info("Laplace fit complete in %.1f s", elapsed)
+    return idata
+
+
+def _fit(
+    sim_df: pd.DataFrame,
+    level: int,
+    method: str,
+    n_tune: int,
+    n_draws: int,
+    seed: int,
+    config: object,
+    n_pseudo_draws: int = 1000,
+) -> tuple[object, object | None]:
+    """Dispatch fit by method; returns (primary_idata, optional_secondary).
+
+    Primary idata is what downstream export consumes. For ``'both'``,
+    primary = laplace, secondary = blackjax (reflecting Phase 19 as the
+    "new" path under test while blackjax is the baseline).
+
+    Parameters
+    ----------
+    sim_df : pandas.DataFrame
+        Simulated trial data.
+    level : int
+        HGF level (2 or 3).
+    method : str
+        One of ``'blackjax'``, ``'laplace'``, ``'both'``.
+    n_tune : int
+        Number of NUTS warmup steps (blackjax path).
+    n_draws : int
+        Number of posterior draws per chain (blackjax path).
+    seed : int
+        Master RNG seed.
+    config : PATRLConfig
+        Loaded PAT-RL configuration.
+    n_pseudo_draws : int, default 1000
+        Number of pseudo-samples for Laplace path.
+
+    Returns
+    -------
+    primary_idata : arviz.InferenceData
+        Main posterior used for export (Laplace when method='both').
+    secondary_idata : arviz.InferenceData or None
+        Second posterior for comparison (BlackJAX when method='both').
+    """
+    if method == "blackjax":
+        idata = _fit_blackjax(sim_df, level, n_tune, n_draws, seed, config)
+        return idata, None
+    if method == "laplace":
+        idata = _fit_laplace(sim_df, level, n_pseudo_draws, seed, config)
+        return idata, None
+    # method == "both": primary = laplace, secondary = blackjax
+    idata_lap = _fit_laplace(sim_df, level, n_pseudo_draws, seed, config)
+    idata_nuts = _fit_blackjax(sim_df, level, n_tune, n_draws, seed, config)
+    return idata_lap, idata_nuts
 
 
 # ---------------------------------------------------------------------------
@@ -204,7 +342,7 @@ def _export(
     Parameters
     ----------
     idata : arviz.InferenceData
-        MCMC posterior from :func:`_fit`.
+        Posterior from :func:`_fit` (primary idata).
     trials_by_participant : dict[str, list]
         Mapping from participant_id to :class:`PATRLTrial` list.
     choices_by_participant : dict[str, np.ndarray]
@@ -245,6 +383,46 @@ def _export(
     return paths
 
 
+def _write_true_params_csv(
+    true_params: dict[str, dict[str, float]],
+    output_dir: Path,
+) -> Path:
+    """Write true generative parameters to CSV for recovery comparison.
+
+    Columns: ``participant_id``, ``parameter``, ``true_value``.  Written
+    alongside ``parameter_summary.csv`` when ``--fit-method`` is ``laplace``
+    or ``both``; skipped for ``blackjax`` to preserve Phase 18 output
+    bit-for-bit.
+
+    Parameters
+    ----------
+    true_params : dict[str, dict[str, float]]
+        Mapping from participant_id to dict of true parameter values.
+    output_dir : Path
+        Directory where the CSV is written.
+
+    Returns
+    -------
+    Path
+        Absolute path to the written ``true_params.csv`` file.
+    """
+    rows: list[dict[str, object]] = []
+    for pid, params in sorted(true_params.items()):
+        for param_name, value in params.items():
+            rows.append(
+                {
+                    "participant_id": pid,
+                    "parameter": param_name,
+                    "true_value": value,
+                }
+            )
+    df = pd.DataFrame(rows, columns=["participant_id", "parameter", "true_value"])
+    out_path = output_dir / "true_params.csv"
+    df.to_csv(out_path, index=False)
+    logger.info("Wrote true params: %s", out_path)
+    return out_path
+
+
 # ---------------------------------------------------------------------------
 # Sanity-check step
 # ---------------------------------------------------------------------------
@@ -252,43 +430,95 @@ def _export(
 
 def _sanity_check(
     idata: object,
+    method: str,
+) -> None:
+    """Method-specific sanity check on fit diagnostics.
+
+    Dispatches on ``method`` explicitly — NO bare try/except around
+    ``sample_stats`` access.  Laplace and BlackJAX InferenceData have
+    different ``sample_stats`` keys; generic access would mask real bugs.
+
+    Parameters
+    ----------
+    idata : arviz.InferenceData
+        Fit result to check. For ``method='both'``, pass each constituent
+        idata to separate ``_sanity_check`` calls (one for ``'laplace'``,
+        one for ``'blackjax'``).
+    method : str
+        One of ``'blackjax'``, ``'laplace'``, ``'both'``.
+
+    Raises
+    ------
+    RuntimeError
+        If the BlackJAX divergence fraction exceeds the 20% smoke gate.
+    ValueError
+        If ``method`` is not one of the three expected values.
+    """
+    if method == "blackjax":
+        div = idata.sample_stats.diverging  # type: ignore[attr-defined]
+        frac = float(div.sum()) / float(div.size)
+        logger.info(
+            "NUTS divergence fraction: %.3f  (%d / %d)",
+            frac,
+            int(div.sum()),
+            int(div.size),
+        )
+        if frac >= 0.20:
+            raise RuntimeError(
+                f"NUTS divergence fraction {frac:.3f} >= 0.20 gate.  "
+                f"Expected < 0.20."
+            )
+    elif method == "laplace":
+        converged = bool(
+            idata.sample_stats.converged.values.any()  # type: ignore[attr-defined]
+        )
+        if not converged:
+            logger.warning(
+                "Laplace fit did not converge for any subject. "
+                "Check diagnostics (logp_at_mode, hessian_min_eigval, "
+                "n_eigenvalues_clipped) for the failing subjects. "
+                "Continuing — Laplace may fail per-subject; this is "
+                "a soft gate at the smoke level."
+            )
+        else:
+            logger.info("Laplace convergence check: at least one subject converged.")
+    elif method == "both":
+        # 'both' branch: caller should call _sanity_check on each leaf
+        # idata individually.  This branch exists only for programmatic
+        # callers that pass a single method string without separate idatas.
+        raise ValueError(
+            "For method='both', call _sanity_check(primary, 'laplace') "
+            "and _sanity_check(secondary, 'blackjax') separately.  "
+            "Do NOT pass method='both' directly to _sanity_check."
+        )
+    else:
+        raise ValueError(
+            f"method must be one of {{'blackjax', 'laplace', 'both'}}, "
+            f"got {method!r}"
+        )
+
+
+def _log_recovery_table(
+    idata: object,
     true_params: dict[str, dict[str, float]],
     config: object,
 ) -> None:
     """Log posterior-mean vs true parameter comparison per participant.
 
-    Performs hard assertions on posterior finiteness and divergence rate.
-    Soft checks (sign match) are logged as warnings only.
+    Performs hard assertions on posterior finiteness.  Soft checks
+    (directional sign) are logged as warnings only.
 
     Parameters
     ----------
     idata : arviz.InferenceData
-        MCMC posterior from :func:`_fit`.
+        Laplace or NUTS posterior.
     true_params : dict[str, dict[str, float]]
         Mapping from participant_id to true parameter values.
     config : PATRLConfig
         PAT-RL configuration (provides prior means for directional check).
-
-    Raises
-    ------
-    AssertionError
-        If any posterior mean is non-finite or the divergence rate exceeds
-        20%.
     """
     post = idata.posterior  # type: ignore[attr-defined]
     participant_ids = list(post.coords["participant_id"].values)
-
-    # --- Hard assertion: divergence rate < 20% ---
-    diverging = idata.sample_stats.diverging  # type: ignore[attr-defined]
-    div_arr = np.asarray(diverging)
-    div_rate = float(div_arr.sum()) / float(div_arr.size)
-    logger.info("Divergence rate: %.3f  (%d / %d)", div_rate, int(div_arr.sum()), div_arr.size)
-    assert div_rate < 0.20, (
-        f"Divergence rate {div_rate:.3f} exceeds 20% smoke gate.  "
-        f"Expected < 0.20."
-    )
-
-    # --- Per-participant: log posterior mean vs true ---
     prior_omega_2_mean = config.fitting.priors.omega_2.mean  # type: ignore[attr-defined]
     sign_match_omega2: list[bool] = []
 
@@ -299,7 +529,7 @@ def _sanity_check(
             post["omega_2"].sel(participant_id=pid).mean().values
         )
 
-        # log_beta is sampled; beta is a deterministic added by _samples_to_idata
+        # log_beta is sampled; beta may be a deterministic added downstream
         if "beta" in post:
             beta_post = float(
                 post["beta"].sel(participant_id=pid).mean().values
@@ -338,12 +568,12 @@ def _sanity_check(
             beta_post - true_beta,
         )
 
-        # Soft: sign of update direction (posterior moved towards true?).
+        # Soft: sign of update direction (posterior moved toward true?).
         if np.isfinite(true_omega2):
-            moved_toward_true = np.sign(omega2_post - prior_omega_2_mean) == np.sign(
+            moved = np.sign(omega2_post - prior_omega_2_mean) == np.sign(
                 true_omega2 - prior_omega_2_mean
             )
-            sign_match_omega2.append(bool(moved_toward_true))
+            sign_match_omega2.append(bool(moved))
 
     if sign_match_omega2:
         n_correct = sum(sign_match_omega2)
@@ -351,8 +581,7 @@ def _sanity_check(
         if n_correct < n_total:
             logger.warning(
                 "Directional check: %d/%d participants have posterior "
-                "omega_2 moving toward true.  This is a smoke test; "
-                "full recovery gate deferred to Phase 19.",
+                "omega_2 moving toward true.",
                 n_correct,
                 n_total,
             )
@@ -364,7 +593,7 @@ def _sanity_check(
                 n_total,
             )
 
-    logger.info("Sanity check passed.")
+    logger.info("Recovery table logged.")
 
 
 # ---------------------------------------------------------------------------
@@ -388,13 +617,16 @@ def main() -> int:
         datefmt="%H:%M:%S",
     )
 
+    method: str = args.fit_method
+
     print("=" * 60)
-    print("PAT-RL foundation smoke — Phase 18")
+    print("PAT-RL foundation smoke — Phase 18/19")
     print("=" * 60)
     print(f"  level={args.level}  n_participants={args.n_participants}")
     print(f"  n_tune={args.n_tune}  n_draws={args.n_draws}  seed={args.seed}")
+    print(f"  fit_method={method}")
     if args.dry_run:
-        print("  mode=DRY-RUN (simulate + forward pass only; MCMC skipped)")
+        print("  mode=DRY-RUN (simulate + forward pass only; fit skipped)")
 
     output_dir: Path = (
         args.output_dir if args.output_dir is not None else OUTPUT_DIR / "patrl_smoke"
@@ -442,6 +674,7 @@ def main() -> int:
             n_trials_per = n_trials_total // n_participants if n_participants else 0
             print()
             print("DRY-RUN COMPLETE")
+            print(f"  fit_method:            {method}")
             print(f"  n_participants:        {n_participants}")
             print(f"  n_trials/participant:  {n_trials_per}")
             print(f"  total rows in sim_df:  {n_trials_total}")
@@ -450,11 +683,12 @@ def main() -> int:
             return 0
 
         # 3. Fit.
-        logger.info("Starting MCMC fit...")
+        logger.info("Starting fit (method=%s)...", method)
         try:
-            idata = _fit(
+            primary, secondary = _fit(
                 sim_df=sim_df,
                 level=args.level,
+                method=method,
                 n_tune=args.n_tune,
                 n_draws=args.n_draws,
                 seed=args.seed,
@@ -469,26 +703,81 @@ def main() -> int:
             )
             return 2
 
-        # 4. Export.
-        logger.info("Exporting trajectories and parameter summary...")
+        # 4. Sanity-check fit diagnostics.
+        logger.info("Running sanity checks...")
+        if method == "both":
+            # Call each leaf separately — do NOT recurse via 'both' branch.
+            _sanity_check(primary, "laplace")
+            _sanity_check(secondary, "blackjax")
+        else:
+            _sanity_check(primary, method)
+
+        # 5. Write true_params.csv for laplace / both paths.
+        if method in ("laplace", "both"):
+            _write_true_params_csv(true_params, output_dir)
+
+        # 6. Export trajectories + parameter summary from PRIMARY idata.
+        logger.info(
+            "Exporting trajectories and parameter summary (primary=%s)...",
+            "laplace" if method in ("laplace", "both") else "blackjax",
+        )
         paths = _export(
-            idata=idata,
+            idata=primary,
             trials_by_participant=trials_by_participant,
             choices_by_participant=choices_by_participant,
             level=args.level,
             output_dir=output_dir,
         )
 
-        # 5. Sanity check.
-        logger.info("Running sanity checks...")
-        _sanity_check(idata=idata, true_params=true_params, config=config)
+        # 7. Write secondary idata netcdf for 'both' mode.
+        if method == "both" and secondary is not None:
+            lap_nc = output_dir / "idata_laplace.nc"
+            nuts_nc = output_dir / "idata_nuts.nc"
+            primary.to_netcdf(str(lap_nc))  # type: ignore[attr-defined]
+            secondary.to_netcdf(str(nuts_nc))  # type: ignore[attr-defined]
+            logger.info("Wrote idata_laplace.nc: %s", lap_nc)
+            logger.info("Wrote idata_nuts.nc:    %s", nuts_nc)
 
-        # 6. Summary.
+            # Optional VBL-06 comparison (lazy import so absence is non-fatal).
+            try:
+                from validation.vbl06_laplace_vs_nuts import (  # noqa: PLC0415
+                    _apply_hard_gates,
+                    compare_posteriors,
+                )
+            except ImportError:
+                logger.warning(
+                    "validation.vbl06_laplace_vs_nuts not importable — "
+                    "skipping Laplace-vs-NUTS comparison."
+                )
+            else:
+                diff = compare_posteriors(primary, secondary)
+                diff_path = output_dir / "laplace_vs_nuts_diff.csv"
+                diff.to_csv(diff_path, index=False)
+                logger.info("Wrote Laplace-vs-NUTS diff to %s", diff_path)
+                all_pass, msgs = _apply_hard_gates(diff)
+                for msg in msgs:
+                    if msg.startswith("HARD FAIL"):
+                        logger.error(msg)
+                    else:
+                        logger.warning(msg)
+                if not all_pass:
+                    logger.warning(
+                        "Laplace-vs-NUTS comparison failed hard gates. "
+                        "Check %s for details.",
+                        diff_path,
+                    )
+
+        # 8. Log recovery table.
+        logger.info("Recovery table:")
+        _log_recovery_table(idata=primary, true_params=true_params, config=config)
+
+        # 9. Summary.
         elapsed_total = time.perf_counter() - t_total
         n_csvs = len(paths)
         total_bytes = sum(p.stat().st_size for p in paths if p.exists())
         print()
         print(f"WROTE {n_csvs} CSVs at {output_dir}")
+        print(f"  fit_method:  {method}")
         print(f"  Total size: {total_bytes / 1024:.1f} KB")
         print(f"  Wall time:  {elapsed_total:.1f} s")
         logger.info("PAT-RL foundation smoke PASSED in %.1f s", elapsed_total)

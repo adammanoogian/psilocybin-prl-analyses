@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 14.1 gap closure — SAMPLER env-var + git auto-push landed; Phase 19 VB-Laplace COMPLETE; cluster NUTS validation pending (OQ7)
+**Current focus:** Phase 20 PAT-RL Scientific Completion — Plan 20-01 (config delta + loader) COMPLETE; Phase 14.1 gap closure (cluster benchmark) still pending
 
 ## Current Position
 
-Phase: 14 gap closure (14.1) of 19 (VB-Laplace Fit Path)
-Plan: 14.1-01/6 complete; 14.1-02 SUPERSEDED by 14.1-03; remaining: 14.1-03, 14.1-04, 14.1-05, 14.1-06
-Status: In progress — next action is 14.1-03 (submit BlackJAX benchmark on M3)
-Last activity: 2026-04-18 — Superseded 14.1-02 (numpyro run was erroneous, no artifact); rewrote 14.1-03 as sole benchmark-execution gap-closure under BlackJAX
+Phase: 20 (PAT-RL Scientific Completion) — Wave 1 in progress
+Plan: 20-01 COMPLETE; remaining Wave 1: 20-02; Wave 2: 20-03/04/05; Wave 3: 20-06/07/08
+Status: In progress — next action is 20-02 (Model A+b, Models B/C response functions)
+Last activity: 2026-04-18 — Completed 20-01 (config delta + loader); 37/37 PAT-RL tests passing; all commits pushed
 
-[===========████████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 complete (6/6); Phase 19 COMPLETE (5/5); Phase 14.1 gap closure in progress (1/6)
+[===========████████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 complete (6/6); Phase 19 COMPLETE (5/5); Phase 14.1 gap closure in progress (1/6); Phase 20 in progress (1/8)
 
 ## Performance Metrics
 
@@ -145,6 +145,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | _sanity_check raises ValueError if method='both' passed directly; callers dispatch to leaf methods separately | Prevents accidental silent no-op; method='both' has no single idata to check | 19-05 |
 | true_params.csv written only for laplace/both (not blackjax) to preserve Phase 18 outputs bit-for-bit | blackjax smoke was validated without recovery CSV; adding it would change expected output of existing tests | 19-05 |
 | OQ7 closure memo deferred via TODO comment; written only after cluster NUTS numbers land | No useful content before cluster comparison data exists | 19-05 |
+| Stochastic avoid contingency (Option B): P(reward|avoid)=0.10, P(shock|avoid)=0.10, P(nothing|avoid)=0.80 | Authoritative consumer spec (sister repo GSD_heart2adapt_sim.yaml H2A.1.1) explicit. Config surface wired in 20-01; stochastic logp/scan wiring deferred to 20-02/20-03 | 20-01 |
+| PHENOTYPE_COLUMN_NAME = "phenotype" as module constant in pat_rl_config.py | Guards against column-name drift across sim_df → fit_df → BMS pipeline (RESEARCH.md §12 Risk 3) | 20-01 |
 | CLI exit codes: 0 all omega_2 gates pass / skip-nuts, 1 gate fails, 2 loader error | 3-state map mirrors smoke script convention (18-06); distinguishes gate failure from environment error | 19-04 |
 
 ### Pending Todos
@@ -189,6 +191,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-18
-Stopped at: Superseded 14.1-02 (M3 numpyro run was erroneous); rewrote 14.1-03 as the sole benchmark-execution gap-closure (submit BlackJAX bench on M3 with auto-push).
+Stopped at: Completed 20-01 (config delta + loader). All 37 PAT-RL regression tests pass. 3 task commits pushed to main.
 Resume file: None
-Next action: `sbatch cluster/14_benchmark_gpu.slurm` on M3 (14.1-03 Task 1). SAMPLER defaults to blackjax. Auto-push lands benchmark_batched.json + STATE.md row. Then run 14.1-03 Task 2 locally (schema + row-relabel + SUMMARY) followed by 14.1-04, 14.1-05, 14.1-06.
+Next action: Execute 20-02 (Model A+b + Models B/C response functions in response_patrl.py; dispatcher in hierarchical_patrl.py; prior extension in _build_patrl_log_posterior; 5-agent Laplace smoke for B/C). Also pending: `sbatch cluster/14_benchmark_gpu.slurm` on M3 (14.1-03 Task 1) — still needed but lower priority than Phase 20 wave.

@@ -1,0 +1,8 @@
+usage: 08_run_power_iteration.py [-h] --chunk-id CHUNK_ID --job-id JOB_ID
+                                 [--dry-run] [--benchmark] [--smoke-test]
+                                 [--fit-chains FIT_CHAINS]
+                                 [--fit-draws FIT_DRAWS] [--fit-tune FIT_TUNE]
+                                 [--sampler {pymc,numpyro}]
+                                 [--output-dir OUTPUT_DIR] [--legacy]
+                                 [--enable-x64]
+08_run_power_iteration.py: error: argument --sampler: invalid choice: 'blackjax' (choose from 'pymc', 'numpyro')

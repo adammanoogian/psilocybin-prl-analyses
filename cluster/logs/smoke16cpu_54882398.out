@@ -1,0 +1,73 @@
+
+============================================================
+Phase 16/17 CPU Smoke Test (BlackJAX NUTS)
+============================================================
+Job ID:    54882398
+Node:      m3s106
+Partition: comp (CPU only)
+Precision: fp64  (PRL_ENABLE_X64=1)
+MCMC:      tune=500 draws=500 chains=2 N/group=5
+JAX cache: /scratch/fc37/aman0087/.jax_cache_cpu/m3s106
+Start:     Fri Apr 17 08:40:17 PM AEST 2026
+============================================================
+
+JAX devices: [CpuDevice(id=0)]
+jax_enable_x64 (pre-run): False
+
+============================================================
+SMOKE TEST MODE (JIT compilation diagnostics)
+============================================================
+
+JAX devices (1 total, 0 GPU):
+  TFRT_CPU_0
+  WARNING: No GPU detected — running on CPU.
+  nvidia-smi: unavailable
+
+  WARNING: ptxas not found — XLA parallel compilation disabled
+
+  XLA/JAX environment:
+    JAX_COMPILATION_CACHE_DIR = /scratch/fc37/aman0087/.jax_cache_cpu/m3s106
+    JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES = 0
+    JAX_LOG_COMPILES = 1
+    JAX_PLATFORMS = cpu
+    XLA_FLAGS = (unset)
+    XLA_PYTHON_CLIENT_PREALLOCATE = (unset)
+    XLA_PYTHON_CLIENT_MEM_FRACTION = (unset)
+    CUDA_VISIBLE_DEVICES = (unset)
+    JAX_ENABLE_X64 = 1
+
+  JAX cache (before):
+    dir:    /scratch/fc37/aman0087/.jax_cache_cpu/m3s106
+    exists: True
+    files:  4
+    size:   0.0 MB
+
+  JAX 0.4.31, jaxlib 0.4.31
+
+Smoke test config:
+  N per group:            5
+  Participant-sessions:   30
+  Chains:                 2
+  Draws/tune:             500/500
+  Model:                  hgf_3level
+  GPUs available:         0
+  Chain method:           vectorized (jit_model_args=True)
+
+Step 1: Simulate cohort (N=5/group)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.1s. Running JAX vmap…
+JAX vmap completed in 10.7s.
+  Simulation: 12.95s
+
+Step 2: Cold JIT (first MCMC call — includes XLA compilation)...
+  Cold JIT: 21567.24s
+  NUTS stats (cold):
+    integration_steps: mean=1023 p50=1023 p95=1023 max=1023
+    trajectory_expansions: mean=10.0 max=10 (10 = hit max_tree_depth cap)
+    acceptance_rate: mean=0.998  divergence_rate: 0.000
+  Cache delta: +378 files, +3.0 MB
+
+Step 3: Warm JIT (same shape, different seed — tests cache reuse)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.4s. Running JAX vmap…
+JAX vmap completed in 0.8s.

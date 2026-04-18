@@ -33,3 +33,18 @@ End:       Sat Apr 18 11:57:58 PM AEST 2026
 ============================================================
 
 Pushing PAT-RL smoke results to git...
+[main e0429c5] smoke patrl cpu level=2 tune=500 draws=500 method=both (job 54896739)
+ 12 files changed, 2318 insertions(+)
+ create mode 100644 cluster/logs/patrl18smoke_54896739.err
+ create mode 100644 cluster/logs/patrl18smoke_54896739.out
+ create mode 100644 results/patrl_smoke/54896739/P000_trajectories.csv
+ create mode 100644 results/patrl_smoke/54896739/P001_trajectories.csv
+ create mode 100644 results/patrl_smoke/54896739/P002_trajectories.csv
+ create mode 100644 results/patrl_smoke/54896739/P003_trajectories.csv
+ create mode 100644 results/patrl_smoke/54896739/P004_trajectories.csv
+ create mode 100644 results/patrl_smoke/54896739/idata_laplace.nc
+ create mode 100644 results/patrl_smoke/54896739/idata_nuts.nc
+ create mode 100644 results/patrl_smoke/54896739/laplace_vs_nuts_diff.csv
+ create mode 100644 results/patrl_smoke/54896739/parameter_summary.csv
+ create mode 100644 results/patrl_smoke/54896739/true_params.csv
+Pushed PAT-RL smoke results to origin/main

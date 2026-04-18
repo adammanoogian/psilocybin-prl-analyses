@@ -1,0 +1,103 @@
+{
+  "gpu_device": "none (CPU only)",
+  "gpu_table": [],
+  "ptxas_available": false,
+  "ptxas_version": "not found",
+  "xla_env": {
+    "JAX_COMPILATION_CACHE_DIR": "/scratch/fc37/aman0087/.jax_cache_cpu/m3j009",
+    "JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES": "0",
+    "JAX_LOG_COMPILES": "1",
+    "JAX_PLATFORMS": "cpu",
+    "XLA_FLAGS": "(unset)",
+    "XLA_PYTHON_CLIENT_PREALLOCATE": "(unset)",
+    "XLA_PYTHON_CLIENT_MEM_FRACTION": "(unset)",
+    "CUDA_VISIBLE_DEVICES": "(unset)",
+    "JAX_ENABLE_X64": "(unset)"
+  },
+  "cache_before": {
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_cpu/m3j009",
+    "cache_exists": true,
+    "n_files": 4,
+    "total_size_mb": 0.0
+  },
+  "jax_version": "0.4.31",
+  "jaxlib_version": "0.4.31",
+  "model_name": "hgf_2level",
+  "log_every": 25,
+  "kappa_frozen_at": 1.0,
+  "sim_vmap_s": 15.2,
+  "gpu_pre_cold_jit": [],
+  "jit_cold_s": 10661.52,
+  "nuts_stats_cold": {
+    "n_draws_total": 1000,
+    "integration_steps_mean": 1023.0,
+    "integration_steps_p50": 1023.0,
+    "integration_steps_p95": 1023.0,
+    "integration_steps_max": 1023,
+    "acceptance_mean": 0.9413670897483826,
+    "divergence_rate": 0.0,
+    "trajectory_expansions_max": 10,
+    "trajectory_expansions_mean": 10.0
+  },
+  "gpu_post_cold_jit": [],
+  "cache_after_cold": {
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_cpu/m3j009",
+    "cache_exists": true,
+    "n_files": 310,
+    "total_size_mb": 1.27
+  },
+  "gpu_pre_warm_jit": [],
+  "jit_warm_s": 6704.21,
+  "nuts_stats_warm1": {
+    "n_draws_total": 1000,
+    "integration_steps_mean": 1023.0,
+    "integration_steps_p50": 1023.0,
+    "integration_steps_p95": 1023.0,
+    "integration_steps_max": 1023,
+    "acceptance_mean": 0.9997292757034302,
+    "divergence_rate": 0.0,
+    "trajectory_expansions_max": 10,
+    "trajectory_expansions_mean": 10.0
+  },
+  "jit_warm2_s": 6301.89,
+  "nuts_stats_warm2": {
+    "n_draws_total": 1000,
+    "integration_steps_mean": 1023.0,
+    "integration_steps_p50": 1023.0,
+    "integration_steps_p95": 1023.0,
+    "integration_steps_max": 1023,
+    "acceptance_mean": 0.9997108578681946,
+    "divergence_rate": 0.0,
+    "trajectory_expansions_max": 10,
+    "trajectory_expansions_mean": 10.0
+  },
+  "warm1_minus_warm2_s": 402.32,
+  "gpu_post_warm_jit": [],
+  "cache_after_warm": {
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_cpu/m3j009",
+    "cache_exists": true,
+    "n_files": 310,
+    "total_size_mb": 1.27
+  },
+  "cache_speedup": 1.59,
+  "gate_cold_jit_under_600s": false,
+  "gate_cache_speedup_over_3x": false,
+  "gate_warm_jit_under_120s": false,
+  "all_gates_pass": false,
+  "smoke_test_config": {
+    "n_per_group": 5,
+    "participant_sessions": 30,
+    "chains": 2,
+    "draws": 500,
+    "tune": 500,
+    "n_gpus": 0,
+    "chain_method": "vectorized",
+    "jax_enable_x64": false,
+    "env_overrides": {
+      "PRL_SMOKE_TUNE": "500",
+      "PRL_SMOKE_DRAWS": "500",
+      "PRL_SMOKE_CHAINS": "2",
+      "PRL_SMOKE_N_PER_GROUP": "5"
+    }
+  }
+}

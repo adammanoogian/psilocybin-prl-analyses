@@ -1,0 +1,253 @@
+
+============================================================
+Phase 16/17 CPU Smoke Test (BlackJAX NUTS)
+============================================================
+Job ID:     54892232
+Node:       m3j009
+Partition:  comp (CPU only)
+Precision:  fp32  (PRL_ENABLE_X64=0)
+MCMC:       tune=500 draws=500 chains=2 N/group=5
+log_every:  25 (0=off; per-draw NUTS diagnostics)
+Models:     hgf_2level hgf_3level
+κ:          FROZEN at 1.0 for 3-level (see _KAPPA_FIXED in hierarchical.py)
+JAX cache:  /scratch/fc37/aman0087/.jax_cache_cpu/m3j009
+Start:      Sat Apr 18 06:17:01 PM AEST 2026
+============================================================
+
+JAX devices: [CpuDevice(id=0)]
+jax_enable_x64 (pre-run): False
+
+
+############################################################
+# Running smoke for model: hgf_2level
+# (fp32, tune=500, draws=500,
+#  log_every=25)
+############################################################
+
+============================================================
+SMOKE TEST MODE (JIT compilation diagnostics)
+============================================================
+
+JAX devices (1 total, 0 GPU):
+  TFRT_CPU_0
+  WARNING: No GPU detected — running on CPU.
+  nvidia-smi: unavailable
+
+  WARNING: ptxas not found — XLA parallel compilation disabled
+
+  XLA/JAX environment:
+    JAX_COMPILATION_CACHE_DIR = /scratch/fc37/aman0087/.jax_cache_cpu/m3j009
+    JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES = 0
+    JAX_LOG_COMPILES = 1
+    JAX_PLATFORMS = cpu
+    XLA_FLAGS = (unset)
+    XLA_PYTHON_CLIENT_PREALLOCATE = (unset)
+    XLA_PYTHON_CLIENT_MEM_FRACTION = (unset)
+    CUDA_VISIBLE_DEVICES = (unset)
+    JAX_ENABLE_X64 = (unset)
+
+  JAX cache (before):
+    dir:    /scratch/fc37/aman0087/.jax_cache_cpu/m3j009
+    exists: True
+    files:  4
+    size:   0.0 MB
+
+  JAX 0.4.31, jaxlib 0.4.31
+
+Smoke test config:
+  N per group:            5
+  Participant-sessions:   30
+  Chains:                 2
+  Draws/tune:             500/500
+  Model:                  hgf_2level
+  κ frozen at:            1.0 (geometry fix — see _KAPPA_FIXED)
+  log_every:              25 (0 = off)
+  GPUs available:         0
+  Chain method:           vectorized (jit_model_args=True)
+
+Step 1: Simulate cohort (N=5/group)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.2s. Running JAX vmap…
+JAX vmap completed in 12.3s.
+  Simulation: 15.20s
+
+Step 2: Cold JIT (first MCMC call — includes XLA compilation)...
+  [2level] draw    25 | t=  362.8s Δ=362.8s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw    50 | t=  701.6s Δ=338.8s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=0.638 div=0/2
+  [2level] draw    75 | t= 1040.8s Δ=339.2s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   100 | t= 1379.4s Δ=338.7s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=0.999 div=0/2
+  [2level] draw   125 | t= 1717.4s Δ=338.0s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   150 | t= 2056.9s Δ=339.6s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   175 | t= 2393.8s Δ=336.9s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   200 | t= 2735.4s Δ=341.6s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   225 | t= 3074.6s Δ=339.2s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   250 | t= 3412.8s Δ=338.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   275 | t= 3750.9s Δ=338.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   300 | t= 4089.9s Δ=339.0s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   325 | t= 4430.5s Δ=340.5s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=0.639 div=0/2
+  [2level] draw   350 | t= 4766.8s Δ=336.3s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   375 | t= 5104.2s Δ=337.4s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   400 | t= 5440.3s Δ=336.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   425 | t= 5778.5s Δ=338.2s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   450 | t= 6116.5s Δ=338.0s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   475 | t= 6455.4s Δ=338.9s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=0.617 div=0/2
+  [2level] draw   500 | t= 6793.8s Δ=338.4s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  Cold JIT: 10661.52s
+  NUTS stats (cold):
+    integration_steps: mean=1023 p50=1023 p95=1023 max=1023
+    trajectory_expansions: mean=10.0 max=10 (10 = hit max_tree_depth cap)
+    acceptance_rate: mean=0.941  divergence_rate: 0.000
+  Cache delta: +306 files, +1.3 MB
+
+Step 3: Warm JIT (same shape, different seed — tests cache reuse)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.2s. Running JAX vmap…
+JAX vmap completed in 3.2s.
+  [2level] draw    25 | t=  358.0s Δ=358.0s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=0.999 div=0/2
+  [2level] draw    50 | t=  697.7s Δ=339.7s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw    75 | t= 1035.9s Δ=338.2s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   100 | t= 1375.1s Δ=339.2s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   125 | t= 1712.5s Δ=337.4s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   150 | t= 2051.3s Δ=338.8s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   175 | t= 2389.8s Δ=338.4s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   200 | t= 2728.5s Δ=338.8s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   225 | t= 3067.4s Δ=338.9s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   250 | t= 3408.5s Δ=341.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=0.999 div=0/2
+  [2level] draw   275 | t= 3746.5s Δ=337.9s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   300 | t= 4099.7s Δ=353.2s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   325 | t= 4437.4s Δ=337.7s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   350 | t= 4775.3s Δ=337.9s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   375 | t= 5113.9s Δ=338.6s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   400 | t= 5429.6s Δ=315.7s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   425 | t= 5745.7s Δ=316.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   450 | t= 6063.8s Δ=318.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   475 | t= 6382.1s Δ=318.3s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=0.999 div=0/2
+  [2level] draw   500 | t= 6701.7s Δ=319.5s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  Warm JIT: 6704.21s (warmup skipped via warmup_params)
+  NUTS stats (warm1):
+    integration_steps: mean=1023 p50=1023 p95=1023 max=1023
+    trajectory_expansions: mean=10.0 max=10 (10 = hit max_tree_depth cap)
+    acceptance_rate: mean=1.000  divergence_rate: 0.000
+
+Step 3b: Warm JIT #2 (pure execute — trace cache reuse)...
+  [2level] draw    25 | t=  336.2s Δ=336.2s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw    50 | t=  652.9s Δ=316.7s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw    75 | t=  969.0s Δ=316.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   100 | t= 1284.4s Δ=315.4s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   125 | t= 1602.5s Δ=318.0s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   150 | t= 1918.5s Δ=316.0s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   175 | t= 2233.2s Δ=314.7s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   200 | t= 2550.6s Δ=317.3s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   225 | t= 2864.6s Δ=314.0s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=0.999 div=0/2
+  [2level] draw   250 | t= 3179.2s Δ=314.6s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   275 | t= 3492.4s Δ=313.2s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   300 | t= 3804.6s Δ=312.2s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   325 | t= 4117.6s Δ=313.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   350 | t= 4429.2s Δ=311.5s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   375 | t= 4741.7s Δ=312.6s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   400 | t= 5053.5s Δ=311.7s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   425 | t= 5365.6s Δ=312.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   450 | t= 5677.1s Δ=311.5s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  [2level] draw   475 | t= 5987.2s Δ=310.1s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=0.999 div=0/2
+  [2level] draw   500 | t= 6297.8s Δ=310.5s | int_steps mean=1023.0 p50=1023 max=1023 | exp mean=10.0 max=10 | accept=1.000 div=0/2
+  Warm JIT #2: 6301.89s
+  NUTS stats (warm2):
+    integration_steps: mean=1023 p50=1023 p95=1023 max=1023
+    trajectory_expansions: mean=10.0 max=10 (10 = hit max_tree_depth cap)
+    acceptance_rate: mean=1.000  divergence_rate: 0.000
+  warm1 - warm2 = 402.32s (estimate of Python retrace + XLA compile cost per call)
+  warm2 ≈ pure sampling execute time
+  Cache delta: +0 files, +0.0 MB
+  OK: no new cache entries (cache hit)
+
+============================================================
+SMOKE TEST RESULTS
+============================================================
+  GPU:                none (CPU only)
+  ptxas:              not found
+  Chain method:       vectorized
+  Sim vmap:           15.20s
+  Cold JIT:           10661.52s
+  Warm JIT:           6704.21s
+  Cache speedup:      1.6x
+  Cache files before: 4
+  Cache files after:  310
+
+GATES:
+  Cold JIT < 600s:    FAIL (10662s)
+  Cache speedup > 3x: FAIL (1.6x)
+  Warm JIT < 120s:    FAIL (6704s)
+  Overall:            FAIL
+
+  FIX: Cold JIT too slow. Check CUDA/PTX version match:
+       pip install -r cluster/requirements-gpu.txt
+  FIX: XLA cache not reusing compiled kernels.
+       Verify JAX_COMPILATION_CACHE_DIR is set and writable.
+       Verify data is passed as dynamic args (not closure).
+       DIAGNOSTIC: no new cache entries from warm JIT —
+       cache hit occurred but compilation still slow.
+       This suggests the model itself is slow, not the cache.
+  FIX: Even cached JIT is slow. Check GPU memory pressure
+       and CUDA driver version.
+============================================================
+
+Results saved to: /fs04/fc37/adam/projects/psilocybin-prl-analyses/results/power/smoke_test.json
+Renamed results → results/power/smoke_test_cpu_fp32_hgf_2level_tune500_draws500.json
+
+--- Finished hgf_2level (exit=1) at Sun Apr 19 12:53:40 AM AEST 2026 ---
+
+
+############################################################
+# Running smoke for model: hgf_3level
+# (fp32, tune=500, draws=500,
+#  log_every=25)
+############################################################
+
+============================================================
+SMOKE TEST MODE (JIT compilation diagnostics)
+============================================================
+
+JAX devices (1 total, 0 GPU):
+  TFRT_CPU_0
+  WARNING: No GPU detected — running on CPU.
+  nvidia-smi: unavailable
+
+  WARNING: ptxas not found — XLA parallel compilation disabled
+
+  XLA/JAX environment:
+    JAX_COMPILATION_CACHE_DIR = /scratch/fc37/aman0087/.jax_cache_cpu/m3j009
+    JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES = 0
+    JAX_LOG_COMPILES = 1
+    JAX_PLATFORMS = cpu
+    XLA_FLAGS = (unset)
+    XLA_PYTHON_CLIENT_PREALLOCATE = (unset)
+    XLA_PYTHON_CLIENT_MEM_FRACTION = (unset)
+    CUDA_VISIBLE_DEVICES = (unset)
+    JAX_ENABLE_X64 = (unset)
+
+  JAX cache (before):
+    dir:    /scratch/fc37/aman0087/.jax_cache_cpu/m3j009
+    exists: True
+    files:  310
+    size:   1.27 MB
+
+  JAX 0.4.31, jaxlib 0.4.31
+
+Smoke test config:
+  N per group:            5
+  Participant-sessions:   30
+  Chains:                 2
+  Draws/tune:             500/500
+  Model:                  hgf_3level
+  κ frozen at:            1.0 (geometry fix — see _KAPPA_FIXED)
+  log_every:              25 (0 = off)
+  GPUs available:         0
+  Chain method:           vectorized (jit_model_args=True)
+
+Step 1: Simulate cohort (N=5/group)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.1s. Running JAX vmap…
+JAX vmap completed in 1.9s.
+  Simulation: 3.51s
+
+Step 2: Cold JIT (first MCMC call — includes XLA compilation)...

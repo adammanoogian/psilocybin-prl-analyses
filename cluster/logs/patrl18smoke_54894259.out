@@ -31,3 +31,8 @@ End:       Sat Apr 18 08:08:17 PM AEST 2026
 ============================================================
 
 Pushing PAT-RL smoke results to git...
+[main b832f6e] smoke patrl cpu level=2 tune=500 draws=500 (job 54894259)
+ 2 files changed, 831 insertions(+)
+ create mode 100644 cluster/logs/patrl18smoke_54894259.err
+ create mode 100644 cluster/logs/patrl18smoke_54894259.out
+Pushed PAT-RL smoke results to origin/main

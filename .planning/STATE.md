@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 19 VB-Laplace Fit Path (Tapas-Parity Validation) — Plans 1-2 complete; Plans 3-5 pending
+**Current focus:** Phase 19 VB-Laplace Fit Path (Tapas-Parity Validation) — Plans 1-3 complete; Plans 4-5 pending
 
 ## Current Position
 
 Phase: 19 of 19 (VB-Laplace Fit Path)
-Plan: 2/5 complete (19-01 pat_rl_simulator extraction, 19-02 Laplace InferenceData factory)
-Status: In progress — Phase 19 Plans 1-2 complete; Plans 3-5 pending
-Last activity: 2026-04-18 — Completed 19-01: simulate_patrl_cohort + run_hgf_forward_patrl extracted to prl_hgf.env.pat_rl_simulator; scripts/12 imports from module; 6 tests pass
+Plan: 3/5 complete (19-01 pat_rl_simulator, 19-02 Laplace InferenceData factory, 19-03 fit_vb_laplace_patrl)
+Status: In progress — Phase 19 Plans 1-3 complete; Plans 4-5 pending
+Last activity: 2026-04-18 — Completed 19-03: fit_vb_laplace_patrl MAP+Hessian+InferenceData; 12 tests pass; 4/5 omega_2 recovery within 0.5
 
-[===========█████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 complete (6/6); Phase 19 in progress (2/5)
+[===========█████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 complete (6/6); Phase 19 in progress (3/5)
 
 ## Performance Metrics
 
@@ -133,6 +133,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | cast(az.InferenceData, az.from_dict(...)) for mypy satisfaction | az.from_dict stub returns Any in arviz typeshed; cast is zero-overhead and makes return type explicit | 19-02 |
 | simulate_patrl_cohort uses pure NumPy EV/choice computation (not JAX expected_value) | Original _simulate_cohort used inline NumPy math; importing JAX expected_value would change behavior and break numpy-only simulation path | 19-01 |
 | scripts/12 imports only simulate_patrl_cohort (not run_hgf_forward_patrl) | run_hgf_forward_patrl is called inside simulate_patrl_cohort; no separate call site in script; unused import would trigger ruff F401 | 19-01 |
+| jaxopt.LBFGS jit=True default; jit=False fallback on any exception with WARN | Non-traceable objects in config closure could cause jax tracing errors; fallback preserves correctness with logging | 19-03 |
+| eigh-clip eps=1e-8 for PD regularization; ridge_added tracks actual shift | Cleaner than ridge-add loop; deterministic; logs exactly how many eigenvalues were clipped; no clipping needed on well-specified synthetic data | 19-03 |
+| Dense (P*K)x(P*K) Hessian via jax.hessian on ravel_pytree flat vector | Tractable for P<=200; block-diagonal property documented in TODO; block-structured vmap path deferred to Phase 20+ | 19-03 |
+| Re-project best_mode_params to param_order after LBFGS before ravel_pytree | JAX pytrees (dicts) are flattened in sorted-key order by jaxopt; ravel_pytree must see insertion order matching param_order to align cov columns with build_idata_from_laplace | 19-03 |
+| kappa in native TruncatedNormal space for Phase 19; logit-reparam deferred (OQ2) | Avoids extra Jacobian complexity; cluster smoke (Plan 19-05) will reveal if MAP hits boundary | 19-03 |
 
 ### Pending Todos
 
@@ -173,6 +178,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-18
-Stopped at: Completed 19-01 — simulate_patrl_cohort + run_hgf_forward_patrl extracted to prl_hgf.env.pat_rl_simulator; scripts/12 refactored; 6 tests pass. Also completed 19-02 — build_idata_from_laplace factory + 11 tests.
+Stopped at: Completed 19-03 — fit_vb_laplace_patrl: jaxopt.LBFGS MAP + jax.hessian + eigh-clip PD + build_idata_from_laplace; 12 tests pass; 4/5 omega_2 recovery within 0.5; parallel-stack invariant preserved.
 Resume file: None
-Next action: Execute 19-03 (fit_vb_laplace_patrl: MAP optimizer + Hessian computation + fit function that calls build_idata_from_laplace).
+Next action: Execute 19-04 (pipeline integration test: fit_vb_laplace_patrl -> export_subject_trajectories -> CSV end-to-end).

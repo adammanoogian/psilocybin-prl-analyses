@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 19 VB-Laplace Fit Path (Tapas-Parity Validation) — Plans 1-4 complete; Plan 5 pending
+**Current focus:** Phase 19 VB-Laplace Fit Path COMPLETE — all 6 success criteria satisfied; cluster NUTS validation pending (OQ7)
 
 ## Current Position
 
 Phase: 19 of 19 (VB-Laplace Fit Path)
-Plan: 4/5 complete (19-01 pat_rl_simulator, 19-02 Laplace InferenceData factory, 19-03 fit_vb_laplace_patrl, 19-04 VBL-06 comparison harness)
-Status: In progress — Phase 19 Plans 1-4 complete; Plan 5 pending
-Last activity: 2026-04-18 — Completed 19-04: compare_posteriors + _apply_hard_gates + CLI harness; 8 fast tests pass; parallel-stack invariant preserved
+Plan: 5/5 complete (19-01 pat_rl_simulator, 19-02 Laplace InferenceData factory, 19-03 fit_vb_laplace_patrl, 19-04 VBL-06 comparison harness, 19-05 smoke --fit-method flag + end-to-end)
+Status: Phase 19 COMPLETE — VB-Laplace path code-complete; cluster NUTS validation pending (OQ7 closure memo)
+Last activity: 2026-04-18 — Completed 19-05: --fit-method {blackjax,laplace,both} on smoke script; 5-agent Laplace smoke 30.7s, 4/5 omega_2 recovery; all 6 Phase 19 success criteria satisfied
 
-[===========█████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 complete (6/6); Phase 19 in progress (4/5)
+[===========████████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 complete (6/6); Phase 19 COMPLETE (5/5)
 
 ## Performance Metrics
 
@@ -141,6 +141,10 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | within_gate=pd.NA for non-omega_2 rows; True/False only for omega_2 | No tolerance defined for beta/omega_3/kappa/mu3_0 in Phase 19 (VB_LAPLACE_FEASIBILITY.md §6); pd.BooleanDtype allows mixed T/F/NA | 19-04 |
 | NUTS dim rename on idata_nuts.copy() inside compare_posteriors; caller idata never mutated | Read-only contract for idata_nuts; rename scoped to comparison; caller can still use original NUTS idata for other purposes | 19-04 |
 | _apply_hard_gates filters to df[df.parameter=='omega_2'] before .all() | Non-omega_2 rows have pd.NA in within_gate; .all() on mixed T/F/NA would raise or give wrong result | 19-04 |
+| primary=laplace, secondary=blackjax for both mode; export consumes primary only | Laplace is Phase 19 new path; blackjax is baseline; primary/secondary naming makes data flow unambiguous | 19-05 |
+| _sanity_check raises ValueError if method='both' passed directly; callers dispatch to leaf methods separately | Prevents accidental silent no-op; method='both' has no single idata to check | 19-05 |
+| true_params.csv written only for laplace/both (not blackjax) to preserve Phase 18 outputs bit-for-bit | blackjax smoke was validated without recovery CSV; adding it would change expected output of existing tests | 19-05 |
+| OQ7 closure memo deferred via TODO comment; written only after cluster NUTS numbers land | No useful content before cluster comparison data exists | 19-05 |
 | CLI exit codes: 0 all omega_2 gates pass / skip-nuts, 1 gate fails, 2 loader error | 3-state map mirrors smoke script convention (18-06); distinguishes gate failure from environment error | 19-04 |
 
 ### Pending Todos
@@ -182,6 +186,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-18
-Stopped at: Completed 19-04 — VBL-06 Laplace-vs-NUTS comparison harness; compare_posteriors + _apply_hard_gates + CLI (run/compare subcommands); 8 fast tests pass; nullable-bool within_gate for omega_2 only; NUTS dim rename on .copy(); parallel-stack invariant preserved.
+Stopped at: Completed 19-05 — smoke script --fit-method {blackjax,laplace,both}; 5-agent Laplace smoke 30.7s / 4/5 omega_2 recovery; Phase 19 COMPLETE (all 6 success criteria satisfied).
 Resume file: None
-Next action: Execute 19-05 (smoke script integration test: run --skip-nuts-comparison end-to-end on scripts/12_smoke_patrl_foundation.py).
+Next action: Run cluster smoke (sbatch cluster/18_smoke_patrl_cpu.slurm with --fit-method laplace) and write OQ7 closure memo (.planning/phases/19-vb-laplace-fit-path-patrl/19-CLOSURE-MEMO.md) once NUTS vs Laplace cluster numbers land.

@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 19 VB-Laplace Fit Path COMPLETE — all 6 success criteria satisfied; cluster NUTS validation pending (OQ7)
+**Current focus:** Phase 14.1 gap closure — SAMPLER env-var + git auto-push landed; Phase 19 VB-Laplace COMPLETE; cluster NUTS validation pending (OQ7)
 
 ## Current Position
 
-Phase: 19 of 19 (VB-Laplace Fit Path)
-Plan: 5/5 complete (19-01 pat_rl_simulator, 19-02 Laplace InferenceData factory, 19-03 fit_vb_laplace_patrl, 19-04 VBL-06 comparison harness, 19-05 smoke --fit-method flag + end-to-end)
-Status: Phase 19 COMPLETE — VB-Laplace path code-complete; cluster NUTS validation pending (OQ7 closure memo)
-Last activity: 2026-04-18 — Completed 19-05: --fit-method {blackjax,laplace,both} on smoke script; 5-agent Laplace smoke 30.7s, 4/5 omega_2 recovery; all 6 Phase 19 success criteria satisfied
+Phase: 14 gap closure (14.1) of 19 (VB-Laplace Fit Path)
+Plan: 14.1-01/6 complete (14.1-01: SAMPLER env-var + git auto-push for 14_benchmark_gpu.slurm)
+Status: In progress — 14.1-01 complete; 14.1-02 through 14.1-06 pending
+Last activity: 2026-04-18 — Completed 14.1-01: SAMPLER env-var (default blackjax) + git auto-push block in cluster/14_benchmark_gpu.slurm
 
-[===========████████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 complete (6/6); Phase 19 COMPLETE (5/5)
+[===========████████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 complete (6/6); Phase 19 COMPLETE (5/5); Phase 14.1 gap closure in progress (1/6)
 
 ## Performance Metrics
 
@@ -184,10 +184,11 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 - Phase 17-02 complete (2026-04-15): BlackJAX smoke tests + SLURM updates — 4 new fast tests (logp, gradient, idata), VALID-02 blackjax convergence test, SLURM scripts updated for BlackJAX default
 - Phase 18 added (2026-04-17): PAT-RL Task Adaptation (the consumer study) — new binary-state approach/avoid task config, trial generator, response models A-D (including trial-varying omega), trajectory export for DCM bridge, and phenotype-stratified BMS. Source: GSD_prl_hgf.yaml. **Caveat**: Multiple YAML assumptions conflict with repo (config loader is task-specific, no `trial_sequence.py` exists, response model signature differs, Delta-HR plumbing absent, no phenotype framework). Integration notes captured inline in ROADMAP.md Phase 18 entry. Consider promoting to v1.3 the consumer study milestone before planning.
 - Phase 19 added (2026-04-18): VB-Laplace Fit Path (Tapas-Parity Validation) — implements `fit_vb_laplace_patrl.py` as a second, non-MCMC fit path alongside BlackJAX NUTS. Mirrors matlab tapas HGF toolbox (quasi-Newton MAP + Laplace covariance from numerical Hessian at the mode). Reuses `_build_patrl_log_posterior` from `hierarchical_patrl.py` without modification. ArviZ `InferenceData` output shape-compatible with the NUTS path so the existing Plan 18-05 exporters accept both. Unblocks PEB development immediately + gives a deterministic reference fit to validate cluster NUTS posteriors against. Source of record: `.planning/quick/004-.../VB_LAPLACE_FEASIBILITY.md` Option C. Explicitly implementation (not feasibility re-exploration).
+- Phase 20 added (2026-04-18): the consumer study Scientific Completion — Models B/C/D + Cohort Scale + Config-Correctness. Closes every remaining gap between prl_hgf's PAT-RL surface and the the consumer study study hypotheses (GSD_consumer-study_sim.yaml). Fixes `configs/pat_rl.yaml` contingencies/run-order/magnitudes/phenotype-priors to match spec exactly (supersedes Phase 18 config); adds response bias `b` to Model A; implements Models B, C, D (incl. trial-varying ω scan body for D); adds phenotype-specific ε₂-coupled ΔHR generative model; scales cohort to 40×4=160; phenotype-stratified BMS with PEB Δ-evidence export; formal PRL-V1 (r≥0.7) + PRL-V2 (Cohen's d≥0.5) gates. **User architectural directives**: (a) NO new scripts — extend existing numbered scripts (`03_simulate_participants.py`, `04_fit_participants.py`, `05_run_validation.py`, `06_group_analysis.py`, `scripts/12_smoke_patrl_foundation.py`) via config-driven adaptation; (b) citations must be ≥2020, prefer Karin Roelofs' Nijmegen group (Klaassen 2021/2024, Terburg 2020+, Hulsman 2020+, Ly 2022+) — retire the Browning 2015 / Daw 2006 defaults from Phase 18 config; (c) config-driven only — every behavioural variant reachable via `configs/pat_rl.yaml` key, no hardcoded magic numbers, no new CLI flags that belong in YAML. Supersedes Phase 18 Option A deferrals.
 
 ## Session Continuity
 
 Last session: 2026-04-18
-Stopped at: Completed 19-05 — smoke script --fit-method {blackjax,laplace,both}; 5-agent Laplace smoke 30.7s / 4/5 omega_2 recovery; Phase 19 COMPLETE (all 6 success criteria satisfied).
+Stopped at: Completed 14.1-01 — SAMPLER env-var (default blackjax) + git auto-push block in cluster/14_benchmark_gpu.slurm
 Resume file: None
-Next action: Run cluster smoke (sbatch cluster/18_smoke_patrl_cpu.slurm with --fit-method laplace) and write OQ7 closure memo (.planning/phases/19-vb-laplace-fit-path-patrl/19-CLOSURE-MEMO.md) once NUTS vs Laplace cluster numbers land.
+Next action: Execute remaining 14.1 gap-closure plans (14.1-02 through 14.1-06).

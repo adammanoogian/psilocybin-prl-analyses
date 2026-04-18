@@ -4,7 +4,7 @@
 
 - **v1.0 Simulation-to-Inference Pipeline** — Phases 1-7 (shipped 2026-04-07)
 - **v1.1 BFDA Power Analysis** — Phases 8-11 (code-complete 2026-04-07)
-- **v1.2 Hierarchical GPU Fitting** — Phases 12-15 (in progress)
+- **v1.2 Hierarchical GPU Fitting** — Phases 12-18 (in progress; Phase 18 HEART2ADAPT adaptation appended — see note)
 
 ---
 
@@ -217,6 +217,42 @@ Plans:
 - [x] 17-01-PLAN.md -- Core BlackJAX implementation: _build_log_posterior, _run_blackjax_nuts, _samples_to_idata, rewrite fit_batch_hierarchical (BJAX-01, BJAX-02, BJAX-03, BJAX-04, BJAX-05)
 - [x] 17-02-PLAN.md -- Validation tests for BlackJAX path, SLURM script updates for multi-GPU pmap (BJAX-06, BJAX-07)
 
+### Phase 18: PAT-RL Task Adaptation (HEART2ADAPT)
+
+**Goal**: The PRL HGF toolbox supports the PAT-RL task (binary safe/dangerous state, approach/avoid decisions, 2x2 reward/shock magnitude design, trial-level Delta-HR autonomic covariate, hazard-based reversals, 192 trials across 4 runs) as a **parallel** task configuration alongside the existing pick_best_cue pipeline. Delivers: (a) new YAML + config loader path, (b) binary-state trial sequence generator, (c) extended response models A/B/C/D (including trial-varying omega for Model D), (d) trial-by-trial posterior trajectory export for the heart2adapt-sim DCM bridge, (e) 2-level vs 3-level BMS stratified by phenotype with Delta-evidence as a PEB covariate.
+**Depends on**: Phase 17 (BlackJAX fitting pipeline is the target fit path for new response models)
+**Requirements**: PRL-01 (new config), PRL-02 (trial generator), PRL-03 (response models A-D), PRL-04 (trajectory export), PRL-05 (stratified BMS), PRL-V1 (recovery at 192 trials), PRL-V2 (phenotype separability)
+**Success Criteria** (what must be TRUE):
+  1. `configs/pat_rl.yaml` exists and `load_config("pat_rl")` (or equivalent dispatch) returns a validated dataclass tree for the binary-state schema without mutating or re-parsing `prl_analysis.yaml`; existing pick_best_cue callers are unaffected (regression test passes)
+  2. A PAT-RL trial sequence module generates a 192-trial run structure with hazard-rate-driven state transitions (stable=0.03, volatile=0.10), 2x2 reward/shock magnitude assignment, and Delta-HR input columns wired alongside the HGF input `u` and observed choice `y`
+  3. Response models A (softmax on EV), B (Delta-HR bias `gamma`), C (Delta-HR x value sensitivity `alpha`), and D (trial-varying `omega_eff(t) = omega + lambda * Delta-HR(t)`) each fit cleanly through `fit_batch_hierarchical` on a 5-participant CPU smoke; Model D requires a trial-varying-omega code path in both the JAX logp and the pyhgf Network (new work, not drop-in)
+  4. `analysis/export_trajectories.py` emits a per-subject CSV with the full columns listed in the YAML (`mu2, sigma2, mu3, sigma3, epsilon2, epsilon3, delta1, psi2, delta_hr, outcome_time_s`, etc.) plus a per-subject parameter summary CSV for PEB covariates
+  5. Random-effects BMS (using existing `analysis/bms.py`) comparing 2-level vs 3-level HGF on simulated PAT-RL data returns a posterior model probability + exceedance probability, stratified by phenotype group; Delta-evidence per subject is written to the PEB covariate export
+  6. **PRL-V1**: parameter recovery at 192 trials meets r >= 0.7 for `omega_2`, `kappa`, `beta`; `mu3_0` and `omega_3` remain exploratory
+  7. **PRL-V2**: the 2x2 phenotype grid (anxiety x reward sensitivity) is identifiable — `omega` separates anxiety (d >= 0.5), `beta` separates reward sensitivity (d >= 0.5), and `cor(omega, beta) < 0.5` across simulated agents
+**Plans**: 6 plans
+
+**Option A Minimum Viable scope** (user-confirmed 2026-04-17; see `.planning/phases/18-pat-rl-task-adaptation/18-RESEARCH.md` Addendum). Models B/C/D, full PRL-V1 r>=0.7 gate, PRL-V2 phenotype identifiability, and PRL.5 stratified BMS / PEB covariate export are explicitly deferred to Phase 19+. Phase 18 ships the producer side of the dcm_pytorch integration: config + trial generator + binary-state HGF builders + Model A response + BlackJAX fit + trajectory export + 5-agent CPU smoke.
+
+Plans:
+- [ ] 18-01-PLAN.md — configs/pat_rl.yaml + env/pat_rl_config.py (parallel PATRLConfig dataclass tree + loader + unit tests)
+- [ ] 18-02-PLAN.md — env/pat_rl_sequence.py (binary-state hazard generator, 2x2 magnitudes, Delta-HR stub, 192-trial structure) + tests
+- [ ] 18-03-PLAN.md — models/hgf_2level_patrl.py + hgf_3level_patrl.py (single-input-node HGF) + models/response_patrl.py (Model A softmax on EV) + tests
+- [ ] 18-04-PLAN.md — fitting/hierarchical_patrl.py (batched logp + BlackJAX orchestrator reusing generic helpers from hierarchical.py without modifying them) + 5-participant CPU smoke tests
+- [ ] 18-05-PLAN.md — analysis/export_trajectories.py (post-hoc forward pass at posterior means, per-trial CSV + parameter summary) with dcm_pytorch consumer-interface verification
+- [ ] 18-06-PLAN.md — scripts/12_smoke_patrl_foundation.py end-to-end simulate -> fit -> export + integration test
+
+**Integration notes (YAML assumptions flagged against existing code)**:
+- **Config loader is NOT task-agnostic today.** `src/prl_hgf/env/task_config.py` hardcodes `_DEFAULT_CONFIG_PATH = CONFIGS_DIR / "prl_analysis.yaml"` and `AnalysisConfig`/`PhaseConfig` are shaped for 3 cues + 4 criterion-based phases. Adding `configs/pat_rl.yaml` alongside requires either (a) a task-dispatch layer on `load_config()` plus a parallel `PATRLConfig` dataclass tree, or (b) a subclass hierarchy. The YAML does not address this.
+- **No `trial_sequence.py` exists.** The YAML's "adapts the existing `trial_sequence.py` pattern" is inaccurate — trial generation lives in `src/prl_hgf/env/simulator.py` (`Trial`, `generate_reward`, `generate_session`) and is tightly bound to the 3-cue partial-feedback protocol. PAT-RL needs a new binary-state generator module and a new `Trial`-like dataclass that carries `reward_mag`, `shock_mag`, `delta_hr`.
+- **"Core HGF engine is unchanged" is only half-true.** `src/prl_hgf/models/hgf_2level.py` and `hgf_3level.py` define `INPUT_NODES = 3` (one binary node per cue for partial feedback). PAT-RL's binary-state HGF needs a single-input-node topology — that is a new Network build, even if pyhgf primitives are reused.
+- **Response model signature mismatch.** Current `src/prl_hgf/models/response.py::softmax_stickiness_surprise` is a 3-way softmax with `(beta, zeta)`. Models A/B/C/D propose binary approach/avoid logits with `(beta, b, gamma, alpha, lambda)`. This is a new module (`response_models.py` or extension of `response.py`) — not a minor tweak. Model D in particular requires trial-varying `omega` wired into the scan body of `fitting/hierarchical.py::build_logp_fn_batched` AND into the JAX session simulator in `env/simulator.py`'s JAX path (Phase 13 work). That is a non-trivial extension of the logp contract.
+- **Delta-HR as additional input has no current plumbing.** The batched logp in `fitting/hierarchical.py` takes `input_data_arr` shaped `(P, n_trials, 3)` (per-cue reward signals). PAT-RL adds a Delta-HR per-trial covariate. The shape contract, the scan signature, and `build_logp_ops_batched` all need an additional input axis; this cascades through VALID-01/02 regression tests.
+- **Trajectory export (PRL.4) is wholly new.** No existing module evaluates the HGF forward pass at posterior means to produce per-trial `mu2, sigma2, mu3, sigma3, epsilon2, epsilon3, psi2`. The existing pipeline stores `InferenceData` from MCMC but does not re-run the perceptual model on each posterior draw. This is a substantive implementation task, not a data-dump.
+- **Phenotype 2x2 design (PRL-V2) has no current home.** `configs/prl_analysis.yaml::simulation.groups` is psilocybin vs placebo (post-concussion). The YAML's anxiety x reward sensitivity 2x2 phenotype grid is an entirely new generative-parameter specification that requires either a new YAML key (`simulation.phenotypes`) or a separate `configs/pat_rl.yaml::simulation` block.
+- **PEB covariate export (in PRL.5) has no current pipeline.** `analysis/bms.py` computes exceedance probabilities but does not emit a per-subject `Delta-WAIC` / `Delta-F` CSV for downstream PEB. New analysis step.
+- **Milestone fit is ambiguous.** This phase introduces a **new task** for a **separate project (HEART2ADAPT)**, not a continuation of v1.2's "Hierarchical GPU Fitting" goal. Recommend considering whether Phase 18 should instead open a new milestone **v1.3 HEART2ADAPT** — particularly given the scope (config loader refactor + new env + new response models + trial-varying omega + trajectory export + phenotype framework) is comparable to several v1.1 phases combined. Added to v1.2 as instructed; flag for user review before planning.
+
 ---
 
 ## Progress
@@ -240,3 +276,4 @@ Plans:
 | 15 - Production Run + Results | v1.2 | 0/2 | Pending | -- |
 | 16 - NumPyro Direct + CUDA Fix | v1.2 | 2/2 | Complete | 2026-04-13 |
 | 17 - BlackJAX NUTS Sampler | v1.2 | 2/2 | Complete | 2026-04-15 |
+| 18 - PAT-RL Task Adaptation (HEART2ADAPT) | v1.2 | 0/0 | Not planned | -- |

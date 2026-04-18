@@ -441,3 +441,85 @@ No WebSearch was used; all claims are grounded in direct source reads of either 
 
 **Research date:** 2026-04-17
 **Valid until:** 2026-05-17 (30 days; pyhgf minor bumps may change `temp` key names)
+
+---
+
+## Addendum: User Decisions (2026-04-17)
+
+After presenting A/B/C scope options, the user selected **Option A (Minimum Viable Phase 18)** with these clarifications:
+
+### Scope confirmation
+
+> "option A, but the HGF is already made with another repo as well as the DCM. refer to `C:\Users\aman0087\Documents\Github\psilocybin_prl_analyses` and `C:\Users\aman0087\Documents\Github\dcm_pytorch` for their references. it's just about integrating them."
+
+Interpretation: the HGF side lives in THIS repo (psilocybin_prl_analyses); the DCM side lives in `dcm_pytorch`. Phase 18 is an **integration phase** where this repo produces the per-trial HGF trajectory artifact that dcm_pytorch will eventually consume as bilinear-DCM modulatory inputs. This bumps PRL.4 (trajectory export) INTO scope for the minimum viable phase, since it IS the integration surface. The export format should be chosen to plug directly into dcm_pytorch's bilinear DCM modulator interface.
+
+### dcm_pytorch context (cross-referenced)
+
+- Current milestone v0.3.0 = bilinear DCM: `dx/dt = Ax + Σ_j u_j·B_j·x + Cu`
+- HEART2ADAPT-specific work (PEB-lite group GLM / DCM.5, 4-node AMY↔dACC↔vmPFC↔Insula circuit / DCM.V3) is **explicitly deferred** from dcm_pytorch v0.3.0 to v0.4+
+- `src/pyro_dcm/simulators/task_simulator.py` and `src/pyro_dcm/forward_models/neural_state.py` are the consumer interfaces our trajectory CSV must align with
+- dcm_pytorch PROJECT.md line 67: "Group-level PEB-lite GLM (HEART2ADAPT-specific; not scoped to this single-subject toolbox)"
+
+**Integration contract for Phase 18 producer side**: one CSV per subject containing per-trial columns suitable for use as `u_j(t)` modulatory-input traces in dcm_pytorch's bilinear DCM. Specifically: at minimum `trial_idx`, `run_idx`, `outcome_time_s`, and the HGF-derived precision-weighted prediction errors (ε₂, ε₃), expected value, and posterior means (μ₂, μ₃). The ΔHR covariate is passed through as a column (caller-supplied input). Choice and outcome are included for downstream reference.
+
+### ΔHR clarification (user asked)
+
+User question: "what is delta HR (heart rate?)"
+
+Yes — ΔHR = per-trial change in heart rate, specifically **anticipatory cardiac deceleration (bradycardia)** measured during the ~5.5s anticipation window after a context cue in the PAT-RL task. This is the classic "fear bradycardia" / defensive-cascade orienting response (Lang, Bradley & Cuthbert 1997; Löw, Lang, Smith & Bradley 2008; Hamm & Weike 2005). Computed as mean HR during the cue window minus a pre-cue baseline (1–3s), yielding a negative ΔHR under threat relative to safe.
+
+**Typical magnitude:** −2 to −6 bpm (threat minus safe) in healthy adults, within-subject SD ~3–5 bpm. Reasonable prior for simulation: `delta_hr ~ N(−3, 3)` on threat trials, `N(0, 3)` on safe trials. Hard bounds [−15, +10] bpm for outliers.
+
+**Anxiety modulation:** high-anxiety agents typically show ~1.5–2× greater deceleration under cued predictable threat (Hamm & Weike 2005; McTeague & Lang 2012). Under unpredictable/sustained threat the pattern can reverse — PAT-RL uses cued anticipation, so the cued-threat prior applies.
+
+**Phase 18 treatment:** per the user's guidance "rely on the other toolbox to handle pyHGF" and the minimum-viable scope, ΔHR is a **caller-supplied per-trial input column** in Phase 18, not a generative quantity. The trial generator should accept a `delta_hr` array or produce one from a simple literature-grounded stub (N(−3, 3) threat / N(0, 3) safe). A proper anxiety-modulated autonomic generative model is out of scope for Phase 18 and deferred to the follow-up phase that introduces Models B/C/D.
+
+### Phenotype 2×2 parameter values (literature-grounded)
+
+User asked me to "do research to inform the parameters." Literature findings:
+
+**Direction of anxiety effect on ω (ω₂):** higher ω (less negative) = faster updating = anxiety. Browning, Behrens, Jocham, O'Reilly & Bishop (2015, *Nat Neurosci*) shows trait-anxious subjects fail to reduce learning rate in stable blocks, effectively inferring higher volatility. Replicated by Aylward et al. (2019, *Nat Hum Behav*) for GAD patients, and Huang, Thompson & Paulus (2017).
+
+**Suggested simulation priors for the 2×2 phenotype grid (PRL.V2):**
+
+| Phenotype dimension | Low | High | Source |
+|---|---|---|---|
+| Anxiety — ω₂ | −6.0 | −4.0 to −3.0 | Browning 2015; Aylward 2019 |
+| Reward sensitivity — β | 2.0 | 6.0 to 10.0 | Daw 2006; Schönberg 2007; Gershman 2016 |
+| κ (3-level coupling) | fix at 1.0 | fix at 1.0 | Weak evidence in anxiety; fix across phenotypes (de Berker 2016 insufficient) |
+
+**Known confound to watch:** ω × β are modestly negatively correlated (r ≈ −0.2 to −0.4) in published fits (Wise & Dolan 2020; Reiter et al. 2021). To keep the 2×2 grid cleanly separable in simulation, use a wide β gap (β_low=2, β_high=8) and moderate ω gap (Δω ≈ 2–3).
+
+**Scope warning:** Browning's anxiety-by-volatility effect REQUIRES multiple volatility regimes in the task. PAT-RL has stable (hazard=0.03) and volatile (hazard=0.10) runs — this provides the regime contrast the signature depends on. Do NOT claim anxiety will separate on ω without the counterbalanced stable/volatile run structure actually being simulated in the generator.
+
+### Open questions RESOLVED by this addendum
+
+1. ΔHR generative model → caller-supplied; literature stub `N(−3, 3)` threat / `N(0, 3)` safe for Phase 18 smoke only
+2. Phenotype 2×2 numeric values → table above (Browning/Daw/Schönberg grounded)
+3. pyhgf version concerns → "rely on the other toolbox"; use installed 0.2.10 as-is, no version-bump work in Phase 18
+
+### Open questions REMAINING (planner should mark as deferred)
+
+1. **PEB covariate format (ΔWAIC vs ΔF)** — user explicitly deferred ("i'm not sure about peb covariate format"). Mark as a Phase 19+ decision. Phase 18 should NOT implement per-subject evidence-difference export.
+2. **Anxiety-modulated ΔHR generative model** — out of scope for Phase 18; belongs with Models B/C/D in the follow-up phase
+3. **Model D trial-varying ω stability / λ clamp ranges** — out of scope
+4. **Exact column set + units for trajectory CSV** — planner must check dcm_pytorch's `task_simulator.py` / bilinear modulator interface for the exact schema
+
+### Refined Option A scope (committed)
+
+Foundation + integration surface:
+
+1. **PRL.1**: `configs/pat_rl.yaml` + `src/prl_hgf/env/pat_rl_config.py` (parallel dataclass tree; zero edits to `task_config.py`)
+2. **PRL.2**: `src/prl_hgf/env/pat_rl_sequence.py` (binary-state hazard generator + 2×2 magnitudes + ΔHR stub + 192-trial structure)
+3. **PRL.3 Model A only**: binary-state 2-level and 3-level HGF builders (`models/hgf_2level_patrl.py`, `models/hgf_3level_patrl.py`) + Model A softmax-on-EV response (`models/response_patrl.py`); Models B/C/D deferred
+4. **PRL.4 (integration surface)**: `src/prl_hgf/analysis/export_trajectories.py` — per-subject CSV with HGF-derived quantities (μ₂, σ₂, μ₃, σ₃, ε₂, ε₃, δ₁, ψ₂, choice, outcome, ΔHR pass-through) using post-hoc forward pass at posterior means via the existing scanner factory pattern
+5. **Recovery smoke test** (lightweight, NOT full PRL.V1 gate): 5-participant simulate→fit→recover cycle at 192 trials on CPU, confirming ω₂/β/κ are all finite and roughly on the right side of chance. Full r≥0.7 acceptance gate deferred to follow-up phase.
+
+**Deferred to follow-up phase (tentative Phase 19+):**
+- Models B (ΔHR bias), C (ΔHR × value sensitivity), D (trial-varying ω)
+- Full PRL.V1 recovery acceptance gate at r ≥ 0.7
+- PRL.V2 phenotype 2×2 identifiability validation
+- PRL.5 stratified BMS with ΔWAIC PEB covariate export
+
+**Milestone placement:** Phase 18 stays appended to v1.2 per user instruction; the follow-up integer phases will naturally open v1.3 HEART2ADAPT if the user later elects to split.

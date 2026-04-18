@@ -4,18 +4,29 @@ Covers round-trip loading, computed properties, and all __post_init__
 validators. Also includes a pick_best_cue regression test to verify the
 parallel-stack isolation: PAT-RL changes must not break the existing
 pick_best_cue load_config path.
+
+Phase 20-01 additions: TestPhase20ConfigExtensions covers the new avoid
+contingency block, phenotype fields (b, dhr_mean, dhr_sd,
+epsilon2_coupling_coef), FittingPriorConfig additions (b, gamma, alpha, lam),
+and the PHENOTYPE_COLUMN_NAME module constant.
 """
 
 from __future__ import annotations
 
 import copy
+import math
 from pathlib import Path
 from typing import Any
 
 import pytest
 import yaml
 
-from prl_hgf.env.pat_rl_config import PATRLConfig, load_pat_rl_config
+from prl_hgf.env.pat_rl_config import (
+    PHENOTYPE_COLUMN_NAME,
+    PATRLConfig,
+    PriorGaussian,
+    load_pat_rl_config,
+)
 
 # ---------------------------------------------------------------------------
 # Helper: write a modified config to tmp_path
@@ -254,3 +265,202 @@ def test_pick_best_cue_still_loadable() -> None:
     assert pbc_cfg.task.n_cues == 3, (
         f"Expected pick_best_cue task.n_cues=3, got {pbc_cfg.task.n_cues}"
     )
+
+
+# ---------------------------------------------------------------------------
+# Phase 20-01: new config surface (avoid contingency, phenotype fields,
+# fitting priors, PHENOTYPE_COLUMN_NAME)
+# ---------------------------------------------------------------------------
+
+
+class TestPhase20ConfigExtensions:
+    """Tests for Plan 20-01 config surface additions.
+
+    Covers: avoid contingency block, phenotype b/dhr_*/epsilon2 fields,
+    FittingPriorConfig b/gamma/alpha/lam, PHENOTYPE_COLUMN_NAME constant.
+    All tests use the default pat_rl.yaml (consumer-spec values).
+    """
+
+    # -----------------------------------------------------------------------
+    # Test 1: avoid contingency values loaded correctly
+    # -----------------------------------------------------------------------
+
+    def test_avoid_contingency_loaded(self, cfg: PATRLConfig) -> None:
+        """ContingencyConfig.avoid has consumer-spec values (10/10/80).
+
+        Confirms round-trip from YAML through _parse_contingencies into the
+        frozen ContingencyConfig dataclass. Also verifies the three
+        probabilities sum to 1.0.
+        """
+        avoid = cfg.task.contingencies.avoid
+        assert avoid.reward == pytest.approx(0.10), (
+            f"Expected avoid.reward=0.10, got {avoid.reward}"
+        )
+        assert avoid.shock == pytest.approx(0.10), (
+            f"Expected avoid.shock=0.10, got {avoid.shock}"
+        )
+        assert avoid.nothing == pytest.approx(0.80), (
+            f"Expected avoid.nothing=0.80, got {avoid.nothing}"
+        )
+        total = avoid.reward + avoid.shock + avoid.nothing
+        assert total == pytest.approx(1.0, abs=1e-6), (
+            f"Expected avoid probs to sum to 1.0, got {total}"
+        )
+
+    # -----------------------------------------------------------------------
+    # Test 2: avoid contingency sum validation (bad YAML → ValueError)
+    # -----------------------------------------------------------------------
+
+    def test_avoid_contingency_sum_validation(self, tmp_path: Path) -> None:
+        """ValueError raised when avoid probabilities sum to > 1.
+
+        Uses reward=0.5, shock=0.3, nothing=0.3 (sum=1.1). The error
+        message must mention the bad sum value.
+        """
+        cfg_path = _write_config(
+            tmp_path,
+            {
+                "task": {
+                    "contingencies": {
+                        "avoid": {
+                            "reward": 0.5,
+                            "shock": 0.3,
+                            "nothing": 0.3,
+                        }
+                    }
+                }
+            },
+        )
+        with pytest.raises(ValueError, match="1.1"):
+            load_pat_rl_config(cfg_path)
+
+    # -----------------------------------------------------------------------
+    # Test 3: run_order is SVVS
+    # -----------------------------------------------------------------------
+
+    def test_run_order_svvs(self, cfg: PATRLConfig) -> None:
+        """task.run_order is ('stable', 'volatile', 'volatile', 'stable').
+
+        Consumer spec SC1 requires SVVS; Phase 18 had SVSV.
+        """
+        expected = ("stable", "volatile", "volatile", "stable")
+        assert cfg.task.run_order == expected, (
+            f"Expected run_order={expected}, got {cfg.task.run_order}"
+        )
+
+    # -----------------------------------------------------------------------
+    # Test 4: magnitudes are [1, 3]
+    # -----------------------------------------------------------------------
+
+    def test_magnitudes_1_3(self, cfg: PATRLConfig) -> None:
+        """task.magnitudes reward_levels and shock_levels are (1.0, 3.0).
+
+        Consumer spec SC1 uses [1, 3]; Phase 18 had [1, 5].
+        """
+        assert cfg.task.magnitudes.reward_levels == (1.0, 3.0), (
+            f"Expected reward_levels=(1.0, 3.0), "
+            f"got {cfg.task.magnitudes.reward_levels}"
+        )
+        assert cfg.task.magnitudes.shock_levels == (1.0, 3.0), (
+            f"Expected shock_levels=(1.0, 3.0), "
+            f"got {cfg.task.magnitudes.shock_levels}"
+        )
+
+    # -----------------------------------------------------------------------
+    # Test 5: all phenotypes carry new fields with valid values
+    # -----------------------------------------------------------------------
+
+    def test_phenotype_has_new_fields(self, cfg: PATRLConfig) -> None:
+        """Every phenotype PhenotypeParams has b, dhr_mean, dhr_sd, epsilon2_coupling_coef.
+
+        Asserts: b is a PriorGaussian; dhr_mean is finite; dhr_sd > 0;
+        epsilon2_coupling_coef >= 0. Checked for all 4 phenotypes.
+        """
+        expected_phenotypes = {
+            "healthy",
+            "anxious",
+            "reward_sensitive",
+            "anxious_reward_sensitive",
+        }
+        assert set(cfg.simulation.phenotypes.keys()) == expected_phenotypes
+        for name, ph in cfg.simulation.phenotypes.items():
+            assert isinstance(ph.b, PriorGaussian), (
+                f"{name}: expected b to be PriorGaussian, got {type(ph.b)}"
+            )
+            assert math.isfinite(ph.dhr_mean), (
+                f"{name}: dhr_mean is not finite: {ph.dhr_mean}"
+            )
+            assert ph.dhr_sd > 0, (
+                f"{name}: expected dhr_sd > 0, got {ph.dhr_sd}"
+            )
+            assert ph.epsilon2_coupling_coef >= 0, (
+                f"{name}: expected epsilon2_coupling_coef >= 0, "
+                f"got {ph.epsilon2_coupling_coef}"
+            )
+
+    # -----------------------------------------------------------------------
+    # Test 6: phenotype b.mean values match consumer spec SC1
+    # -----------------------------------------------------------------------
+
+    def test_phenotype_b_means_match_sc1(self, cfg: PATRLConfig) -> None:
+        """Phenotype b.mean values match H2A.1.2+H2A.1.4 consumer spec.
+
+        healthy: 0.0, reward_sensitive: +0.3, anxious: -0.3,
+        anxious_reward_sensitive: 0.0.
+        """
+        phs = cfg.simulation.phenotypes
+        assert phs["healthy"].b.mean == pytest.approx(0.0), (
+            f"Expected healthy.b.mean=0.0, got {phs['healthy'].b.mean}"
+        )
+        assert phs["reward_sensitive"].b.mean == pytest.approx(0.3), (
+            f"Expected reward_sensitive.b.mean=0.3, "
+            f"got {phs['reward_sensitive'].b.mean}"
+        )
+        assert phs["anxious"].b.mean == pytest.approx(-0.3), (
+            f"Expected anxious.b.mean=-0.3, got {phs['anxious'].b.mean}"
+        )
+        assert phs["anxious_reward_sensitive"].b.mean == pytest.approx(0.0), (
+            f"Expected anxious_reward_sensitive.b.mean=0.0, "
+            f"got {phs['anxious_reward_sensitive'].b.mean}"
+        )
+
+    # -----------------------------------------------------------------------
+    # Test 7: FittingPriorConfig has b, gamma, alpha, lam
+    # -----------------------------------------------------------------------
+
+    def test_fitting_priors_have_bias_and_hr_terms(
+        self, cfg: PATRLConfig
+    ) -> None:
+        """FittingPriorConfig exposes b, gamma, alpha, lam as PriorGaussian.
+
+        These are the Phase 20 model-extension priors (Models A+b, B, C, D).
+        """
+        priors = cfg.fitting.priors
+        for attr_name in ("b", "gamma", "alpha", "lam"):
+            prior = getattr(priors, attr_name)
+            assert isinstance(prior, PriorGaussian), (
+                f"Expected fitting.priors.{attr_name} to be PriorGaussian, "
+                f"got {type(prior)}"
+            )
+        # Spot-check YAML values
+        assert priors.b.mean == pytest.approx(0.0), (
+            f"Expected priors.b.mean=0.0, got {priors.b.mean}"
+        )
+        assert priors.lam.sd == pytest.approx(0.1), (
+            f"Expected priors.lam.sd=0.1, got {priors.lam.sd}"
+        )
+
+    # -----------------------------------------------------------------------
+    # Test 8: PHENOTYPE_COLUMN_NAME constant
+    # -----------------------------------------------------------------------
+
+    def test_phenotype_column_name_constant(self) -> None:
+        """PHENOTYPE_COLUMN_NAME module constant equals 'phenotype'.
+
+        This constant guards against column-name drift when the phenotype
+        dimension propagates from sim_df through fit_df to BMS (Risk 3).
+        """
+        assert PHENOTYPE_COLUMN_NAME == "phenotype", (
+            f"Expected PHENOTYPE_COLUMN_NAME='phenotype', "
+            f"got '{PHENOTYPE_COLUMN_NAME}'"
+        )

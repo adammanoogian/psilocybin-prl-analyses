@@ -13,6 +13,7 @@ dependencies = [
     "jax>=0.4.26,<0.4.32",
     "jaxlib>=0.4.26,<0.4.32",
     "blackjax>=1.2.4",
+    "jaxopt>=0.8.5,<0.9",
     "numpy>=2.0.0,<3.0",
     "pymc>=5.25.1",
     "pandas>=2.0",
@@ -80,6 +81,7 @@ module = [
     "pyarrow.*",
     "blackjax.*",
     "numpyro.*",
+    "jaxopt.*",
     "prl_hgf.*",
     "config",
 ]

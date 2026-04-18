@@ -235,12 +235,12 @@ Plans:
 **Option A Minimum Viable scope** (user-confirmed 2026-04-17; see `.planning/phases/18-pat-rl-task-adaptation/18-RESEARCH.md` Addendum). Models B/C/D, full PRL-V1 r>=0.7 gate, PRL-V2 phenotype identifiability, and PRL.5 stratified BMS / PEB covariate export are explicitly deferred to Phase 19+. Phase 18 ships the producer side of the dcm_pytorch integration: config + trial generator + binary-state HGF builders + Model A response + BlackJAX fit + trajectory export + 5-agent CPU smoke.
 
 Plans:
-- [ ] 18-01-PLAN.md — configs/pat_rl.yaml + env/pat_rl_config.py (parallel PATRLConfig dataclass tree + loader + unit tests)
-- [ ] 18-02-PLAN.md — env/pat_rl_sequence.py (binary-state hazard generator, 2x2 magnitudes, Delta-HR stub, 192-trial structure) + tests
-- [ ] 18-03-PLAN.md — models/hgf_2level_patrl.py + hgf_3level_patrl.py (single-input-node HGF) + models/response_patrl.py (Model A softmax on EV) + tests
-- [ ] 18-04-PLAN.md — fitting/hierarchical_patrl.py (batched logp + BlackJAX orchestrator reusing generic helpers from hierarchical.py without modifying them) + 5-participant CPU smoke tests
-- [ ] 18-05-PLAN.md — analysis/export_trajectories.py (post-hoc forward pass at posterior means, per-trial CSV + parameter summary) with dcm_pytorch consumer-interface verification
-- [ ] 18-06-PLAN.md — scripts/12_smoke_patrl_foundation.py end-to-end simulate -> fit -> export + integration test
+- [x] 18-01-PLAN.md — configs/pat_rl.yaml + env/pat_rl_config.py (parallel PATRLConfig dataclass tree + loader + unit tests)
+- [x] 18-02-PLAN.md — env/pat_rl_sequence.py (binary-state hazard generator, 2x2 magnitudes, Delta-HR stub, 192-trial structure) + tests
+- [x] 18-03-PLAN.md — models/hgf_2level_patrl.py + hgf_3level_patrl.py (single-input-node HGF) + models/response_patrl.py (Model A softmax on EV) + tests
+- [x] 18-04-PLAN.md — fitting/hierarchical_patrl.py (batched logp + BlackJAX orchestrator reusing generic helpers from hierarchical.py without modifying them) + 5-participant CPU smoke tests
+- [x] 18-05-PLAN.md — analysis/export_trajectories.py (post-hoc forward pass at posterior means, per-trial CSV + parameter summary) with dcm_pytorch consumer-interface verification
+- [x] 18-06-PLAN.md — scripts/12_smoke_patrl_foundation.py end-to-end simulate -> fit -> export + integration test
 
 **Integration notes (YAML assumptions flagged against existing code)**:
 - **Config loader is NOT task-agnostic today.** `src/prl_hgf/env/task_config.py` hardcodes `_DEFAULT_CONFIG_PATH = CONFIGS_DIR / "prl_analysis.yaml"` and `AnalysisConfig`/`PhaseConfig` are shaped for 3 cues + 4 criterion-based phases. Adding `configs/pat_rl.yaml` alongside requires either (a) a task-dispatch layer on `load_config()` plus a parallel `PATRLConfig` dataclass tree, or (b) a subclass hierarchy. The YAML does not address this.
@@ -304,5 +304,5 @@ Plans:
 | 15 - Production Run + Results | v1.2 | 0/2 | Pending | -- |
 | 16 - NumPyro Direct + CUDA Fix | v1.2 | 2/2 | Complete | 2026-04-13 |
 | 17 - BlackJAX NUTS Sampler | v1.2 | 2/2 | Complete | 2026-04-15 |
-| 18 - PAT-RL Task Adaptation (the consumer study) | v1.2 | 6/6 | Code complete, cluster smoke pending | -- |
+| 18 - PAT-RL Task Adaptation (the consumer study) | v1.2 | 6/6 | Complete (Option A scope) | 2026-04-18 |
 | 19 - VB-Laplace Fit Path (Tapas-Parity) | v1.2 | 0/0 | Not planned | -- |

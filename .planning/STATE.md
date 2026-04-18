@@ -5,16 +5,16 @@
 See: .planning/PROJECT.md (updated 2026-04-07)
 
 **Core value:** Validated simulation-to-inference pipeline for HGF models on PRL pick_best_cue data.
-**Current focus:** Phase 18 PAT-RL Task Adaptation (the consumer study) — Plan 5/6 complete
+**Current focus:** Phase 19 VB-Laplace Fit Path (Tapas-Parity Validation) — Plan 2/5 in progress
 
 ## Current Position
 
-Phase: 18 of 18 (PAT-RL Task Adaptation)
-Plan: 5/6 complete (18-05 DCM integration surface — trajectory export)
-Status: In progress — Phase 18 Plans 1-5 complete; Plan 6 (validation) pending
-Last activity: 2026-04-17 — Completed 18-05: trajectory export, parameter summary, dcm_pytorch audit
+Phase: 19 of 19 (VB-Laplace Fit Path)
+Plan: 2/5 complete (19-02 Laplace InferenceData factory)
+Status: In progress — Phase 19 Plans 1-2 complete (19-01 pat_rl_simulator, 19-02 laplace_idata); Plans 3-5 pending
+Last activity: 2026-04-18 — Completed 19-02: build_idata_from_laplace with NUTS-parity schema; 11 tests; export_subject_parameters consumer contract verified
 
-[===========█████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 in progress (5/6)
+[===========█████████████]   v1.1 code-complete (Phases 1-11); Phases 12-14 verified; Phase 16 complete; Phase 17 complete; Phase 18 complete (6/6); Phase 19 in progress (2/5)
 
 ## Performance Metrics
 
@@ -125,6 +125,12 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | az.hdi returns "lower"/"higher" coordinate labels (not "low"/"high") in ArviZ 0.22+ | Verified at runtime; pivot in export_subject_parameters uses hdi="lower" and hdi="higher" selectors | 18-05 |
 | pyhgf 0.2.8 temp keys confirmed: value_prediction_error, effective_precision, volatility_prediction_error all present | Runtime inspection in test_pyhgf_temp_keys_extracted canary test | 18-05 |
 | 3-level-only cols (mu3/sigma3/epsilon3) present as NaN in 2-level trajectory CSV | Schema consistency: downstream concat/join across model variants works without column-presence check | 18-05 |
+| _samples_to_idata() coord_name kwarg (default "participant"; PAT-RL passes "participant_id") | PRL pipeline and PAT-RL exporter (Plan 18-05) disagree on coord label; kwarg keeps PRL back-compat while making PAT-RL's contract with export_subject_trajectories explicit | 18-06 |
+| Smoke script exit codes: 0 success / 1 runtime error / 2 blackjax missing | 3-state map lets CI/docs distinguish "real bug" from "environment not provisioned" without parsing stderr | 18-06 |
+| Smoke pytest: 7 structural tests unconditional; end-to-end fit path exercised only by cluster SLURM | blackjax not in dev env; structural tests (compile, argparse, import-scan, lazy-blackjax) give meaningful local signal without MCMC cost | 18-06 |
+| Cluster smoke runs CPU comp partition (not GPU) | Fit wall-clock 11.8s single-thread; GPU dispatch overhead dominates at this batch size; no justification for GPU hours | 18-06 |
+| build_idata_from_laplace emits dim 'participant_id' natively (not 'participant') | NUTS path _samples_to_idata emits 'participant' (latent OQ1 bug); Laplace path sidesteps it by emitting consumer-correct dim without touching hierarchical.py (parallel-stack invariant) | 19-02 |
+| cast(az.InferenceData, az.from_dict(...)) for mypy satisfaction | az.from_dict stub returns Any in arviz typeshed; cast is zero-overhead and makes return type explicit | 19-02 |
 
 ### Pending Todos
 
@@ -165,6 +171,6 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 ## Session Continuity
 
 Last session: 2026-04-18
-Stopped at: Completed quick-004 — PAT-RL smoke infrastructure + VB-Laplace feasibility memo
+Stopped at: Completed 19-02 — build_idata_from_laplace factory + 11 tests; consumer contract (export_subject_parameters) verified; participant_id dim name native (OQ1 sidestepped).
 Resume file: None
-Next action: Execute quick-005 (implement fit_vb_laplace_patrl.py — Option C dual path) OR sbatch cluster/18_smoke_patrl_cpu.slurm to get first real PAT-RL NUTS numbers.
+Next action: Execute 19-03 (fit_vb_laplace_patrl: MAP optimizer + Hessian computation + fit function that calls build_idata_from_laplace).

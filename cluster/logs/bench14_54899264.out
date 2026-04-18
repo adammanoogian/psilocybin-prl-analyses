@@ -1,0 +1,32 @@
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env/lib/python3.10/site-packages/nvidia/cuda_nvcc/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 12.8
+ptxas CUDA version:  12.8
+OK: ptxas version <= driver version (XLA parallel compilation enabled)
+
+============================================================
+Phase 14 GPU Benchmark
+============================================================
+Job ID:  54899264
+Node:    m3a118
+GPU(s):  0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/m3a118
+Sampler:  
+Start:   Sun Apr 19 06:24:57 AM AEST 2026
+============================================================
+
+JAX devices: [CudaDevice(id=0)]
+GPU: cuda:0
+
+Running batched hierarchical benchmark...
+
+
+============================================================
+BENCHMARK FAILED (exit code: 2)
+Check: cluster/logs/bench14_54899264.err
+
+End: Sun Apr 19 06:26:04 AM AEST 2026
+============================================================
+
+Pushing benchmark results to git...

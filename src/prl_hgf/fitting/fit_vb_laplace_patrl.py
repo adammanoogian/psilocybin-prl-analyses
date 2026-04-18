@@ -258,7 +258,6 @@ def fit_vb_laplace_patrl(
     # ------------------------------------------------------------------
     # Initialize ALL loop-output variables up front (ensures they exist even
     # if every restart fails to produce a finite log-posterior).
-    best_mode_flat: jnp.ndarray | None = None
     best_mode_params: dict[str, jnp.ndarray] | None = None
     best_logp: float = float(-jnp.inf)
     best_state_info: dict[str, Any] = {}
@@ -306,8 +305,6 @@ def fit_vb_laplace_patrl(
         if logp_at_mode > best_logp:
             best_logp = logp_at_mode
             best_mode_params = mode_params
-            # Flatten for Hessian computation (stored for step 6)
-            best_mode_flat, _unravel = ravel_pytree(mode_params)
             best_state_info = {
                 "n_iterations": int(res.state.iter_num),
                 "converged": bool(res.state.error < tol),
@@ -319,10 +316,19 @@ def fit_vb_laplace_patrl(
             f"log-posterior; check priors and data. best_logp={best_logp}."
         )
 
+    # Re-order best_mode_params to param_order so that ravel_pytree produces
+    # a flat vector whose block layout matches the build_idata_from_laplace
+    # convention (columns [i*P:(i+1)*P] belong to param_names[i]).
+    # jaxopt.LBFGS returns params in JAX's sorted-key order; we must re-order
+    # before flattening for the Hessian.
+    best_mode_params_ordered: dict[str, jnp.ndarray] = {
+        k: best_mode_params[k] for k in param_order
+    }
+
     # ------------------------------------------------------------------
     # 6. Compute Hessian via flatten
     # ------------------------------------------------------------------
-    flat_mode, unravel = ravel_pytree(best_mode_params)
+    flat_mode, unravel = ravel_pytree(best_mode_params_ordered)
 
     # TODO (Phase 20+): for cohorts P>200, switch to block-structured
     # jax.vmap(jax.hessian(per_subject_logp)) to avoid the (P*K)*(P*K)
@@ -374,10 +380,10 @@ def fit_vb_laplace_patrl(
     # ------------------------------------------------------------------
     # 10. Unflatten mode for build_idata_from_laplace
     # ------------------------------------------------------------------
+    # Extract mode in param_order (already ordered in best_mode_params_ordered).
     mode_native: dict[str, np.ndarray] = {
-        k: np.asarray(v) for k, v in best_mode_params.items()
+        k: np.asarray(best_mode_params_ordered[k]) for k in param_order
     }
-    # Keys match param_order; order preserved from dict-insertion above.
 
     # ------------------------------------------------------------------
     # 11. Package diagnostics dict for sample_stats surfacing

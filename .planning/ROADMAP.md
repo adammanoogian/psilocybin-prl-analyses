@@ -4,7 +4,7 @@
 
 - **v1.0 Simulation-to-Inference Pipeline** — Phases 1-7 (shipped 2026-04-07)
 - **v1.1 BFDA Power Analysis** — Phases 8-11 (code-complete 2026-04-07)
-- **v1.2 Hierarchical GPU Fitting** — Phases 12-18 (in progress; Phase 18 the consumer study adaptation appended — see note)
+- **v1.2 Hierarchical GPU Fitting** — Phases 12-19 (in progress; Phase 18 the consumer study adaptation + Phase 19 VB-Laplace parity fit path appended — see notes)
 
 ---
 
@@ -253,6 +253,34 @@ Plans:
 - **PEB covariate export (in PRL.5) has no current pipeline.** `analysis/bms.py` computes exceedance probabilities but does not emit a per-subject `Delta-WAIC` / `Delta-F` CSV for downstream PEB. New analysis step.
 - **Milestone fit is ambiguous.** This phase introduces a **new task** for a **separate project (the consumer study)**, not a continuation of v1.2's "Hierarchical GPU Fitting" goal. Recommend considering whether Phase 18 should instead open a new milestone **v1.3 the consumer study** — particularly given the scope (config loader refactor + new env + new response models + trial-varying omega + trajectory export + phenotype framework) is comparable to several v1.1 phases combined. Added to v1.2 as instructed; flag for user review before planning.
 
+### Phase 19: VB-Laplace Fit Path for PAT-RL (Tapas-Parity Validation)
+
+**Goal**: A second, non-MCMC fit path exists for PAT-RL alongside BlackJAX NUTS: variational Bayes with Laplace approximation at the MAP. Mirrors the matlab tapas HGF toolbox convention (quasi-Newton optimization → numerical Hessian at the mode → Laplace posterior covariance). Lives in a new `src/prl_hgf/fitting/fit_vb_laplace_patrl.py` that reuses the existing `_build_patrl_log_posterior` pure-JAX logp surface from `hierarchical_patrl.py` without modifying it. Returns an ArviZ `InferenceData` shape-compatible with the NUTS path so the existing `export_subject_trajectories` + `export_subject_parameters` from 18-05 accept both fit types unchanged. Unblocks downstream PEB development while cluster NUTS numbers come in; provides a deterministic reference fit to validate NUTS posteriors against.
+**Depends on**: Phase 18 (consumes `_build_patrl_log_posterior` + PAT-RL HGF builders + config + trajectory export)
+**Requirements**: VBL-01 (MAP optimizer), VBL-02 (Laplace covariance + PD regularization), VBL-03 (ArviZ InferenceData shape parity), VBL-04 (export-path compatibility), VBL-05 (parameter recovery smoke at 5 agents), VBL-06 (Laplace-vs-NUTS posterior comparison harness)
+**Success Criteria** (what must be TRUE):
+  1. `fit_vb_laplace_patrl(sim_df, model_name="hgf_{2,3}level_patrl", response_model="model_a", config=None)` runs a quasi-Newton MAP (jaxopt.LBFGS or scipy L-BFGS-B with jaxified gradient) on the existing `_build_patrl_log_posterior` logp, computes the Hessian at the mode via `jax.hessian`, and returns an `az.InferenceData` whose `posterior` group has the same parameter names, dims, and coords as `fit_batch_hierarchical_patrl` output (chain dim = 1, draw dim = K pseudo-draws from the Laplace Gaussian)
+  2. When the Hessian at the mode is indefinite or ill-conditioned, a PD regularization fallback (add `lambda*I` until Cholesky succeeds, log the ridge added) produces a valid covariance matrix and does NOT silently return garbage
+  3. `export_subject_trajectories` + `export_subject_parameters` from Plan 18-05 consume a Laplace-produced `InferenceData` unchanged and produce the same CSV schema (columns, dtypes, shapes) as for NUTS-produced `InferenceData`
+  4. 5-agent CPU smoke completes in <60 seconds total (not per subject) on a dev laptop; parameter recovery sanity: posterior-mean omega_2 is within 0.5 of the generative truth for at least 4 of 5 agents
+  5. Laplace-vs-NUTS comparison harness produces a diff table per subject per parameter: `|Δ posterior_mean| < 0.3` for omega_2 and `|Δ log_sd| < 0.5` across 5-agent smoke when both fit paths run on the identical sim_df
+  6. Parallel-stack invariant preserved: `git diff` is empty for `hierarchical.py`, `hierarchical_patrl.py`, `task_config.py`, `simulator.py`, `hgf_{2,3}level.py`, `response.py`, `configs/prl_analysis.yaml`
+**Plans**: 0 plans
+
+Plans:
+- [ ] TBD (run /gsd:plan-phase 19 to break down)
+
+**Sources of record / reference implementations**:
+- `.planning/quick/004-patrl-smoke-and-vb-laplace-feasibility/VB_LAPLACE_FEASIBILITY.md` — Option C decision memo (dual NUTS + Laplace) with concrete tolerance gates and downgrade triggers
+- matlab tapas HGF toolbox: `tapas_fitModel.m` (orchestrator), `tapas_quasinewton_optim.m` (MAP), `tapas_riddersmatrix.m` (numerical Hessian via Ridders' method)
+- Target logp surface: `src/prl_hgf/fitting/hierarchical_patrl.py::_build_patrl_log_posterior` (PAT-RL pure-JAX log-posterior) — reused, not modified
+- jaxopt.LBFGS docs + `jax.hessian` / `jax.hessian_on_rev` API for the JAX-side implementation
+
+**Scope notes**:
+- This phase IMPLEMENTS; it does NOT re-explore feasibility (that was quick-004). The feasibility memo already chose Option C and specified tolerance gates.
+- Downgrade triggers live in STATE.md blockers; this phase executes under Option C unless the cluster smoke (Phase 18 validation) returns numbers that force a downgrade. If downgrade happens, the planner revisits but the parallel-stack module boundaries stay valid.
+- A decision memo at phase close reports Laplace-vs-NUTS agreement on real cluster data and recommends whether to keep both paths or consolidate on one.
+
 ---
 
 ## Progress
@@ -276,4 +304,5 @@ Plans:
 | 15 - Production Run + Results | v1.2 | 0/2 | Pending | -- |
 | 16 - NumPyro Direct + CUDA Fix | v1.2 | 2/2 | Complete | 2026-04-13 |
 | 17 - BlackJAX NUTS Sampler | v1.2 | 2/2 | Complete | 2026-04-15 |
-| 18 - PAT-RL Task Adaptation (the consumer study) | v1.2 | 0/0 | Not planned | -- |
+| 18 - PAT-RL Task Adaptation (the consumer study) | v1.2 | 6/6 | Code complete, cluster smoke pending | -- |
+| 19 - VB-Laplace Fit Path (Tapas-Parity) | v1.2 | 0/0 | Not planned | -- |

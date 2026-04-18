@@ -3,9 +3,9 @@ requires = ["setuptools>=68.0"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "prl-hgf"
+name = "hgf-analysis"
 version = "0.1.0"
-description = "HGF-based analysis pipeline for PRL pick_best_cue task with psilocybin intervention"
+description = "General-purpose Hierarchical Gaussian Filter analysis toolbox for reversal-learning paradigms. Supports multiple task configurations (pick_best_cue PRL, PAT-RL approach-avoidance, etc.) via YAML-driven config."
 requires-python = ">=3.10"
 authors = [{name = "Adam Manoogian"}]
 dependencies = [

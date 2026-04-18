@@ -4,7 +4,7 @@
 
 - **v1.0 Simulation-to-Inference Pipeline** — Phases 1-7 (shipped 2026-04-07)
 - **v1.1 BFDA Power Analysis** — Phases 8-11 (code-complete 2026-04-07)
-- **v1.2 Hierarchical GPU Fitting** — Phases 12-20 (in progress; Phase 18 the consumer study adaptation + Phase 19 VB-Laplace parity fit path + Phase 20 the consumer study scientific completion appended — see notes)
+- **v1.2 Hierarchical GPU Fitting** — Phases 12-20 (in progress; Phase 18 PAT-RL task adaptation + Phase 19 VB-Laplace parity fit path + Phase 20 PAT-RL scientific completion appended — see notes)
 
 ---
 
@@ -289,9 +289,9 @@ Plans:
 - Downgrade triggers live in STATE.md blockers; this phase executes under Option C unless the cluster smoke (Phase 18 validation) returns numbers that force a downgrade. If downgrade happens, the planner revisits but the parallel-stack module boundaries stay valid.
 - A decision memo at phase close reports Laplace-vs-NUTS agreement on real cluster data and recommends whether to keep both paths or consolidate on one.
 
-### Phase 20: the consumer study Scientific Completion — Models B/C/D + Cohort Scale + Config-Correctness
+### Phase 20: PAT-RL Scientific Completion — Models B/C/D + Cohort Scale + Config-Correctness
 
-**Goal**: Close every remaining gap between `prl_hgf`'s current PAT-RL surface and the the consumer study study hypotheses documented in `dcm_hgf_mixed_models/docs/files/GSD_consumer-study_sim.yaml`. Specifically: (a) correct `configs/pat_rl.yaml` to match the the consumer study spec (contingencies safe 70/10/20, dangerous 10/70/20, avoid 10/10/80; run order SVVS; magnitudes [1, 3]; phenotype priors ω=-3/-2, β=2/3.5, b=0/±0.3, ϑ=0.005/0.01); (b) add response-bias parameter `b` to Model A and implement Models B (ΔHR bias γ), C (ΔHR × value sensitivity α + γ), D (trial-varying ω_eff = ω + λ·ΔHR); (c) implement phenotype-specific, ε₂-coupled ΔHR generative model (healthy N(-2, 0.5), high-anxiety N(-0.5, 0.8), ε₂-modulated freezing); (d) scale cohort simulation to 40 agents × 4 phenotypes = 160 with deterministic per-phenotype RNG; (e) phenotype-stratified random-effects BMS in `analysis/bms.py` with per-subject Δ-evidence PEB covariate export; (f) formal PRL-V1 (ω/κ/β recovery r ≥ 0.7 at 192 trials) and PRL-V2 (phenotype 2x2 Cohen's d ≥ 0.5, cor(ω, β) < 0.5) gates. Unblocks `dcm_hgf_mixed_models` v2 bridge wiring (H2A.1.4, H2A.1.5, H2A.1.6 + H2A.2.4 PEB).
+**Goal**: Close every remaining gap between `prl_hgf`'s current PAT-RL surface and the downstream sister-repo study hypotheses (consumer study spec lives outside this repo; see `docs/PAT_RL_API_HANDOFF.md`). Specifically: (a) correct `configs/pat_rl.yaml` to match the consumer-side task specification (contingencies safe 70/10/20, dangerous 10/70/20, avoid 10/10/80; run order SVVS; magnitudes [1, 3]; phenotype priors per consumer spec); (b) add response-bias parameter `b` to Model A and implement Models B (ΔHR bias γ), C (ΔHR × value sensitivity α + γ), D (trial-varying ω_eff = ω + λ·ΔHR); (c) implement phenotype-specific, ε₂-coupled ΔHR generative model; (d) scale cohort simulation to 40 agents × 4 phenotypes = 160 with deterministic per-phenotype RNG; (e) phenotype-stratified random-effects BMS in `analysis/bms.py` with per-subject Δ-evidence PEB covariate export; (f) formal PRL-V1 (ω/κ/β recovery r ≥ 0.7 at 192 trials) and PRL-V2 (phenotype 2x2 Cohen's d ≥ 0.5, cor(ω, β) < 0.5) gates. Unblocks the downstream sister-repo bridge wiring without embedding project-specific codenames in this general-purpose HGF toolbox.
 **Depends on**: Phase 19 (consumes `fit_vb_laplace_patrl`, `fit_batch_hierarchical_patrl`, trajectory export, Laplace InferenceData factory)
 **Requirements**: PRL-02.1 (config correctness), PRL-03.1 (Model A + `b`), PRL-03.2 (Models B, C, D including trial-varying ω scan body for D), PRL-V1 (formal r ≥ 0.7 recovery at 192 trials), PRL-V2 (phenotype 2x2 identifiability), PRL-05 (phenotype-stratified BMS + PEB Δ-evidence export), PRL-06 (phenotype-specific ε₂-coupled ΔHR generative model), PRL-07 (cohort scale 40×4=160), PRL-08 (config-driven adaptation of existing scripts)
 **Success Criteria** (what must be TRUE):
@@ -312,8 +312,7 @@ Plans:
 - [ ] TBD (run /gsd:plan-phase 20 to break down)
 
 **Sources of record**:
-- `C:/Users/aman0087/Documents/Github/dcm_hgf_mixed_models/docs/files/GSD_consumer-study_sim.yaml` — the consumer study study-level hypotheses (§H2A.1.1–H2A.1.6 + §H2A.2.4). The phenotype table in H2A.1.2 is the source-of-truth for phenotype priors; the contingency block in H2A.1.1 is the source-of-truth for `configs/pat_rl.yaml`
-- `C:/Users/aman0087/Documents/Github/dcm_hgf_mixed_models/docs/files/GSD_prl_hgf.yaml` — PRL implementation spec (PRL.1-5, V1-V2); response-model signatures for B/C/D come from here
+- Downstream consumer repo (sister-toolbox) task spec — read the consumer's task YAML when the planner spawns; the phenotype table there is the source-of-truth for phenotype priors; the contingency block is the source-of-truth for `configs/pat_rl.yaml`. Do NOT hardcode a path to the consumer repo in any committed file in this toolbox (keep it task-agnostic)
 - `docs/PAT_RL_API_HANDOFF.md` (quick-005) — current public API surface; Phase 20 extends this, does NOT break it
 - Phase 18 gap analysis — see STATE.md decision 114 (EV direction), 121 (log_beta parameterisation), 114-128 (PAT-RL runtime lessons)
 
@@ -324,8 +323,9 @@ Plans:
 
 **Scope notes**:
 - This phase supersedes the Phase 18 "Option A Minimum Viable" deferrals (Models B/C/D, full PRL-V1 gate, PRL-V2 gate, stratified BMS, PEB export)
-- This phase DOES NOT open v1.3 the consumer study milestone — it completes v1.2 per user's explicit "Option B" choice
-- Post-Phase-20 the `dcm_hgf_mixed_models` v2 bridge layer has everything it needs to fit H2A.1.4-1.6 end-to-end
+- This phase completes v1.2 per user's explicit "Option B" choice — no new milestone opened
+- Post-Phase-20 the downstream sister-repo v2 bridge layer has everything it needs to fit its end-to-end pipeline without this toolbox needing to know the study codename
+- **Repo-framing directive**: this phase kicks off repositioning this repo as a general-purpose HGF analysis toolbox (not psilocybin-specific). Existing psilocybin pick_best_cue support stays as one use case in configs/notebooks; project-specific grant terminology is scrubbed from code/docs at commit time (see accompanying quick task on naming hygiene)
 
 ---
 
@@ -352,4 +352,4 @@ Plans:
 | 17 - BlackJAX NUTS Sampler | v1.2 | 2/2 | Complete | 2026-04-15 |
 | 18 - PAT-RL Task Adaptation (the consumer study) | v1.2 | 6/6 | Complete (Option A scope) | 2026-04-18 |
 | 19 - VB-Laplace Fit Path (Tapas-Parity) | v1.2 | 5/5 | Complete | 2026-04-18 |
-| 20 - the consumer study Scientific Completion | v1.2 | 0/0 | Not planned | -- |
+| 20 - PAT-RL Scientific Completion | v1.2 | 0/0 | Not planned | -- |

@@ -1,38 +1,63 @@
-# PRL HGF Analysis — AI Assistant Guidelines
+# HGF Analysis Toolbox — AI Assistant Guidelines
 
 ## Project Overview
 
-HGF-based analysis pipeline for the PRL pick_best_cue task studying psilocybin
-effects on belief updating in post-concussion syndrome (psilocybin vs placebo × 3 sessions).
+General-purpose Hierarchical Gaussian Filter (HGF) analysis toolbox for
+reversal-learning paradigms. Two HGF variants (2-level and 3-level binary
+HGF) paired with task-specific response models, batched JAX/BlackJAX NUTS
+fitting, VB-Laplace fast-path fitting, and config-driven task definitions.
+Validated via simulation-to-inference.
 
-Two model variants (2-level and 3-level binary HGF) with three parallel cue
-branches and a shared softmax + stickiness response model. Validated via
-simulation-to-inference before real data arrives.
+**Supported task configurations** (add more via new YAML + loader module):
+
+- **`pick_best_cue`** (`configs/prl_analysis.yaml`): 3-cue partial-feedback
+  PRL with criterion-based reversals. Original use case: longitudinal
+  psilocybin vs placebo × 3 sessions study on post-concussion participants.
+- **`pat_rl`** (`configs/pat_rl.yaml`): binary-state safe/dangerous
+  approach/avoid reversal learning with 2x2 reward/shock magnitudes,
+  hazard-driven reversals, trial-level ΔHR autonomic covariate.
+
+Tasks plug in by adding a `configs/<task>.yaml` + matching loader in
+`src/prl_hgf/env/`. The fitting + analysis stack is task-agnostic.
 
 ## Key Paths
 
 ```
 config.py          # Root path constants (PROJECT_ROOT, DATA_DIR, CONFIGS_DIR, …)
 configs/
-  prl_analysis.yaml  # Single source of truth for task + analysis parameters
+  prl_analysis.yaml  # pick_best_cue task (psilocybin use case)
+  pat_rl.yaml        # PAT-RL approach-avoidance task
 src/prl_hgf/
-  env/             # Task environment: config loading + trial sequence generation
-  models/          # HGF model definitions (pyhgf Network API)
-  fitting/         # Bayesian fitting (PyMC + HGFDistribution)
-  analysis/        # Group-level analysis + BMS
+  env/             # Task configs + trial sequence generators (one per task)
+  models/          # HGF builders + response models (one set per task)
+  fitting/         # Batched NUTS (BlackJAX) + VB-Laplace orchestrators
+  analysis/        # Group-level analysis, BMS, trajectory export
+  power/           # BFDA power analysis (pick_best_cue)
+  simulation/      # JAX-native cohort simulation
 scripts/           # Numbered pipeline: 01_*, 02_*, …
 tests/             # Unit + integration tests
 validation/        # Scientific validation (parameter recovery)
+cluster/           # SLURM scripts for M3/MASSIVE-style clusters
 ```
 
-## Task Structure (PRL pick_best_cue)
+## Task Structures
+
+### pick_best_cue (3-cue PRL)
 
 - **3 cues** with distinct reward probabilities
 - **4 phases**: 2 acquisition phases + 2 reversal phases (criterion-based)
-- **Partial feedback**: only the chosen cue gets a reward signal — unchosen cues
-  are NOT updated
+- **Partial feedback**: only the chosen cue gets a reward signal — unchosen
+  cues are NOT updated
 - All task parameters come from `configs/prl_analysis.yaml` — never hardcode
   trial counts, reward probabilities, or phase structure
+
+### PAT-RL (binary-state approach-avoid)
+
+- **Binary state**: safe (0) / dangerous (1), hazard-rate-driven reversals
+- **192 trials** across 4 runs (48 trials each)
+- **2x2 magnitudes**: reward_mag ∈ {low, high} × shock_mag ∈ {low, high}
+- **ΔHR covariate**: trial-level anticipatory bradycardia (caller-supplied)
+- All task parameters come from `configs/pat_rl.yaml`
 
 ## Model Parameters
 

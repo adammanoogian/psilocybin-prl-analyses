@@ -163,7 +163,8 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 - pyhgf has no built-in NaN clamping — **RESOLVED in 12-02**: Layer 2 clamping implemented in hierarchical.py using jnp.where + tree_map (|mu_2| < 14 bound).
 - `_init_jitter` PyTensor read-only-array bug means we can't use `pm.sample(...)` directly even with `nuts_sampler="numpyro"`; must call `pmjax.sample_numpyro_nuts()` directly. **RESOLVED in 16-01**: fit_batch_hierarchical now uses direct numpyro MCMC, bypassing PyMC/PyTensor entirely.
 - **blackjax not installed in ds_env** — PAT-RL smoke tests (18-04 tests 5-6) skip via importorskip. Install blackjax on cluster before running smoke validation. Pre-existing: test_valid_02_batched_blackjax_convergence also fails for same reason.
-- **VB-Laplace quick-005 decision pending**: quick-004 memo recommends Option C (dual NUTS + Laplace paths). If first `sbatch cluster/18_smoke_patrl_cpu.slurm` blows past 6h or shows >20% divergences on 2-level, downgrade to Option A (Laplace primary). If Laplace unit tests show >2× underestimation of ω₂ posterior width, downgrade to Option B (NUTS only). See `.planning/quick/004-.../VB_LAPLACE_FEASIBILITY.md` §6.
+- **VB-Laplace Option C CONFIRMED (2026-04-18)**: Phase 18 cluster smoke (job 54894259) passed in 13.9s, 0/1000 divergences, 5/5 directional. Preliminary Laplace-vs-NUTS agreement holds for 4/5 agents (P004 known hard case for both methods). No downgrade triggers fired. Final Gate #5 verdict pending next cluster dual-fit run. See `.planning/quick/004-.../VB_LAPLACE_CLOSURE_MEMO.md`.
+- **OQ1 RESOLVED (2026-04-18, quick-005)**: `hierarchical.py::_samples_to_idata` uses `coord_name="participant"` by default; docstring at line 1555 explicitly notes PAT-RL callers pass `coord_name="participant_id"`. PAT-RL fitting path (`hierarchical_patrl.py:88`) already does this correctly. The first cluster smoke failure (job 54893705) was a Phase 19-01 pre-refactor simulator issue, NOT OQ1. `export_subject_trajectories` being pick_best_cue-incompatible is intentional — it's the PAT-RL exporter. No code change required.
 
 ## Quick Tasks
 
@@ -173,6 +174,7 @@ See `.planning/milestones/v1.0-ROADMAP.md` for v1.0 decision log.
 | 002 | HGF Fitting Lessons Obsidian Doc | Complete | Comprehensive coding guide in Obsidian Vault covering math, JAX/NumPyro patterns, cluster pitfalls |
 | 003 | JIT Cache: Data as Traced Args | Complete | BlackJAX sampling loop restructured so data arrays flow as traced JIT args for persistent XLA cache hits |
 | 004 | PAT-RL Smoke + VB-Laplace Feasibility | Complete | Cluster SLURM for Phase 18 PAT-RL smoke; --dry-run flag; 5 structural tests; 4 scratch files deleted; 6 PLAN.md files tracked; VB-Laplace Option C recommendation | [004-SUMMARY](./quick/004-patrl-smoke-and-vb-laplace-feasibility/004-SUMMARY.md) |
+| 005 | PAT-RL Handoff + Cluster Fixes | Complete | Cluster SLURM outputs to tracked `results/patrl_smoke/<job>/` + .nc files + `--fit-method both` default; OQ1 resolved as doc-gap; OQ7 closure memo; `docs/PAT_RL_API_HANDOFF.md` ships single-source-of-truth PAT-RL API for dcm_hgf_mixed_models v2 | [005-SUMMARY](./quick/005-patrl-handoff-and-cluster-fixes/005-SUMMARY.md) |
 
 ### Roadmap Evolution
 

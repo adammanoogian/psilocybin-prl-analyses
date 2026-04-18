@@ -80,6 +80,8 @@ module = [
     "pyarrow.*",
     "blackjax.*",
     "numpyro.*",
+    "prl_hgf.*",
+    "config",
 ]
 ignore_missing_imports = true
 

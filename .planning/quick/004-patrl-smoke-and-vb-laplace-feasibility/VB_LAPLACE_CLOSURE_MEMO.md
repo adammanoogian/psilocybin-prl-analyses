@@ -1,9 +1,9 @@
-# VB-Laplace Closure Memo — Preliminary Verdict
+# VB-Laplace Closure Memo — FINAL Verdict
 
-**Date:** 2026-04-18
-**Status:** Preliminary (pending a rerun under the Phase 19 dual-fit cluster config)
-**Decision:** **Keep both paths** (Option C of `VB_LAPLACE_FEASIBILITY.md` confirmed)
-**Covers:** OQ7 from quick-004 + closure gate for Phase 19 Success Criterion #5
+**Date:** 2026-04-18 (first draft); **FINALIZED** 2026-04-18 after cluster job 54896739 dual-fit
+**Status:** FINAL
+**Decision:** **Keep both paths, use by purpose** (Option C of `VB_LAPLACE_FEASIBILITY.md` confirmed with documented limitations)
+**Covers:** OQ7 from quick-004 + closure gate for Phase 19 Success Criterion #5 (CLOSED)
 
 ---
 
@@ -28,52 +28,83 @@ integration work begins.
 
 ---
 
-## Empirical ground truth (job 54894259, cluster CPU, 2026-04-18)
+## Empirical ground truth (job 54896739, dual-fit cluster CPU, 2026-04-18)
 
-A Phase 18 cluster smoke landed on the `comp` partition after Phase 19 merged.
-The job used `fit_batch_hierarchical_patrl` (pure NUTS, 2 chains x 500 tune /
-500 draws, 5 synthetic agents, 2-level). Headline numbers:
+Phase 18 cluster smoke re-run with `--fit-method both` after the quick-005
+SLURM update. Both paths ran on identical `sim_df` (seed 42). Results
+auto-pushed to `results/patrl_smoke/54896739/`.
+
+### Cohort summary
 
 | Metric | Value | vs target |
 |--------|-------|-----------|
-| Wall time | 13.9 s | <= 6 h budget (~1500x margin) |
-| Divergences | 0 / 1000 | <= 20 % gate |
-| Directional check (omega_2 toward truth) | 5 / 5 | >= 4 / 5 |
+| Wall time (both paths) | 22.4 s | <= 6 h (~960x margin) |
+| NUTS divergences | 0 / 1000 | <= 20 % gate |
+| Laplace convergence | 5/5 agents | all converged |
+| Directional check (ω₂ toward truth, NUTS) | 5 / 5 | >= 4 / 5 |
 
-Per-agent NUTS recovery for omega_2 (`posterior_mean - true`):
+### Per-agent Laplace-vs-NUTS posterior agreement (from `laplace_vs_nuts_diff.csv`)
 
-| Agent | true omega_2 | NUTS post_mean | NUTS |diff| | Laplace |diff| (local) |
-|-------|--------------|----------------|--------------|------------------------|
-| P000  | -5.791       | -5.345         | 0.445        | 0.460                  |
-| P001  | -5.373       | -5.143         | 0.230        | 0.283                  |
-| P002  | -6.825       | -6.957         | 0.132        | 0.104                  |
-| P003  | -6.050       | -6.290         | 0.240        | 0.218                  |
-| P004  | -6.172       | -7.221         | 1.049        | 0.702                  |
+**omega_2 (the gated parameter):**
 
-Laplace numbers come from the local Phase 19 smoke (`RUN_SMOKE_TESTS=1 pytest
-tests/test_smoke_patrl_foundation.py::test_smoke_laplace_recovery_sanity_4_of_5`)
-on the same seed (42) and same generative true parameters.
+| Agent | mean_laplace | mean_nuts | \|Δ mean\| | sd_laplace | sd_nuts | \|Δ log_sd\| | sd_ratio (L/N) | within_gate |
+|-------|-------------|-----------|-----------|------------|---------|-------------|----------------|-------------|
+| P000 | -5.331 | -5.345 | **0.014** | 0.185 | 0.278 | 0.407 | 0.665 | **PASS** |
+| P001 | -5.083 | -5.143 | **0.060** | 0.182 | 0.354 | 0.663 | 0.515 | fail (sd) |
+| P002 | -6.926 | -6.957 | **0.031** | 0.177 | 0.343 | 0.661 | 0.516 | fail (sd) |
+| P003 | -6.268 | -6.290 | **0.022** | 0.166 | 0.269 | 0.482 | 0.617 | **PASS** |
+| P004 | -6.873 | -7.221 | 0.347 | 0.160 | 0.830 | 1.649 | 0.192 | fail (both) |
 
-### Preliminary Laplace-vs-NUTS agreement
+**beta (informational only, not gated):**
 
-The comparison the VB_LAPLACE_FEASIBILITY.md §6 tolerance gates target is
-`|Laplace_mean - NUTS_mean|` (posterior-mean divergence between the two
-fitting paths on the same data), not `|post - truth|`. Only absolute recovery
-diffs are available right now, so a full Gate #5 verdict waits on the next
-cluster run. What we can say from the available numbers:
+| Agent | mean_laplace | mean_nuts | \|Δ mean\| | \|Δ log_sd\| | sd_ratio (L/N) |
+|-------|-------------|-----------|-----------|-------------|----------------|
+| P000 | 2.966 | 2.828 | 0.139 | 0.429 | 1.54 |
+| P001 | 3.075 | 2.953 | 0.122 | 0.681 | 1.98 |
+| P002 | 2.681 | 2.535 | 0.145 | 0.738 | 2.09 |
+| P003 | 3.114 | 2.965 | 0.149 | 0.471 | 1.60 |
+| P004 | 1.655 | 1.398 | 0.257 | 1.515 | 4.55 |
 
-- Agents P000, P001, P002, P003: both methods miss the truth by the same
-  magnitude (within ~0.05 on |diff|). The two posterior means should lie on
-  the same side of the truth and agree to ~0.05 in log-space. **Well inside
-  the 0.3 tolerance gate.**
-- Agent P004: both methods miss, but in different directions (NUTS -1.049,
-  Laplace +0.702 relative to truth). The posterior-mean disagreement is
-  ~0.35 — narrowly outside the 0.3 gate for this one agent. This is the
-  known "P004 is a hard agent" case called out in the 19-05 SUMMARY.
+### What the numbers actually say
 
-**Verdict:** 4 of 5 agents are within the VB_LAPLACE_FEASIBILITY.md tolerance
-gate on the preliminary read; P004 is a known edge case for both methods, not
-a Laplace-specific failure. The dual-path posture survives this check.
+Two distinct patterns emerge when you compare the two fit paths:
+
+1. **Posterior means agree across both methods — very well.** 4 of 5 agents
+   have `|Δ mean_ω₂| < 0.06`. All 5 have `|Δ mean_β| < 0.30`. **This is the
+   quantity that matters for PEB regression** (covariate mean effects). On
+   the primary scientific deliverable, Laplace and NUTS are essentially
+   interchangeable.
+
+2. **Posterior widths diverge — and asymmetrically.** 
+   - For **omega_2**: Laplace systematically UNDERESTIMATES the width.
+     sd_ratio ≈ 0.5 on 4 agents, 0.19 on P004. This is the textbook Laplace
+     pathology — a mode-centered Gaussian misses curvature and underestimates
+     uncertainty.
+   - For **beta**: Laplace OVERESTIMATES the width. sd_ratio ≈ 1.5-2.1 on 4
+     agents, 4.55 on P004. This is driven by the log→natural parameterisation:
+     `beta = exp(log_beta)` with log_beta ~ Gaussian → the Delta-method
+     transform inflates sd_beta at high mean_log_beta while NUTS explores
+     the bounded target directly.
+
+### Formal Gate #5 verdict (VB_LAPLACE_FEASIBILITY.md §6 tolerance bands)
+
+- `|Δ mean_ω₂| < 0.3`: **4/5 agents PASS** (P004 at 0.35 fails)
+- `|Δ log_sd_ω₂| < 0.5`: **2/5 agents PASS** (P000=0.41, P003=0.48; P001/P002/P004 fail)
+- Combined gate (AND): **2/5 agents PASS** (P000, P003)
+
+The literal gate fails. The **root cause is the Laplace log_sd systematic
+underestimation**, not a fundamental Laplace-vs-NUTS algorithmic disagreement.
+
+### Downgrade triggers (from VB_LAPLACE_FEASIBILITY.md §6)
+
+- **Trigger A** (switch to NUTS-only if >2× SD underestimation on >30% of
+  agents): only P004 exceeds 2× (ratio 0.19 → 5.2× underestimation). 1/5 =
+  20% of agents → **below 30% threshold → trigger NOT fired**.
+- **Trigger B** (switch to Laplace-primary if NUTS walltime > 6h or
+  divergences > 20%): cluster NUTS ran in 22.4s total with 0/1000
+  divergences → **not fired**.
+
+Neither trigger met. Dual-path posture holds.
 
 ---
 
@@ -125,48 +156,84 @@ a Laplace-specific failure. The dual-path posture survives this check.
 
 ---
 
-## Recommendation
+## Recommendation — Keep both paths, use by purpose
 
-**Keep both paths.** The next cluster run will fill in the only missing piece
-(a true Laplace-vs-NUTS diff table on identical data). The revised Phase 18
-cluster SLURM (`cluster/18_smoke_patrl_cpu.slurm`, quick-005) defaults to
-`--fit-method both`, which means the VBL-06 comparison CSV + both .nc files
-land in `results/patrl_smoke/<job>/` on the next `sbatch`.
+Option C stands, but refined with a clear use-case split informed by the
+cluster numbers:
 
-### Downgrade triggers (lifted from VB_LAPLACE_FEASIBILITY.md §6; still live)
+| Use case | Preferred fit path | Why |
+|----------|--------------------|-----|
+| **PEB covariate means / point estimates** | Laplace OR NUTS | Means agree within 0.06 on 4/5 agents; use whichever is faster (Laplace in CI, NUTS in cluster production) |
+| **Uncertainty quantification / HDI coverage** | **NUTS only** | Laplace underestimates ω₂ width by ~2× and overestimates β width by ~1.8× (opposite sign, both significant). Feed NUTS posteriors to any HDI-based weighting or Bayesian model comparison downstream. |
+| **Model comparison / WAIC / log-likelihood integration** | **NUTS only** | Requires full posterior exploration; Laplace Gaussian approximation is inadequate at the tails. |
+| **Rapid iteration / CI / smoke tests** | **Laplace** | 15× faster, deterministic, no divergence risk; infrastructure via `fit_vb_laplace_patrl`. |
+| **Ground-truth recovery tests in Phase 18+ / validation** | Laplace-primary + NUTS-validator | Dual-fit path via `scripts/12 --fit-method both` remains the reference. |
 
-- **Downgrade to A** (NUTS only, abandon Laplace) if:
-  - Laplace unit tests start showing >2x underestimation of posterior width
-    on the Gate #5 `|Delta log_sd_omega_2| < 0.5` check across >30% of agents.
-  - Multi-modal posteriors appear in 3-level fits that Laplace cannot detect
-    without expensive `n_restarts > 1` reruns.
-- **Downgrade to B** (Laplace primary, NUTS validator) if:
-  - First full-cohort NUTS run (32 agents x 4 phenotypes, 3-level) blows
-    past 6 h cluster walltime.
-  - Divergence rate exceeds 20% per chain on the 3-level fit.
+Ship both paths into the `dcm_hgf_mixed_models` integration. The consumer's
+bridge layer can dispatch on the fit method tag inside the `idata` — shape
+parity is already enforced by Phase 19's shared `_samples_to_idata_patrl` /
+`build_idata_from_laplace` factories.
 
-Neither trigger fires on the current evidence. Ship both paths into the
-`dcm_hgf_mixed_models` integration.
+### Documented Laplace limitations (for bridge-layer users)
+
+1. **ω₂ posterior width ≈ 60% of NUTS width.** Under-coverage of 94% HDIs
+   is the dominant risk. Do not use Laplace posteriors for uncertainty-
+   driven decisions (e.g. "is this participant's ω₂ significantly different
+   from the group mean?").
+2. **β (natural-scale) posterior width ≈ 150-200% of NUTS width.** Over-
+   coverage on the upper tail. Same caveat inverse: Laplace β CIs will be
+   too conservative.
+3. **Both pathologies scale with posterior non-Gaussianity.** P004 shows
+   both problems at maximum — 5× underestimation on ω₂, 4.5× overestimation
+   on β. Use NUTS for any participant with skewed posterior geometry.
+
+### Downgrade triggers (STILL LIVE; re-check after first full-cohort run)
+
+- **Downgrade to A** (NUTS-only, abandon Laplace) — not currently met:
+  - Would fire if >30% of agents show >2× ω₂ width underestimation
+  - Current: 20% (P004 only) — within tolerance
+
+- **Downgrade to B** (Laplace-primary, NUTS-as-validator only) — not currently met:
+  - Would fire if NUTS walltime > 6h on the full cohort or divergences > 20%
+  - Current: 22.4s on 5 agents → ~2 minutes projected for 32 agents; divergences 0%.
+
+No triggers fire at current scale. **Recheck after the first the consumer study
+32-agent × 4-phenotype × 3-level cluster run.** If 3-level posteriors are
+dramatically more non-Gaussian (as ω₃ × κ geometry famously is in binary
+HGF — Powers et al. 2017), Laplace SD error may worsen and trigger A.
 
 ---
 
-## What changes after the next cluster run
+## OQ7 status: CLOSED
 
-When `sbatch cluster/18_smoke_patrl_cpu.slurm` lands a `method=both` run:
+The first dual-fit cluster run (54896739) has landed. The formal gate numbers
+are above. OQ7 is closed with the verdict:
 
-1. `results/patrl_smoke/<job>/idata_laplace.nc` and `idata_nuts.nc` auto-push
-   to `origin/main` (cluster push block, quick-005 fix).
-2. `results/patrl_smoke/<job>/laplace_vs_nuts_diff.csv` also lands
-   automatically (the smoke script writes it via the VBL-06 harness in the
-   `both` mode code path, scripts/12 lines 742-755).
-3. Verify Gate #5 locally via
-   `python validation/vbl06_laplace_vs_nuts.py compare
-       --laplace results/patrl_smoke/<job>/idata_laplace.nc
-       --nuts    results/patrl_smoke/<job>/idata_nuts.nc
-       --out-csv results/patrl_smoke/<job>/gate5_verdict.csv`
-4. If the gate passes across omega_2 rows: **close OQ7**, no further closure
-   memo needed. If it fails: update this memo with the failure mode and pick
-   a downgrade per the table above.
+> Keep both paths. Use Laplace for speed-sensitive workloads (CI, iteration,
+> point estimates). Use NUTS for uncertainty-sensitive workloads (HDI
+> coverage, model comparison, anything downstream of posterior variance).
+> Document the asymmetric SD bias (Laplace under-wide on ω₂, over-wide on
+> natural-scale β) in the `docs/PAT_RL_API_HANDOFF.md` consumer guide.
 
-Until the dual-fit cluster run lands, this memo is the official closure
-placeholder.
+### Actions still open (tracked for the consumer study v3+, not Phase 19)
+
+1. **3-level dual-fit comparison**: current gate numbers are from 2-level
+   only. 3-level (adds ω₃, κ, μ₃⁰) has known-bad posterior geometry.
+   Re-run gate check with `PRL_PATRL_SMOKE_LEVEL=3` before committing to
+   dual-path for 3-level production.
+2. **Full-cohort dual-fit**: 32 agents × 4 phenotypes. Check Laplace SD
+   behavior under phenotype diversity (anxiety + reward sensitivity may
+   broaden or narrow posterior geometry).
+3. **Trigger reassessment after v3 scientific validation**: if any
+   the consumer study analyses materially depend on posterior uncertainty (PEB
+   credible intervals, model comparison), revisit the "Laplace overall vs
+   NUTS overall" tradeoff with the real scientific payload in hand.
+
+### Consumer-side guidance
+
+The `dcm_hgf_mixed_models` v2 bridge layer should select fit method per the
+use-case table above. No code change needed in prl_hgf; the shape-parity
+contract established in Phase 19-02 (`build_idata_from_laplace` emits
+`participant_id` dim natively + parameters in canonical order) means a
+simple `method = "laplace" if fast_path else "blackjax"` flag at the
+consumer's fit entry point is sufficient.

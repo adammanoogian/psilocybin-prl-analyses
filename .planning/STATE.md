@@ -5,31 +5,31 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 27 — Dependency upgrade chain (BlackJAX 1.5 + NumPyro promotion + JAX shard_map + Python 3.11 + ds_env rebuild).
+**Current focus:** Phase 28 — FitConfig + HGFPriorSpec refactor (next; Phase 27 closed 2026-05-08).
 
 ## Current Position
 
-Phase: 27 of 10 (Dependency upgrade chain) — in progress
-Plan: 2 of 4 complete (27-01, 27-02 done; 27-03 next)
-Status: In progress — 27-02 complete; dep chain bumped + environment-v10.yml created
-Last activity: 2026-05-04 — Completed 27-02-PLAN.md (pyproject.toml bump + environment-v10.yml + smoke)
+Phase: 27 of 10 (Dependency upgrade chain) — ✓ Complete
+Plan: 4 of 4 complete (27-01, 27-02, 27-03, 27-04 all closed)
+Status: Phase 27 verified passed (4/4 must-haves); ready for Phase 28
+Last activity: 2026-05-08 — Closed 27-03 (DEPS-05 TIMEOUT-as-evidence) + 27-04 (M3 build) SUMMARYs and verified phase
 
-Progress: [██░░░░░░░░] 20%
+Progress: [██░░░░░░░░] 10% (1 of 10 phases complete in v1.0 milestone)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 27 min
-- Total execution time: 0.88 hours
+- Total plans completed: 4
+- Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
+- Effective work time across plans: ~5h (excluding the 24h DEPS-05 GPU timeout)
 
 **By Phase:**
 
-| Phase | Plans | Total | Avg/Plan |
-|-------|-------|-------|----------|
-| 27-dependency-upgrade-chain | 2 of 4 | 53 min | 27 min |
+| Phase | Plans | Status | Completed |
+|-------|-------|--------|-----------|
+| 27-dependency-upgrade-chain | 4 of 4 | ✓ Complete | 2026-05-08 |
 
-*Updated after each plan completion.*
+*Updated after each phase verification.*
 
 ## Accumulated Context
 
@@ -44,34 +44,39 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - **Per-parameter non-centering field shape lands in Phase 30**: `MitigationConfig.non_centered: tuple[str, ...]` is a list of parameter names, not a global boolean — even though the consumer ships in Phase 33 (Pitfall 3 prevention).
 - **[27-01] Strategy C (pyhgf fork) mandatory**: `jaxlib.xla_extension.PjitFunction` removed in JAX 0.5+; all 6 matrix cells (pyhgf {0.2.8,0.2.11} x JAX {0.7.0,0.9.0,0.10.0}) fail at import time; `--no-deps` Strategy A is unviable.
 - **[27-01] Fork base: pyhgf 0.2.8**: project-validated version; minimum fix is one line in `pyhgf/typing.py` replacing `PjitFunction` with `Callable`.
-- **[27-01] JAX pin: >=0.9.0,<0.11**: BlackJAX 1.5 minimum; 0.10.0 confirmed working for jaxopt.
-- **[27-01] jaxopt OK at JAX 0.10.0**: no `optax.lbfgs()` fallback adapter needed.
+- **[27-01] JAX pin narrowed to >=0.9.0,<0.10**: BlackJAX 1.5 minimum; verifier flagged that 27-01's original DEPS-02 decision said `<0.11` but the live pyproject is `<0.10` due to `nvidia-cusparse-cu12>=12.9` PyPI gap hit on m3g107 — Phase 28 should consider whether to widen back to `<0.11`.
 - **[27-02] Fork install: pip wheel + in-place patch**: pyhgf 0.2.8 uses maturin (Rust build backend); no Rust toolchain available. Install = `pip install --no-deps pyhgf==0.2.8` + `python scripts/ci/patch_pyhgf_typing.py`. vendor/pyhgf/ is reference archive only.
 - **[27-02] vendor/ as plain directory**: no git submodule; .git removed from clone; Python source only tracked.
 - **[27-02] requirements-v10.txt is platform-specific**: Windows/CPU snapshot; must regenerate on M3 for Linux/CUDA12 jaxlib wheel.
+- **[27-03] BlackJAX 1.5 has NO low-rank API**: `window_adaptation` only exposes `is_mass_matrix_diagonal: bool`. Setting `False` triggers full dense (O(D²)/step), not low-rank. Phase 29 mass-matrix wiring will need to honor this — the Roadmap's `mass_matrix_kind: Literal["diagonal", "low_rank", "dense"]` enum has no current backend support for `low_rank` and the field shape may need to shrink to `Literal["diagonal", "dense"]` until a future BlackJAX release.
+- **[27-03] Dense+P=30+1000-warmup is infeasible at 24h**: empirical evidence from job 55198489. Phase 29 pre-flight estimator should refuse this config by default; Phase 30 Laplace warmup is the most promising single mitigation.
+- **[27-04] CONDA_ENV opt-in pattern**: `_CONDA_ENV="${CONDA_ENV:-ds_env}"` in 9 SLURM scripts; default unchanged. Cluster-wide promotion stays deferred since DEPS-05 came back NOT CLEARED.
+- **[27-04] PRL_EXPLAIN_CACHE_MISSES env-gate**: 5 sites in `scripts/03_pre_analysis/03_run_power_iteration.py` gated against an upstream JAX 0.9.2 partial_eval bug that fires when `jax_explain_cache_misses=True` interacts with nested JIT'd scan bodies.
 
 ### Pending Todos
 
-None yet.
+None tracked in `.planning/todos/pending/`.
 
 ### Blockers/Concerns
 
-- **pyhgf 0.2.8 <-> JAX > 0.4.31 compat** — RESOLVED by 27-02. Strategy C: pip wheel + in-place patch via scripts/ci/patch_pyhgf_typing.py. Probe confirmed PASS at JAX 0.10.
+- **pyhgf 0.2.8 ↔ JAX > 0.4.31 compat** — RESOLVED by 27-02. Strategy C: pip wheel + in-place patch via `scripts/ci/patch_pyhgf_typing.py`. Probe confirmed PASS at JAX 0.10.
+- **DEPS-05 cliff not cleared by BlackJAX 1.5 alone** — RESOLVED-AS-NOT-CLEARED by 27-03 (TIMEOUT @ 24h). Phase 29 (M1 wiring + pre-flight) and Phase 30 (Laplace warmup) inherit; cliff mitigation is the entire purpose of those phases.
+- **cuSPARSE 12.5 / driver 13.0 GPU lottery on M3** — open. Some nodes (m3g112) fall back to CPU under `ds_env_v10` despite GPU allocation; m3g108 works. Phase 28 jobs need device-check + requeue OR `--nodelist` constraint OR a different cuSPARSE wheel pin. Memo'd in `memory/project_phase27_cusparse_node_lottery.md`.
 - **Per-parameter vs shared σ_θ identifiability at P=200 with K=2-3 covariates** — research-flagged for Phase 33 pre-planning; sim-to-inference evidence required before committing to the more flexible variant.
 - **M3 conditional-independence proof + per-block convergence diagnostics** — research-flagged for Phase 35 pre-planning if it fires; lowest-confidence area in v1.0 scope.
 
 ### v1.0 Carry-forward (from pre-v1.0 work)
 
 - BlackJAX `max_num_doublings` duplicate-kwarg bug fixed in `b737fe6` (2026-05-04). Capability-map's "P=50 was last PASS" reflects this, not a hardware cliff.
-- 3-level NUTS conditioning cliff is real even at n_per_group=5 (P=30): step-size collapses to 7.245e-10, depth-10 saturated, on both A100 80GB and L40S. Diagonal mass matrix can't precondition the κ × ω₂ × ω₃ banana. This is what the v1.0 mitigation ladder addresses.
+- 3-level NUTS conditioning cliff is real even at n_per_group=5 (P=30): step-size collapses to 7.245e-10, depth-10 saturated, on both A100 80GB and L40S. Diagonal mass matrix can't precondition the κ × ω₂ × ω₃ banana. This is what the v1.0 mitigation ladder addresses. Phase 27 confirms BlackJAX 1.5 dense alone is also insufficient.
 - Laplace warmup variant (commit `385e8c3`, Phase 14.2-05) is wired but never tested at scale due to the kwarg bug. First v1.0 phase to exercise it: Phase 30.
 - `tests/integration/test_capability_map.py` closure-guard validates the map is well-formed. Don't break it; Phase 31 extends it.
 
 ## Session Continuity
 
-Last session: 2026-05-04T19:07:00Z
-Stopped at: Completed 27-02-PLAN.md — dep chain bump + environment-v10.yml + smoke import confirmed.
-Resume file: None — proceed directly to plan 27-03.
+Last session: 2026-05-08
+Stopped at: Phase 27 closed; ROADMAP/STATE/REQUIREMENTS reflect completion. Verifier returned passed (4/4).
+Resume: `/gsd:discuss-phase 28` (or `/gsd:plan-phase 28` to skip discussion).
 
 ---
-*Last updated: 2026-05-04 on 27-02 completion*
+*Last updated: 2026-05-08 on Phase 27 closure*

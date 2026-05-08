@@ -40,6 +40,7 @@ reparam, prior tightening) get their own rows tagged `[mitigated]`.
 | Model | Sampler | P_total | Status | Walltime | Evidence | Diagnostics |
 |---|---|---|---|---|---|---|
 | 3-level | NUTS | 30 (n/grp=5) | ❌ TIMEOUT | >8h | job 55143456 (A100 80GB, commit `cc9ee03`) | window_adaptation never completed in 8h walltime — same conditioning failure as P=300 row, just slower to manifest |
+| 3-level | NUTS [BlackJAX 1.5 dense] | 30 (n/grp=5) | ❌ NOT CLEARED (TIMEOUT @ 24h) | >24h | DEPS-05 evidence: `.planning/phases/27-dependency-upgrade-chain/DEPS-05-evidence.json`, job 55198489 (m3g108, commit `4a3b541`) | window_adaptation (is_mass_matrix_diagonal=False, n_warmup=1000, n_chains=4) hit 24h walltime; BlackJAX 1.5 only exposes diagonal-vs-dense (no low-rank kwarg per 27-03 API probe), so dense O(D²)/step is the only non-diagonal option at this version and it is not feasible at P=30 — Phase 29 (M1 wiring + pre-flight) inherits |
 | 3-level | NUTS | 60 (n/grp=10) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
 | 3-level | NUTS | 102 (n/grp=17) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
 | 3-level | NUTS | 150 (n/grp=25) | 🔲 PENDING | — | overnight job 2026-05-04 | — |

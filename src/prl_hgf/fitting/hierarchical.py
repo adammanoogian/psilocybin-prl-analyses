@@ -1880,11 +1880,15 @@ def _run_shard_map_chains(
     # out_specs: outputs have the same leading chain axis.
     @jax.jit
     def _run_sharded(chain_keys_arr, rep_state):  # noqa: ANN001
+        # check_rep=False: NUTS uses lax.while_loop (tree expansion) which
+        # has no replication rule in shard_map.  Outputs are still correctly
+        # sharded on the "chains" axis via out_specs.
         return shard_map(
             _sample_one_chain,
             mesh=mesh,
             in_specs=(P("chains"), P("chains")),
             out_specs=(P("chains"), P("chains")),
+            check_rep=False,
         )(chain_keys_arr, rep_state)
 
     all_states, all_infos = _run_sharded(chain_keys, replicated_state)
@@ -2134,11 +2138,14 @@ def _build_sample_loop(
                 return states, infos
 
             # shard_map: leading axis is "chains", one shard per device.
+            # check_rep=False: NUTS uses lax.while_loop (tree expansion)
+            # which has no replication rule in shard_map.
             all_states, all_infos = shard_map(
                 _sample_one_chain,
                 mesh=mesh,
                 in_specs=(P("chains"), P("chains")),
                 out_specs=(P("chains"), P("chains")),
+                check_rep=False,
             )(chain_keys, replicated_state)
             return all_states, all_infos
 

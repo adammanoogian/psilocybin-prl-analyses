@@ -33,6 +33,7 @@ MAP_PATH = REPO_ROOT / "docs" / "CAPABILITY_MAP.md"
 REQUIRED_COLUMNS = {
     "Model",
     "Sampler",
+    "Mass-Matrix",
     "P_total",
     "Status",
     "Walltime",
@@ -161,3 +162,20 @@ def test_pending_rows_have_evidence_pointer(map_text: str) -> None:
             f"'overnight job', 'queued', or commit hash so we can trace "
             f"which run will populate it):\n  {row}"
         )
+
+
+def test_mass_matrix_tags_present(map_text: str) -> None:
+    """Mass-Matrix column must contain at least [diagonal] and [dense] tags.
+
+    These are the two empirically tested mass matrix configurations.
+    [diagonal] is the default; [dense] tracks the BlackJAX 1.5 dense run.
+    """
+    assert "[diagonal]" in map_text, (
+        "Capability map missing [diagonal] tag in Mass-Matrix column. "
+        "All standard NUTS rows should be tagged [diagonal]."
+    )
+    assert "[dense]" in map_text, (
+        "Capability map missing [dense] tag in Mass-Matrix column. "
+        "The BlackJAX 1.5 dense mass-matrix row (DEPS-05 evidence) "
+        "should be tagged [dense]."
+    )

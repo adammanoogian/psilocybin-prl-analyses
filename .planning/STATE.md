@@ -5,31 +5,31 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 28 — FitConfig + HGFPriorSpec refactor (next; Phase 27 closed 2026-05-08).
+**Current focus:** Phase 28 complete. Next: Phase 29 — mass matrix wiring + pre-flight estimator.
 
 ## Current Position
 
 Phase: 28 of 10 (FitConfig + HGFPriorSpec refactor)
-Plan: 4 of 5 complete (28-01, 28-02, 28-03, 28-04 closed)
-Status: In progress
-Last activity: 2026-05-17 — Completed 28-04-PLAN.md (fit_batch_hierarchical FitConfig refactor)
+Plan: 5 of 5 complete (28-01, 28-02, 28-03, 28-04, 28-05 closed)
+Status: Phase complete
+Last activity: 2026-05-17 — Completed 28-05-PLAN.md (SLURM --fit-config passthrough)
 
-Progress: [█████░░░░░] 20% (4 of 9 remaining v1.0 plans in Phase 28)
+Progress: [██████░░░░] 25% (5 of 9 remaining v1.0 plans; Phase 28 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 8
+- Total plans completed: 9
 - Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
-- Phase 28 wall-clock: 4 plans in ~1 day (code-only, fast)
-- Effective work time across plans: ~6.0h
+- Phase 28 wall-clock: 5 plans in ~1 day (code-only, fast)
+- Effective work time across plans: ~6.5h
 
 **By Phase:**
 
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
 | 27-dependency-upgrade-chain | 4 of 4 | ✓ Complete | 2026-05-08 |
-| 28-fitconfig-hgfpriorspec-refactor | 4 of 5 | In progress | — |
+| 28-fitconfig-hgfpriorspec-refactor | 5 of 5 | Complete | 2026-05-17 |
 
 *Updated after each phase verification.*
 
@@ -54,6 +54,8 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - **[27-03] Dense+P=30+1000-warmup is infeasible at 24h**: empirical evidence from job 55198489. Phase 29 pre-flight estimator should refuse this config by default; Phase 30 Laplace warmup is the most promising single mitigation.
 - **[27-04] CONDA_ENV opt-in pattern**: `_CONDA_ENV="${CONDA_ENV:-ds_env}"` in 9 SLURM scripts; default unchanged. Cluster-wide promotion stays deferred since DEPS-05 came back NOT CLEARED.
 - **[27-04] PRL_EXPLAIN_CACHE_MISSES env-gate**: 5 sites in `scripts/03_pre_analysis/03_run_power_iteration.py` gated against an upstream JAX 0.9.2 partial_eval bug that fires when `jax_explain_cache_misses=True` interacts with nested JIT'd scan bodies.
+- **[28-05] Legacy CLI args kept as deprecated**: --fit-chains/--fit-draws/--fit-tune/--max-tree-depth remain in 03_run_power_iteration.py as deprecated; --fit-config takes precedence when provided. Smoke test and laplace-only paths rely on the legacy attrs.
+- **[28-05] FitConfig populates legacy args namespace**: Rather than threading FitConfig through all code paths, loading from YAML sets args.fit_chains/fit_draws/fit_tune/max_tree_depth so all downstream FitConfig construction continues unchanged.
 - **[28-04] prior_spec stays separate from FitConfig**: Prior distributions are domain-specific (vary per experiment hypothesis), while FitConfig is infrastructure-level (sampler settings, chain count); mixing them would conflate concerns. `HGFPriorSpec` is passed as a separate optional kwarg.
 - **[28-04] run_sbf_iteration legacy kwargs preserved**: `fit_config=None` triggers internal FitConfig construction from the legacy `n_chains/n_draws/n_tune` kwargs for backward compatibility with callers not yet migrated.
 
@@ -79,8 +81,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-17
-Stopped at: Completed 28-04-PLAN.md (fit_batch_hierarchical FitConfig refactor)
-Resume: `/gsd:execute-phase` on 28-05-PLAN.md
+Stopped at: Completed 28-05-PLAN.md (SLURM --fit-config passthrough); Phase 28 complete
+Resume: Phase 29 planning (mass matrix wiring + pre-flight estimator)
 
 ---
-*Last updated: 2026-05-17 after 28-04 completion*
+*Last updated: 2026-05-17 after 28-05 completion (Phase 28 closed)*

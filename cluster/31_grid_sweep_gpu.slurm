@@ -23,7 +23,7 @@
 #SBATCH --array=0-47
 #SBATCH --time=24:00:00
 #SBATCH --mem=64G
-#SBATCH --gres=gpu:A40:1
+#SBATCH --gres=gpu:1
 #SBATCH --partition=gpu
 #SBATCH --cpus-per-task=4
 #SBATCH --account=fc37

@@ -9,12 +9,12 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 ## Current Position
 
-Phase: 30 (Laplace warmup + fp64 + multi-GPU flags)
-Plan: 4 of 4 complete (30-01, 30-02, 30-03, 30-04 all done)
-Status: Phase complete
-Last activity: 2026-05-17 — Phase 30 execution complete
+Phase: 31 (Benchmark no-pooling mode)
+Plan: 1 of 3 complete (31-01 done)
+Status: In progress
+Last activity: 2026-05-17 — Completed 31-01-PLAN.md
 
-Progress: [██████████] 50% (16 of ~30 remaining v1.0 plans; Phase 30 complete)
+Progress: [███████████] 53% (17 of ~30 remaining v1.0 plans; Phase 31 started)
 
 ## Performance Metrics
 
@@ -32,6 +32,7 @@ Progress: [██████████] 50% (16 of ~30 remaining v1.0 plans; 
 | 28-fitconfig-hgfpriorspec-refactor | 5 of 5 | Complete | 2026-05-17 |
 | 29-m1-dense-lowrank-mass-matrix-wiring | 3 of 3 | Complete | 2026-05-17 |
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
+| 31-benchmark-no-pooling-mode | 1 of 3 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -89,8 +90,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-17
-Stopped at: Phase 30 complete (all 4 plans executed)
-Resume: Phase 30 complete. Next: Phase 31 (Benchmark no-pooling mode).
+Stopped at: Completed 31-01-PLAN.md (grid-sweep infrastructure)
+Resume: Phase 31, plan 02 (submit grid sweep on M3) or plan 03 (aggregate results).
 
   - **[30-03] check_rep=False mandatory for NUTS+shard_map**: `lax.while_loop` (NUTS tree expansion) has no replication rule in shard_map; `check_rep=False` disables the check while `out_specs=P("chains")` still enforces output sharding.
   - **[30-03] vmap inside shard body for n_chains > n_devices**: When local_n > 1 (n_chains/n_devices > 1), shard body receives `(local_n, ...)` tensors; `jax.vmap` applies per-chain logic independently. Legacy uint32 key shape `(n, 2)` makes this pattern mandatory.

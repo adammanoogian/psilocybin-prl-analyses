@@ -10,16 +10,16 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 ## Current Position
 
 Phase: 29 (M1 dense/low-rank mass matrix wiring)
-Plan: 1 of 3 complete (29-01 done, 29-03 done; 29-02 remaining)
-Status: In progress
-Last activity: 2026-05-17 — Completed 29-01-PLAN.md (mass_matrix_kind threading)
+Plan: 3 of 3 complete (29-01, 29-02, 29-03 all done)
+Status: Phase complete
+Last activity: 2026-05-17 — Completed 29-02-PLAN.md (memory pre-flight estimator)
 
-Progress: [████████░░] 35% (11 of ~14 remaining v1.0 plans; 29-01+29-03 complete)
+Progress: [█████████░] 40% (12 of ~14 remaining v1.0 plans; Phase 29 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 11
+- Total plans completed: 12
 - Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
 - Phase 28 wall-clock: 5 plans in ~1 day (code-only, fast)
 - Effective work time across plans: ~6.5h
@@ -30,7 +30,7 @@ Progress: [████████░░] 35% (11 of ~14 remaining v1.0 plans; 
 |-------|-------|--------|-----------|
 | 27-dependency-upgrade-chain | 4 of 4 | ✓ Complete | 2026-05-08 |
 | 28-fitconfig-hgfpriorspec-refactor | 5 of 5 | Complete | 2026-05-17 |
-| 29-m1-dense-lowrank-mass-matrix-wiring | 2 of 3 | In progress | — |
+| 29-m1-dense-lowrank-mass-matrix-wiring | 3 of 3 | Complete | 2026-05-17 |
 
 *Updated after each phase verification.*
 
@@ -59,6 +59,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - **[28-05] FitConfig populates legacy args namespace**: Rather than threading FitConfig through all code paths, loading from YAML sets args.fit_chains/fit_draws/fit_tune/max_tree_depth so all downstream FitConfig construction continues unchanged.
 - **[28-04] prior_spec stays separate from FitConfig**: Prior distributions are domain-specific (vary per experiment hypothesis), while FitConfig is infrastructure-level (sampler settings, chain count); mixing them would conflate concerns. `HGFPriorSpec` is passed as a separate optional kwarg.
 - **[28-04] run_sbf_iteration legacy kwargs preserved**: `fit_config=None` triggers internal FitConfig construction from the legacy `n_chains/n_draws/n_tune` kwargs for backward compatibility with callers not yet migrated.
+- **[29-02] 25% device memory threshold for dense refusal**: Pre-flight refuses dense mass matrix when D^2*8*n_chains*(4 if pmap) exceeds 25% of detected device memory. Error message points to low_rank and M3 cluster.
 
 ### Pending Todos
 
@@ -82,8 +83,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-17
-Stopped at: Completed 29-01-PLAN.md (mass_matrix_kind threading through backends)
-Resume: Phase 29 continues (29-02 pending)
+Stopped at: Completed 29-02-PLAN.md (memory pre-flight estimator)
+Resume: Phase 29 complete. Next: Phase 30 (Laplace warmup).
 
 ---
-*Last updated: 2026-05-17 after 29-01 completion*
+*Last updated: 2026-05-17 after 29-02 completion*

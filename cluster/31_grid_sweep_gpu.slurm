@@ -27,7 +27,7 @@
 #SBATCH --partition=gpu
 #SBATCH --cpus-per-task=1
 #SBATCH --account=fc37
-#SBATCH --nodelist=m3g108
+#SBATCH --exclude=m3g112
 #SBATCH --signal=B:TERM@120
 
 # =============================================================================

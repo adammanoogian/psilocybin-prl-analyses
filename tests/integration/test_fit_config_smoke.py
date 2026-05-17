@@ -235,3 +235,86 @@ def test_mass_matrix_kind_yaml_roundtrip(tmp_path):
     cfg.to_yaml(p)
     loaded = FitConfig.from_yaml(p)
     assert loaded.mitigation.mass_matrix_kind == "dense"
+
+
+# ---------------------------------------------------------------------------
+# Phase 30 field round-trip and hash tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_non_centered_yaml_roundtrip(tmp_path):
+    """non_centered tuple survives YAML round-trip as a tuple."""
+    from prl_hgf.fitting.config import FitConfig, MitigationConfig
+
+    cfg = FitConfig(
+        mitigation=MitigationConfig(non_centered=("omega_2", "omega_3")),
+    )
+    p = tmp_path / "cfg_nc.yaml"
+    cfg.to_yaml(p)
+    loaded = FitConfig.from_yaml(p)
+    assert loaded.mitigation.non_centered == ("omega_2", "omega_3"), (
+        f"Expected ('omega_2', 'omega_3'), got {loaded.mitigation.non_centered!r}"
+    )
+    assert isinstance(loaded.mitigation.non_centered, tuple), (
+        f"Expected tuple, got {type(loaded.mitigation.non_centered).__name__}"
+    )
+
+
+@pytest.mark.integration
+def test_use_fp64_yaml_roundtrip(tmp_path):
+    """use_fp64=True survives YAML round-trip."""
+    from prl_hgf.fitting.config import FitConfig, MitigationConfig
+
+    cfg = FitConfig(mitigation=MitigationConfig(use_fp64=True))
+    p = tmp_path / "cfg_fp64.yaml"
+    cfg.to_yaml(p)
+    loaded = FitConfig.from_yaml(p)
+    assert loaded.mitigation.use_fp64 is True, (
+        f"Expected True, got {loaded.mitigation.use_fp64!r}"
+    )
+
+
+@pytest.mark.integration
+def test_mitigation_config_hash_stability():
+    """Identical MitigationConfig instances produce identical hashes."""
+    from prl_hgf.fitting.config import MitigationConfig
+
+    a = MitigationConfig(
+        mass_matrix_kind="dense",
+        use_laplace_warmup=True,
+        use_fp64=True,
+        use_shard_map=True,
+        non_centered=("omega_2", "omega_3"),
+    )
+    b = MitigationConfig(
+        mass_matrix_kind="dense",
+        use_laplace_warmup=True,
+        use_fp64=True,
+        use_shard_map=True,
+        non_centered=("omega_2", "omega_3"),
+    )
+    assert hash(a) == hash(b), (
+        f"Identical MitigationConfig instances produced different hashes: "
+        f"{hash(a)} != {hash(b)}"
+    )
+
+    # Different config -> different hash.
+    c = MitigationConfig(use_fp64=False)
+    assert hash(a) != hash(c), (
+        f"Different MitigationConfig instances produced identical hash: {hash(a)}"
+    )
+
+
+@pytest.mark.integration
+def test_use_shard_map_yaml_roundtrip(tmp_path):
+    """use_shard_map=True survives YAML round-trip."""
+    from prl_hgf.fitting.config import FitConfig, MitigationConfig
+
+    cfg = FitConfig(mitigation=MitigationConfig(use_shard_map=True))
+    p = tmp_path / "cfg_shard.yaml"
+    cfg.to_yaml(p)
+    loaded = FitConfig.from_yaml(p)
+    assert loaded.mitigation.use_shard_map is True, (
+        f"Expected True, got {loaded.mitigation.use_shard_map!r}"
+    )

@@ -752,7 +752,7 @@ def _build_log_posterior(
     trial_mask: jnp.ndarray,
     n_participants: int,
     model_name: str = "hgf_3level",
-    tight_omega3_prior: bool = False,
+    prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
 ) -> callable:
     """Build a pure JAX log-posterior function for BlackJAX.
 
@@ -780,6 +780,9 @@ def _build_log_posterior(
         Number of participants ``P``.
     model_name : str, optional
         ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+    prior_spec : HGFPriorSpec or None, optional
+        Prior specification.  If ``None``, uses the default for the
+        given ``model_name``.
 
     Returns
     -------
@@ -787,38 +790,23 @@ def _build_log_posterior(
         ``dict[str, jnp.ndarray] -> scalar``.  Keys match the model
         parameter names; each value has shape ``(P,)``.
     """
-    import numpyro.distributions as dist
+    from prl_hgf.fitting.priors import HGFPriorSpec
 
     is_3level = model_name == "hgf_3level"
 
-    # Define priors matching _numpyro_model_3level / _numpyro_model_2level
-    prior_omega_2 = dist.TruncatedNormal(
-        loc=-3.0,
-        scale=2.0,
-        high=0.0,
-    )
-    prior_log_beta = dist.Normal(0.0, 1.5)
-    prior_zeta = dist.Normal(0.0, 2.0)
+    if prior_spec is None:
+        prior_spec = (
+            HGFPriorSpec.default_3level()
+            if is_3level
+            else HGFPriorSpec.default_2level()
+        )
+
+    # Build numpyro distribution objects from the prior spec
+    prior_omega_2 = prior_spec.omega_2.to_numpyro_dist()
+    prior_log_beta = prior_spec.log_beta.to_numpyro_dist()
+    prior_zeta = prior_spec.zeta.to_numpyro_dist()
     if is_3level:
-        # Variant 3 (Phase 14.2): tighter ω₃ prior collapses the (μ₃, ω₃)
-        # funnel arm at extreme-negative ω₃ where σ₃ → 0 and the
-        # log-posterior develops a Neal-style funnel.  Per the literature
-        # agent's read of TAPAS / pyhgf / Mathys 2014: ω₃ is poorly
-        # identified by the data anyway, so a tight prior near the typical
-        # value is field-defensible (cf. CLAUDE.md "ω₃ recovery is known to
-        # be poor in the literature").  pyhgf binary tutorial uses
-        # Normal(-11, 2); we use Normal(-6, 1) which is centered at the
-        # current TruncatedNormal location but with half the scale.  No
-        # truncation needed: the tight prior already concentrates the mass
-        # well below 0.
-        if tight_omega3_prior:
-            prior_omega_3 = dist.Normal(loc=-6.0, scale=1.0)
-        else:
-            prior_omega_3 = dist.TruncatedNormal(
-                loc=-6.0,
-                scale=2.0,
-                high=0.0,
-            )
+        prior_omega_3 = prior_spec.omega_3.to_numpyro_dist()
         # κ is frozen at _KAPPA_FIXED (1.0) — see module docstring.  No prior
         # needed because κ is not sampled.
 
@@ -1283,7 +1271,7 @@ def _run_blackjax_nuts(
     phase_label: str = "sample",
     max_tree_depth: int = 10,
     use_laplace_warmup: bool = False,
-    tight_omega3_prior: bool = False,
+    prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], int, dict]:
     """Run BlackJAX NUTS with window_adaptation warmup and lax.scan sampling.
 
@@ -1494,7 +1482,7 @@ def _run_blackjax_nuts(
             log_every=log_every,
             phase_label=phase_label,
             max_num_doublings=max_tree_depth,
-            tight_omega3_prior=tight_omega3_prior,
+            prior_spec=prior_spec,
         )
         print(
             f"[hierarchical t={time.perf_counter() - _t_fn0:.1f}s] "
@@ -1811,7 +1799,7 @@ def _build_sample_loop(
     log_every: int = 0,
     phase_label: str = "sample",
     max_num_doublings: int = 10,
-    tight_omega3_prior: bool = False,
+    prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
 ):  # noqa: ANN205
     """Build a JIT'd sampling function where data flows as traced arguments.
 
@@ -1846,6 +1834,9 @@ def _build_sample_loop(
         If ``True``, use ``jax.pmap`` for multi-GPU chain parallelism.
         If ``False``, use ``jax.vmap`` on a single device with
         ``@jax.jit``.
+    prior_spec : HGFPriorSpec or None, optional
+        Prior specification.  If ``None``, uses the default for the
+        given ``model_name``.
 
     Returns
     -------
@@ -1858,26 +1849,24 @@ def _build_sample_loop(
         compiled and cached together with the sampling loop.
     """
     import blackjax
-    import numpyro.distributions as dist
+
+    from prl_hgf.fitting.priors import HGFPriorSpec
 
     is_3level = model_name == "hgf_3level"
 
+    if prior_spec is None:
+        prior_spec = (
+            HGFPriorSpec.default_3level()
+            if is_3level
+            else HGFPriorSpec.default_2level()
+        )
+
     # Prior distributions -- parameterless JAX objects, safe to capture
-    prior_omega_2 = dist.TruncatedNormal(loc=-3.0, scale=2.0, high=0.0)
-    prior_log_beta = dist.Normal(0.0, 1.5)
-    prior_zeta = dist.Normal(0.0, 2.0)
+    prior_omega_2 = prior_spec.omega_2.to_numpyro_dist()
+    prior_log_beta = prior_spec.log_beta.to_numpyro_dist()
+    prior_zeta = prior_spec.zeta.to_numpyro_dist()
     if is_3level:
-        # Variant 3: matches the gate in _build_log_posterior so warmup
-        # and sampling share the same prior.  See that comment for the
-        # rationale.
-        if tight_omega3_prior:
-            prior_omega_3 = dist.Normal(loc=-6.0, scale=1.0)
-        else:
-            prior_omega_3 = dist.TruncatedNormal(
-                loc=-6.0,
-                scale=2.0,
-                high=0.0,
-            )
+        prior_omega_3 = prior_spec.omega_3.to_numpyro_dist()
         # κ frozen at _KAPPA_FIXED (1.0); no sampled prior.
 
     if use_pmap:
@@ -2163,6 +2152,7 @@ def _numpyro_model_3level(
     trial_mask: jnp.ndarray,
     n_participants: int,
     batched_logp_fn,  # noqa: ANN001
+    prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
 ) -> None:
     """NumPyro model: 3-level HGF with IID priors per participant.
 
@@ -2185,26 +2175,24 @@ def _numpyro_model_3level(
         Number of participants ``P``.
     batched_logp_fn : callable
         Pure JAX batched logp from :func:`build_logp_fn_batched`.
+    prior_spec : HGFPriorSpec or None, optional
+        Prior specification.  If ``None``, uses default 3-level priors.
     """
     import numpyro
-    import numpyro.distributions as dist
+
+    from prl_hgf.fitting.priors import HGFPriorSpec
+
+    if prior_spec is None:
+        prior_spec = HGFPriorSpec.default_3level()
 
     # Perceptual parameters
     omega_2 = numpyro.sample(
         "omega_2",
-        dist.TruncatedNormal(
-            loc=-3.0,
-            scale=2.0,
-            high=0.0,
-        ).expand([n_participants]),
+        prior_spec.omega_2.to_numpyro_dist().expand([n_participants]),
     )
     omega_3 = numpyro.sample(
         "omega_3",
-        dist.TruncatedNormal(
-            loc=-6.0,
-            scale=2.0,
-            high=0.0,
-        ).expand([n_participants]),
+        prior_spec.omega_3.to_numpyro_dist().expand([n_participants]),
     )
     # κ frozen at _KAPPA_FIXED (1.0) — collapses ω₃×κ ridge that otherwise
     # saturates NUTS tree depth (see module constant docstring).
@@ -2213,12 +2201,12 @@ def _numpyro_model_3level(
     # Response parameters
     log_beta = numpyro.sample(
         "log_beta",
-        dist.Normal(0.0, 1.5).expand([n_participants]),
+        prior_spec.log_beta.to_numpyro_dist().expand([n_participants]),
     )
     beta = numpyro.deterministic("beta", jnp.exp(log_beta))
     zeta = numpyro.sample(
         "zeta",
-        dist.Normal(0.0, 2.0).expand([n_participants]),
+        prior_spec.zeta.to_numpyro_dist().expand([n_participants]),
     )
 
     # Custom HGF log-likelihood
@@ -2243,6 +2231,7 @@ def _numpyro_model_2level(
     trial_mask: jnp.ndarray,
     n_participants: int,
     batched_logp_fn,  # noqa: ANN001
+    prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
 ) -> None:
     """NumPyro model: 2-level HGF with IID priors per participant.
 
@@ -2263,29 +2252,31 @@ def _numpyro_model_2level(
         Number of participants ``P``.
     batched_logp_fn : callable
         Pure JAX batched logp from :func:`build_logp_fn_batched`.
+    prior_spec : HGFPriorSpec or None, optional
+        Prior specification.  If ``None``, uses default 2-level priors.
     """
     import numpyro
-    import numpyro.distributions as dist
+
+    from prl_hgf.fitting.priors import HGFPriorSpec
+
+    if prior_spec is None:
+        prior_spec = HGFPriorSpec.default_2level()
 
     # Perceptual parameter
     omega_2 = numpyro.sample(
         "omega_2",
-        dist.TruncatedNormal(
-            loc=-3.0,
-            scale=2.0,
-            high=0.0,
-        ).expand([n_participants]),
+        prior_spec.omega_2.to_numpyro_dist().expand([n_participants]),
     )
 
     # Response parameters
     log_beta = numpyro.sample(
         "log_beta",
-        dist.Normal(0.0, 1.5).expand([n_participants]),
+        prior_spec.log_beta.to_numpyro_dist().expand([n_participants]),
     )
     beta = numpyro.deterministic("beta", jnp.exp(log_beta))
     zeta = numpyro.sample(
         "zeta",
-        dist.Normal(0.0, 2.0).expand([n_participants]),
+        prior_spec.zeta.to_numpyro_dist().expand([n_participants]),
     )
 
     # Custom HGF log-likelihood
@@ -2716,6 +2707,18 @@ def fit_batch_hierarchical(
 
     rng_key = jax.random.PRNGKey(random_seed)
 
+    # ------------------------------------------------------------------
+    # Translate legacy tight_omega3_prior kwarg to HGFPriorSpec
+    # ------------------------------------------------------------------
+    from prl_hgf.fitting.priors import HGFPriorSpec
+
+    if tight_omega3_prior:
+        _prior_spec = HGFPriorSpec.tight_3level()
+    elif model_name == "hgf_3level":
+        _prior_spec = HGFPriorSpec.default_3level()
+    else:
+        _prior_spec = HGFPriorSpec.default_2level()
+
     if sampler == "blackjax":
         # ==============================================================
         # BlackJAX path (default): pure JAX log-posterior + NUTS
@@ -2742,7 +2745,7 @@ def fit_batch_hierarchical(
             jax_trial_mask,
             n_participants,
             model_name,
-            tight_omega3_prior=tight_omega3_prior,
+            prior_spec=_prior_spec,
         )
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "
@@ -2800,7 +2803,7 @@ def fit_batch_hierarchical(
             phase_label=model_name.replace("hgf_", ""),
             max_tree_depth=max_tree_depth,
             use_laplace_warmup=use_laplace_warmup,
-            tight_omega3_prior=tight_omega3_prior,
+            prior_spec=_prior_spec,
         )
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "
@@ -2863,6 +2866,7 @@ def fit_batch_hierarchical(
             model_fn,
             n_participants=n_participants,
             batched_logp_fn=logp_fn,
+            prior_spec=_prior_spec,
         )
         kernel = NUTS(bound_model, target_accept_prob=target_accept)
         mcmc = MCMC(

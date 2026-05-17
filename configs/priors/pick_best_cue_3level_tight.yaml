@@ -1,0 +1,17 @@
+omega_2:
+  family: truncated_normal
+  loc: -3.0
+  scale: 2.0
+  high: 0.0
+log_beta:
+  family: normal
+  loc: 0.0
+  scale: 1.5
+zeta:
+  family: normal
+  loc: 0.0
+  scale: 2.0
+omega_3:
+  family: normal
+  loc: -6.0
+  scale: 1.0

@@ -1,0 +1,26 @@
+omega_2:
+  family: normal
+  loc: -4.0
+  scale: 2.0
+log_beta:
+  family: normal
+  loc: 0.0
+  scale: 1.5
+zeta:
+  family: normal
+  loc: 0.0
+  scale: 2.0
+omega_3:
+  family: normal
+  loc: -6.0
+  scale: 2.0
+kappa:
+  family: truncated_normal
+  loc: 1.0
+  scale: 0.5
+  low: 0.0
+  high: 2.0
+mu3_0:
+  family: normal
+  loc: 1.0
+  scale: 1.0

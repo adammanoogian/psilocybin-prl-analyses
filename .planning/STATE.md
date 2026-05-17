@@ -9,25 +9,27 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 ## Current Position
 
-Phase: 27 of 10 (Dependency upgrade chain) — ✓ Complete
-Plan: 4 of 4 complete (27-01, 27-02, 27-03, 27-04 all closed)
-Status: Phase 27 verified passed (4/4 must-haves); ready for Phase 28
-Last activity: 2026-05-08 — Closed 27-03 (DEPS-05 TIMEOUT-as-evidence) + 27-04 (M3 build) SUMMARYs and verified phase
+Phase: 28 of 10 (FitConfig + HGFPriorSpec refactor)
+Plan: 2 of 5 complete (28-01, 28-02 closed)
+Status: In progress
+Last activity: 2026-05-17 — Completed 28-02-PLAN.md (FitConfig dataclass hierarchy)
 
-Progress: [██░░░░░░░░] 10% (1 of 10 phases complete in v1.0 milestone)
+Progress: [███░░░░░░░] 12% (6 of 9 remaining v1.0 plans in Phase 28)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
+- Total plans completed: 6
 - Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
-- Effective work time across plans: ~5h (excluding the 24h DEPS-05 GPU timeout)
+- Phase 28 wall-clock: 2 plans in ~1 day (code-only, fast)
+- Effective work time across plans: ~5.5h
 
 **By Phase:**
 
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
 | 27-dependency-upgrade-chain | 4 of 4 | ✓ Complete | 2026-05-08 |
+| 28-fitconfig-hgfpriorspec-refactor | 2 of 5 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -74,9 +76,9 @@ None tracked in `.planning/todos/pending/`.
 
 ## Session Continuity
 
-Last session: 2026-05-08
-Stopped at: Phase 27 closed; ROADMAP/STATE/REQUIREMENTS reflect completion. Verifier returned passed (4/4).
-Resume: `/gsd:discuss-phase 28` (or `/gsd:plan-phase 28` to skip discussion).
+Last session: 2026-05-17
+Stopped at: Completed 28-02-PLAN.md (FitConfig dataclass hierarchy)
+Resume: `/gsd:execute-phase` on 28-03-PLAN.md
 
 ---
-*Last updated: 2026-05-08 on Phase 27 closure*
+*Last updated: 2026-05-17 after 28-02 completion*

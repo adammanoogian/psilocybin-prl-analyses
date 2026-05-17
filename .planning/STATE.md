@@ -10,9 +10,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 ## Current Position
 
 Phase: 30 (Laplace warmup fp64 multigpu flags)
-Plan: 2 of N complete (30-02 done)
+Plan: 3 of N complete (30-03 done)
 Status: In progress
-Last activity: 2026-05-17 — Completed 30-02-PLAN.md (multi-start Laplace warmup with basin diagnostic)
+Last activity: 2026-05-17 — Completed 30-03-PLAN.md (shard_map chain dispatch replacing pmap)
 
 Progress: [█████████░] 41% (13 of ~15 remaining v1.0 plans; Phase 30 in progress)
 
@@ -89,8 +89,12 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-17
-Stopped at: Completed 30-02-PLAN.md (multi-start Laplace warmup with basin diagnostic)
-Resume: Phase 30 in progress. Next: 30-03 (fp64 flag) or 30-04 (multi-GPU flags).
+Stopped at: Completed 30-03-PLAN.md (shard_map chain dispatch replacing pmap; P7 CI test)
+Resume: Phase 30 in progress. Next: 30-04 (multi-GPU flags) or remaining Phase 30 plans.
+
+  - **[30-03] check_rep=False mandatory for NUTS+shard_map**: `lax.while_loop` (NUTS tree expansion) has no replication rule in shard_map; `check_rep=False` disables the check while `out_specs=P("chains")` still enforces output sharding.
+  - **[30-03] vmap inside shard body for n_chains > n_devices**: When local_n > 1 (n_chains/n_devices > 1), shard body receives `(local_n, ...)` tensors; `jax.vmap` applies per-chain logic independently. Legacy uint32 key shape `(n, 2)` makes this pattern mandatory.
+  - **[30-03] MitigationConfig.use_shard_map reserved for Phase 31**: Multi-device decision stays automatic (`n_devices >= n_chains`); Phase 31 will consume the flag for forced-sharding with vmap fallback.
 
 ---
-*Last updated: 2026-05-17 after 30-02 completion*
+*Last updated: 2026-05-17 after 30-03 completion*

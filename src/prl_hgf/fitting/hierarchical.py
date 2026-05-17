@@ -1427,6 +1427,7 @@ def _run_blackjax_nuts(
     use_laplace_warmup: bool = False,
     prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
     is_mass_matrix_diagonal: bool = True,
+    use_shard_map: bool = False,
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], int, dict]:
     """Run BlackJAX NUTS with window_adaptation warmup and lax.scan sampling.
 
@@ -1596,15 +1597,18 @@ def _run_blackjax_nuts(
         )
 
     # Phase 2: Determine chain strategy
-    # MitigationConfig.use_shard_map is reserved for Phase 31 forced-sharding
-    # behaviour (shard_map even when n_devices < n_chains via vmap-over-chains
-    # per device).  For now the decision remains automatic.
     n_devices = jax.device_count()
-    use_multi_device = n_devices >= n_chains
+    if use_shard_map:
+        # Phase 31: forced shard_map dispatch. When n_devices < n_chains,
+        # the shard body uses vmap for local_n = n_chains // n_devices chains.
+        use_multi_device = True
+    else:
+        use_multi_device = n_devices >= n_chains
+    _shard_source = "forced" if use_shard_map else "automatic"
     print(
         f"[hierarchical t={time.perf_counter() - _t_fn0:.1f}s] "
-        f"chain strategy: use_shard_map={use_multi_device} (n_devices={n_devices}, "
-        f"n_chains={n_chains})",
+        f"chain strategy: use_shard_map={use_multi_device} "
+        f"({_shard_source}, n_devices={n_devices}, n_chains={n_chains})",
         flush=True,
     )
 
@@ -2988,6 +2992,7 @@ def fit_batch_hierarchical(
             use_laplace_warmup=use_laplace_warmup,
             prior_spec=prior_spec,
             is_mass_matrix_diagonal=is_mass_matrix_diagonal,
+            use_shard_map=fit_config.mitigation.use_shard_map,
         )
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "

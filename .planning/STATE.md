@@ -5,16 +5,16 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 30 in progress — Laplace warmup multi-start upgrade + fp64/multi-GPU flags.
+**Current focus:** Phase 30 complete — Laplace warmup + fp64 + multi-GPU as first-class flags.
 
 ## Current Position
 
-Phase: 30 (Laplace warmup fp64 multigpu flags)
-Plan: 3 of N complete (30-03 done)
-Status: In progress
-Last activity: 2026-05-17 — Completed 30-03-PLAN.md (shard_map chain dispatch replacing pmap)
+Phase: 30 (Laplace warmup + fp64 + multi-GPU flags)
+Plan: 4 of 4 complete (30-01, 30-02, 30-03, 30-04 all done)
+Status: Phase complete
+Last activity: 2026-05-17 — Phase 30 execution complete
 
-Progress: [█████████░] 41% (13 of ~15 remaining v1.0 plans; Phase 30 in progress)
+Progress: [██████████] 50% (16 of ~30 remaining v1.0 plans; Phase 30 complete)
 
 ## Performance Metrics
 
@@ -31,7 +31,7 @@ Progress: [█████████░] 41% (13 of ~15 remaining v1.0 plans; 
 | 27-dependency-upgrade-chain | 4 of 4 | ✓ Complete | 2026-05-08 |
 | 28-fitconfig-hgfpriorspec-refactor | 5 of 5 | Complete | 2026-05-17 |
 | 29-m1-dense-lowrank-mass-matrix-wiring | 3 of 3 | Complete | 2026-05-17 |
-| 30-laplace-warmup-fp64-multigpu-flags | 2+ of N | In progress | 2026-05-17 |
+| 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
 
 *Updated after each phase verification.*
 
@@ -89,12 +89,14 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-17
-Stopped at: Completed 30-03-PLAN.md (shard_map chain dispatch replacing pmap; P7 CI test)
-Resume: Phase 30 in progress. Next: 30-04 (multi-GPU flags) or remaining Phase 30 plans.
+Stopped at: Phase 30 complete (all 4 plans executed)
+Resume: Phase 30 complete. Next: Phase 31 (Benchmark no-pooling mode).
 
   - **[30-03] check_rep=False mandatory for NUTS+shard_map**: `lax.while_loop` (NUTS tree expansion) has no replication rule in shard_map; `check_rep=False` disables the check while `out_specs=P("chains")` still enforces output sharding.
   - **[30-03] vmap inside shard body for n_chains > n_devices**: When local_n > 1 (n_chains/n_devices > 1), shard body receives `(local_n, ...)` tensors; `jax.vmap` applies per-chain logic independently. Legacy uint32 key shape `(n, 2)` makes this pattern mandatory.
   - **[30-03] MitigationConfig.use_shard_map reserved for Phase 31**: Multi-device decision stays automatic (`n_devices >= n_chains`); Phase 31 will consume the flag for forced-sharding with vmap fallback.
+  - **[30-04] GUARD-03 subprocess isolation**: JAX_LOG_COMPILES=1 + subprocess.run provides clean JIT compile-count baseline; in-process redirect_stderr is contaminated by session-level JIT state. Compile threshold of 12 (3x single-iter budget of 4) catches pathological per-iter recompile (20+) without false-positives from scan-body specialisation.
+  - **[30-04] All Phase 30 MitigationConfig fields have explicit smoke-test coverage**: non_centered tuple, use_fp64, use_shard_map YAML round-trips plus hash stability test are CI-verified locally and gated for cluster.
 
 ---
-*Last updated: 2026-05-17 after 30-03 completion*
+*Last updated: 2026-05-17 after Phase 30 completion*

@@ -19,6 +19,8 @@ point — see [How to update](#how-to-update) at the bottom.
 | **Model** | `2-level` / `3-level` HGF (binary branches; see `CLAUDE.md` for arch) |
 | **Sampler** | `Laplace` (`fit_vb_laplace_*`) / `NUTS` (BlackJAX via `fit_batch_hierarchical`) |
 | **Mass-Matrix** | `[diagonal]` — default mass matrix (no dense allocation). `[dense]` — full dense mass matrix (O(D²) per step). `[low_rank]` — low-rank approximation (future, no BlackJAX support yet). `[n/a]` — not applicable (e.g., Laplace fits). |
+| **Mode** | `[mode-a]` — no-pooling (independent priors per participant). `[mode-b]` — hierarchical (group hyperpriors, Phase 34+). |
+| **Mitigation** | `[none]` — principled defaults. `[M1]` — dense mass matrix. `[M1+Laplace]` — dense + Laplace warmup. `[M1+Laplace+fp64]` — dense + Laplace + fp64. `[n/a]` — not applicable (e.g., Laplace sampler rows). |
 | **Task** | `pick_best_cue` (T=420) / `PAT-RL` (T=192) / other |
 | **P_total** | Total subjects in the joint NUTS fit. For `pick_best_cue`: `n_per_group × n_groups × n_sessions`. For `PAT-RL`: `n_per_phenotype × 4`. |
 | **T** | Trials per participant |
@@ -38,26 +40,26 @@ reparam, prior tightening) get their own rows tagged `[mitigated]`.
 
 ### `pick_best_cue` — 3-cue PRL with criterion-based reversals (T=420)
 
-| Model | Sampler | Mass-Matrix | P_total | Status | Walltime | Evidence | Diagnostics |
-|---|---|---|---|---|---|---|---|
-| 3-level | NUTS | [diagonal] | 30 (n/grp=5) | ❌ TIMEOUT | >8h | job 55143456 (A100 80GB, commit `cc9ee03`) | window_adaptation never completed in 8h walltime — same conditioning failure as P=300 row, just slower to manifest |
-| 3-level | NUTS | [dense] | 30 (n/grp=5) | ❌ NOT CLEARED (TIMEOUT @ 24h) | >24h | DEPS-05 evidence: `.planning/phases/27-dependency-upgrade-chain/DEPS-05-evidence.json`, job 55198489 (m3g108, commit `4a3b541`) | window_adaptation (is_mass_matrix_diagonal=False, n_warmup=1000, n_chains=4) hit 24h walltime; BlackJAX 1.5 only exposes diagonal-vs-dense (no low-rank kwarg per 27-03 API probe), so dense O(D²)/step is the only non-diagonal option at this version and it is not feasible at P=30 — Phase 29 (M1 wiring + pre-flight) inherits |
-| 3-level | NUTS | [diagonal] | 60 (n/grp=10) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
-| 3-level | NUTS | [diagonal] | 102 (n/grp=17) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
-| 3-level | NUTS | [diagonal] | 150 (n/grp=25) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
-| 3-level | NUTS | [diagonal] | 198 (n/grp=33) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
-| 3-level | NUTS | [diagonal] | 50 | ✅ PASS | 233s | job 54902462, commit `05545b9` | warmup ~100–120s; in-process warm 2.52× |
-| 3-level | NUTS | [diagonal] | 300 (n/grp=50) | ❌ TIMEOUT | >10h | job 55139044 (this session) | window_adaptation never finished step 1/500; GPU at 100% util — **conditioning failure** |
-| 2-level | NUTS | [diagonal] | any | 🔲 NOT TESTED | — | — | The 2-level NUTS gap — see [Open gaps](#open-gaps) |
+| Model | Sampler | Mass-Matrix | Mode | Mitigation | P_total | Status | Walltime | Evidence | Diagnostics |
+|---|---|---|---|---|---|---|---|---|---|
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 30 (n/grp=5) | ❌ TIMEOUT | >8h | job 55143456 (A100 80GB, commit `cc9ee03`) | window_adaptation never completed in 8h walltime — same conditioning failure as P=300 row, just slower to manifest |
+| 3-level | NUTS | [dense] | [mode-a] | [M1] | 30 (n/grp=5) | ❌ NOT CLEARED (TIMEOUT @ 24h) | >24h | DEPS-05 evidence: `.planning/phases/27-dependency-upgrade-chain/DEPS-05-evidence.json`, job 55198489 (m3g108, commit `4a3b541`) | window_adaptation (is_mass_matrix_diagonal=False, n_warmup=1000, n_chains=4) hit 24h walltime; BlackJAX 1.5 only exposes diagonal-vs-dense (no low-rank kwarg per 27-03 API probe), so dense O(D²)/step is the only non-diagonal option at this version and it is not feasible at P=30 — Phase 29 (M1 wiring + pre-flight) inherits |
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 60 (n/grp=10) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 102 (n/grp=17) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 150 (n/grp=25) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 198 (n/grp=33) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 50 | ✅ PASS | 233s | job 54902462, commit `05545b9` | warmup ~100–120s; in-process warm 2.52× |
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 300 (n/grp=50) | ❌ TIMEOUT | >10h | job 55139044 (this session) | window_adaptation never finished step 1/500; GPU at 100% util — **conditioning failure** |
+| 2-level | NUTS | [diagonal] | [mode-a] | [none] | any | 🔲 NOT TESTED | — | — | The 2-level NUTS gap — see [Open gaps](#open-gaps) |
 
 ### PAT-RL — binary safe/dangerous approach-avoid (T=192)
 
-| Model | Sampler | Mass-Matrix | P_total | Status | Walltime | Evidence | Diagnostics |
-|---|---|---|---|---|---|---|---|
-| 2-level | Laplace | [n/a] | 160 (40 × 4 phenotypes) | ✅ PASS | ~47s CPU (54.2s observed) | job 55139039, commit `b78a51c` | r(ω₂)=0.935, r(β)=0.831, d(ω₂)=1.63, d(β)=2.34, \|cor\|=0.005 — handoff numbers reproduced |
-| 3-level | Laplace | [n/a] | 160 | ❌ FAIL | ~3:58 (failed) | job 55139041, commit `b78a51c` | β → exp overflow in σ(β·EV+...); κ MAP stuck at prior mean — documented pathology, persists |
-| 3-level | NUTS | [diagonal] | any | 🔲 NOT TESTED | — | — | Deferred from Phase 20 to Phase 14-15 GPU benchmark; gated on the `pick_best_cue` 3-level cliff result |
-| 2-level | NUTS | [diagonal] | any | 🔲 NOT TESTED | — | — | Same gap as above |
+| Model | Sampler | Mass-Matrix | Mode | Mitigation | P_total | Status | Walltime | Evidence | Diagnostics |
+|---|---|---|---|---|---|---|---|---|---|
+| 2-level | Laplace | [n/a] | [mode-a] | [n/a] | 160 (40 × 4 phenotypes) | ✅ PASS | ~47s CPU (54.2s observed) | job 55139039, commit `b78a51c` | r(ω₂)=0.935, r(β)=0.831, d(ω₂)=1.63, d(β)=2.34, \|cor\|=0.005 — handoff numbers reproduced |
+| 3-level | Laplace | [n/a] | [mode-a] | [n/a] | 160 | ❌ FAIL | ~3:58 (failed) | job 55139041, commit `b78a51c` | β → exp overflow in σ(β·EV+...); κ MAP stuck at prior mean — documented pathology, persists |
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | any | 🔲 NOT TESTED | — | — | Deferred from Phase 20 to Phase 14-15 GPU benchmark; gated on the `pick_best_cue` 3-level cliff result |
+| 2-level | NUTS | [diagonal] | [mode-a] | [none] | any | 🔲 NOT TESTED | — | — | Same gap as above |
 
 ---
 

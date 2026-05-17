@@ -34,6 +34,8 @@ REQUIRED_COLUMNS = {
     "Model",
     "Sampler",
     "Mass-Matrix",
+    "Mode",
+    "Mitigation",
     "P_total",
     "Status",
     "Walltime",
@@ -178,4 +180,30 @@ def test_mass_matrix_tags_present(map_text: str) -> None:
         "Capability map missing [dense] tag in Mass-Matrix column. "
         "The BlackJAX 1.5 dense mass-matrix row (DEPS-05 evidence) "
         "should be tagged [dense]."
+    )
+
+
+def test_mode_tags_present(map_text: str) -> None:
+    """Mode column must contain at least [mode-a] tag.
+
+    # NOTE: Only check [mode-a]. [mode-b] is Phase 34+ — do NOT require it here.
+    """
+    assert "[mode-a]" in map_text, (
+        "Capability map missing [mode-a] tag in Mode column. "
+        "All current rows should be tagged [mode-a] (no-pooling mode)."
+    )
+
+
+def test_mitigation_tags_present(map_text: str) -> None:
+    """Mitigation column must contain at least one valid mitigation tag.
+
+    Checks that at least one of the known mitigation tags appears in the
+    map.  Does not require ALL tags (the grid sweep in plan 31-02 will
+    populate them progressively).
+    """
+    valid_tags = {"[none]", "[M1]", "[M1+Laplace]", "[M1+Laplace+fp64]"}
+    found = any(tag in map_text for tag in valid_tags)
+    assert found, (
+        f"Capability map missing all mitigation tags. Expected at least one "
+        f"of {sorted(valid_tags)} to appear in a Mitigation column."
     )

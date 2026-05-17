@@ -31,9 +31,11 @@ _PROJECT_ROOT = Path(__file__).resolve().parent.parent.parent
 sys.path.insert(0, str(_PROJECT_ROOT))
 sys.path.insert(0, str(_PROJECT_ROOT / "src"))
 
+from prl_hgf.runtime import set_x64  # noqa: E402
+
 # --- JAX config must happen before jax is imported ---
 if "--enable-x64" in sys.argv:
-    os.environ["JAX_ENABLE_X64"] = "1"
+    set_x64(True)
 os.environ.setdefault("JAX_PLATFORMS", "cpu")
 
 import jax  # noqa: E402

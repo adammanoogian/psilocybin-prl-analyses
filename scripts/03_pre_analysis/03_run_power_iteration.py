@@ -38,11 +38,13 @@ from pathlib import Path
 # without an editable install.
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent.parent))
 
+from prl_hgf.runtime import set_x64
+
 # Pre-parse --enable-x64 before importing jax so JAX_ENABLE_X64 takes effect.
-# Config must be set before any jnp array is created, so env var is the
-# reliable channel.
+# Config must be set before any jnp array is created.  set_x64 sets both the
+# env var (pre-import channel) and calls jax.config.update with assertion.
 if "--enable-x64" in sys.argv:
-    os.environ["JAX_ENABLE_X64"] = "1"
+    set_x64(True)
 
 import jax
 
@@ -737,10 +739,12 @@ def _run_smoke_test(
     # imported (via prl_hgf.fitting.hierarchical → jax_funcify).  If the
     # user did NOT pass --enable-x64, force it back to False before any
     # jnp array is created so the sampler actually runs in fp32 for the
-    # precision comparison.  When --enable-x64 was passed, the env var
-    # preparse at the top of the module already set it; no-op here.
+    # precision comparison.  set_x64 sets the env var AND asserts the flag
+    # took effect, catching any PyTensor silent-flip (GUARD-05 / P6).
     if not getattr(args, "enable_x64", False):
-        jax.config.update("jax_enable_x64", False)
+        set_x64(False)
+    else:
+        set_x64(True)  # Re-assert after PyTensor import
 
     output_dir.mkdir(parents=True, exist_ok=True)
     results: dict = {}

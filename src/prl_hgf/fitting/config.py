@@ -33,7 +33,7 @@ class SamplerConfig:
 class MitigationConfig:
     """Mitigation flags for conditioning cliff."""
 
-    mass_matrix_kind: Literal["diagonal", "dense"] = "diagonal"
+    mass_matrix_kind: Literal["diagonal", "low_rank", "dense"] = "diagonal"
     use_laplace_warmup: bool = False
     use_fp64: bool = False
     use_shard_map: bool = False

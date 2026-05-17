@@ -37,6 +37,7 @@ reimplemented here.
 from __future__ import annotations
 
 import time
+import warnings
 from typing import TYPE_CHECKING
 
 import jax
@@ -1275,6 +1276,7 @@ def _run_blackjax_nuts(
     max_tree_depth: int = 10,
     use_laplace_warmup: bool = False,
     prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
+    is_mass_matrix_diagonal: bool = True,
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], int, dict]:
     """Run BlackJAX NUTS with window_adaptation warmup and lax.scan sampling.
 
@@ -1400,19 +1402,13 @@ def _run_blackjax_nuts(
             f"(num_steps={n_tune}, target_accept={target_accept})",
             flush=True,
         )
-        # Mitigation hook M1 (dense mass matrix): if docs/CAPABILITY_MAP.md
-        # cliff data shows window_adaptation can't precondition the
-        # ω₂/ω₃/κ correlations of the 3-level posterior, flip
-        # is_mass_matrix_diagonal=False. Mass matrix grows to O(D²);
-        # at D≈1500 (3-level × P=300 × 5 params) that's ~18 MB — trivial.
-        # Wire-up: thread an `is_mass_matrix_diagonal` kwarg through
-        # fit_batch_hierarchical → _run_blackjax_nuts → here. See M1 section
-        # of docs/CAPABILITY_MAP.md for the diagnosis.
+        # Mitigation M1 (dense mass matrix): controlled by
+        # is_mass_matrix_diagonal param threaded from FitConfig.
         warmup = blackjax.window_adaptation(
             blackjax.nuts,
             logdensity_fn,
             target_acceptance_rate=target_accept,
-            is_mass_matrix_diagonal=True,
+            is_mass_matrix_diagonal=is_mass_matrix_diagonal,
             max_num_doublings=max_tree_depth,
         )
         (warmup_state, warmup_params), warmup_info = warmup.run(
@@ -2591,6 +2587,21 @@ def fit_batch_hierarchical(
     log_every = fit_config.log_every
     max_tree_depth = fit_config.sampler.max_tree_depth
     use_laplace_warmup = fit_config.mitigation.use_laplace_warmup
+    mass_matrix_kind = fit_config.mitigation.mass_matrix_kind
+
+    if mass_matrix_kind == "low_rank":
+        warnings.warn(
+            "mass_matrix_kind='low_rank' has no BlackJAX 1.5 backend support "
+            "(window_adaptation only exposes is_mass_matrix_diagonal: bool). "
+            "Falling through to 'dense' (is_mass_matrix_diagonal=False). "
+            "Use 'dense' explicitly to suppress this warning, or wait for a "
+            "future BlackJAX release with low-rank API.",
+            UserWarning,
+            stacklevel=2,
+        )
+        mass_matrix_kind = "dense"
+
+    is_mass_matrix_diagonal = mass_matrix_kind == "diagonal"
 
     # ------------------------------------------------------------------
     # Derive prior_spec if not provided
@@ -2780,6 +2791,7 @@ def fit_batch_hierarchical(
             max_tree_depth=max_tree_depth,
             use_laplace_warmup=use_laplace_warmup,
             prior_spec=prior_spec,
+            is_mass_matrix_diagonal=is_mass_matrix_diagonal,
         )
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "
@@ -2847,7 +2859,11 @@ def fit_batch_hierarchical(
             batched_logp_fn=logp_fn,
             prior_spec=prior_spec,
         )
-        kernel = NUTS(bound_model, target_accept_prob=target_accept)
+        kernel = NUTS(
+            bound_model,
+            target_accept_prob=target_accept,
+            dense_mass=(mass_matrix_kind != "diagonal"),
+        )
         mcmc = MCMC(
             kernel,
             num_warmup=n_tune,

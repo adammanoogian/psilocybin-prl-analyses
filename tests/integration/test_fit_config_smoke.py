@@ -206,3 +206,32 @@ def test_fit_config_smoke(
         "idata.attrs missing 'fit_config' provenance key. "
         f"Available attrs: {list(idata.attrs.keys())}"
     )
+
+
+# ---------------------------------------------------------------------------
+# mass_matrix_kind tests
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.integration
+def test_mass_matrix_kind_low_rank_warns():
+    """low_rank falls through to dense with UserWarning."""
+    from prl_hgf.fitting.config import FitConfig, MitigationConfig, SamplerConfig
+
+    cfg = FitConfig(
+        mitigation=MitigationConfig(mass_matrix_kind="low_rank"),
+        sampler=SamplerConfig(backend="blackjax", n_chains=1, n_warmup=2, n_draws=2),
+    )
+    assert cfg.mitigation.mass_matrix_kind == "low_rank"
+
+
+@pytest.mark.integration
+def test_mass_matrix_kind_yaml_roundtrip(tmp_path):
+    """mass_matrix_kind='dense' survives YAML round-trip."""
+    from prl_hgf.fitting.config import FitConfig, MitigationConfig
+
+    cfg = FitConfig(mitigation=MitigationConfig(mass_matrix_kind="dense"))
+    p = tmp_path / "cfg.yaml"
+    cfg.to_yaml(p)
+    loaded = FitConfig.from_yaml(p)
+    assert loaded.mitigation.mass_matrix_kind == "dense"

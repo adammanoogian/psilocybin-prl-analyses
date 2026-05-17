@@ -5,21 +5,21 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 28 complete. Next: Phase 29 — mass matrix wiring + pre-flight estimator.
+**Current focus:** Phase 29 in progress — mass matrix wiring + pre-flight estimator.
 
 ## Current Position
 
-Phase: 28 of 10 (FitConfig + HGFPriorSpec refactor)
-Plan: 5 of 5 complete (28-01, 28-02, 28-03, 28-04, 28-05 closed)
-Status: Phase complete
-Last activity: 2026-05-17 — Completed 28-05-PLAN.md (SLURM --fit-config passthrough)
+Phase: 29 (M1 dense/low-rank mass matrix wiring)
+Plan: 3 of 3 in progress (29-03 complete)
+Status: In progress
+Last activity: 2026-05-17 — Completed 29-03-PLAN.md (capability-map Mass-Matrix column)
 
-Progress: [██████░░░░] 25% (5 of 9 remaining v1.0 plans; Phase 28 complete)
+Progress: [███████░░░] 30% (29-03 complete; 29-01, 29-02 status TBD)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 9
+- Total plans completed: 10
 - Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
 - Phase 28 wall-clock: 5 plans in ~1 day (code-only, fast)
 - Effective work time across plans: ~6.5h
@@ -81,8 +81,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-17
-Stopped at: Completed 28-05-PLAN.md (SLURM --fit-config passthrough); Phase 28 complete
-Resume: Phase 29 planning (mass matrix wiring + pre-flight estimator)
+Stopped at: Completed 29-03-PLAN.md (capability-map Mass-Matrix column + closure-guard)
+Resume: Phase 29 continues (29-01, 29-02 pending)
 
 ---
-*Last updated: 2026-05-17 after 28-05 completion (Phase 28 closed)*
+*Last updated: 2026-05-17 after 29-03 completion*

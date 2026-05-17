@@ -1,18 +1,16 @@
 """Smoke tests for ``fit_batch_hierarchical`` configuration matrix.
 
-Regression guard for Phase 28 refactor: exercises the cartesian product of
-fitting flags (model_name x use_laplace_warmup x tight_omega3_prior) against
-the CURRENT pre-refactor API.  After the FitConfig refactor lands, these
-tests will be updated to use the new dataclass interface while preserving
-the same behavioral assertions.
+Regression guard for Phase 28 FitConfig refactor: exercises the cartesian
+product of fitting flags (model_name x use_laplace_warmup x prior_spec)
+against the FitConfig-based API.
 
 Each parametrized cell:
 1. Generates synthetic data via the existing simulation pipeline.
-2. Calls ``fit_batch_hierarchical`` with minimal MCMC settings (2 chains,
-   50 draws, 50 warmup) so the test exercises the full code path without
-   requiring meaningful convergence.
+2. Calls ``fit_batch_hierarchical`` with a FitConfig (2 chains, 50 draws,
+   50 warmup) so the test exercises the full code path without requiring
+   meaningful convergence.
 3. Asserts: no exception, result contains ArviZ InferenceData with a
-   posterior group.
+   posterior group, and ``idata.attrs["fit_config"]`` provenance is set.
 
 Run::
 
@@ -95,33 +93,33 @@ def sim_df_small():
 _CONFIG_MATRIX = [
     pytest.param(
         "hgf_2level", False, False,
-        id="2level-noLaplace-noTight",
+        id="2level-noLaplace-defaultPrior",
     ),
     pytest.param(
         "hgf_2level", False, True,
-        id="2level-noLaplace-tightOmega3",
+        id="2level-noLaplace-tightPrior",
     ),
     pytest.param(
         "hgf_3level", False, False,
-        id="3level-noLaplace-noTight",
+        id="3level-noLaplace-defaultPrior",
     ),
     pytest.param(
         "hgf_3level", False, True,
-        id="3level-noLaplace-tightOmega3",
+        id="3level-noLaplace-tightPrior",
     ),
 ]
 
 
 @pytest.mark.integration
 @pytest.mark.parametrize(
-    "model_name, use_laplace_warmup, tight_omega3_prior",
+    "model_name, use_laplace_warmup, use_tight_prior",
     _CONFIG_MATRIX,
 )
 def test_fit_config_smoke(
     sim_df_small,
     model_name: str,
     use_laplace_warmup: bool,
-    tight_omega3_prior: bool,
+    use_tight_prior: bool,
 ) -> None:
     """Smoke: fit_batch_hierarchical runs without exception for config combo.
 
@@ -133,29 +131,48 @@ def test_fit_config_smoke(
         HGF model variant (``"hgf_2level"`` or ``"hgf_3level"``).
     use_laplace_warmup : bool
         Whether to use Laplace-mode warmup initialization.
-    tight_omega3_prior : bool
+    use_tight_prior : bool
         Whether to apply tighter omega_3 prior (meaningful only for 3-level
         but must not crash on 2-level).
     """
     import arviz as az
 
+    from prl_hgf.fitting.config import FitConfig, MitigationConfig, SamplerConfig
     from prl_hgf.fitting.hierarchical import fit_batch_hierarchical
+    from prl_hgf.fitting.priors import HGFPriorSpec
+
+    fit_config = FitConfig(
+        model_name=model_name,
+        sampler=SamplerConfig(
+            backend="blackjax",
+            n_chains=2,
+            n_draws=50,
+            n_warmup=50,
+            target_accept=0.8,
+            random_seed=42,
+        ),
+        mitigation=MitigationConfig(
+            use_laplace_warmup=use_laplace_warmup,
+        ),
+        progressbar=False,
+    )
+
+    # Build prior_spec: tight variant for 3-level, else None (use default)
+    if use_tight_prior and model_name == "hgf_3level":
+        prior_spec = HGFPriorSpec.tight_3level()
+    elif use_tight_prior:
+        # tight_omega3 is a no-op for 2-level; pass None = use default
+        prior_spec = None
+    else:
+        prior_spec = None
 
     result = fit_batch_hierarchical(
         sim_df_small,
-        model_name=model_name,
-        n_chains=2,
-        n_draws=50,
-        n_tune=50,
-        target_accept=0.8,
-        random_seed=42,
-        sampler="blackjax",
-        progressbar=False,
-        use_laplace_warmup=use_laplace_warmup,
-        tight_omega3_prior=tight_omega3_prior,
+        fit_config,
+        prior_spec=prior_spec,
     )
 
-    # Unpack if tuple (some code paths return (idata, extras_dict))
+    # Unpack if tuple (BlackJAX cold call returns (idata, adapted_params))
     if isinstance(result, tuple):
         idata = result[0]
     else:
@@ -165,7 +182,7 @@ def test_fit_config_smoke(
     assert isinstance(idata, az.InferenceData), (
         f"Expected az.InferenceData, got {type(idata).__name__}. "
         f"Config: model={model_name}, laplace={use_laplace_warmup}, "
-        f"tight={tight_omega3_prior}"
+        f"tight={use_tight_prior}"
     )
 
     # --- Assertion 2: posterior group exists ---
@@ -173,7 +190,7 @@ def test_fit_config_smoke(
         f"InferenceData missing 'posterior' group. "
         f"Available groups: {list(idata._groups)}. "
         f"Config: model={model_name}, laplace={use_laplace_warmup}, "
-        f"tight={tight_omega3_prior}"
+        f"tight={use_tight_prior}"
     )
 
     # --- Assertion 3: posterior is non-empty ---
@@ -181,5 +198,11 @@ def test_fit_config_smoke(
     assert len(posterior.data_vars) > 0, (
         f"Posterior group has no data variables. "
         f"Config: model={model_name}, laplace={use_laplace_warmup}, "
-        f"tight={tight_omega3_prior}"
+        f"tight={use_tight_prior}"
+    )
+
+    # --- Assertion 4: provenance recorded ---
+    assert "fit_config" in idata.attrs, (
+        "idata.attrs missing 'fit_config' provenance key. "
+        f"Available attrs: {list(idata.attrs.keys())}"
     )

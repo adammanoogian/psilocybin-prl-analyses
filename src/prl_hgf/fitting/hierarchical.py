@@ -48,6 +48,9 @@ from jax import lax
 from pytensor.graph import Apply, Op
 from pytensor.link.jax.dispatch import jax_funcify
 
+from prl_hgf.fitting.config import FitConfig
+from prl_hgf.fitting.priors import HGFPriorSpec
+
 if TYPE_CHECKING:
     import arviz as az
     import pandas as pd
@@ -2513,19 +2516,9 @@ def _build_arrays_single(
 
 def fit_batch_hierarchical(
     sim_df: pd.DataFrame,
-    model_name: str = "hgf_2level",
-    n_chains: int = 4,
-    n_draws: int = 1000,
-    n_tune: int = 1000,
-    target_accept: float = 0.95,
-    random_seed: int = 42,
-    sampler: str = "blackjax",
-    progressbar: bool = True,
+    fit_config: FitConfig,
+    prior_spec: HGFPriorSpec | None = None,
     warmup_params: dict | None = None,
-    log_every: int = 0,
-    max_tree_depth: int = 10,
-    use_laplace_warmup: bool = False,
-    tight_omega3_prior: bool = False,
 ) -> az.InferenceData | tuple[az.InferenceData, dict]:
     """Fit an entire cohort via BlackJAX NUTS (default) or NumPyro MCMC.
 
@@ -2552,42 +2545,21 @@ def fit_batch_hierarchical(
     sim_df : pandas.DataFrame
         Trial-level DataFrame with columns ``participant_id``, ``group``,
         ``session``, ``cue_chosen``, ``reward``.
-    model_name : str, optional
-        ``"hgf_2level"`` (default — primary target; no ω₃×κ ridge) or
-        ``"hgf_3level"`` (exploratory; κ frozen at 1.0 per
-        :data:`_KAPPA_FIXED` to avoid ω₃×κ multiplicative ridge that
-        otherwise saturates NUTS ``max_tree_depth``).
-    n_chains : int, optional
-        Number of MCMC chains.  Default ``4``.
-    n_draws : int, optional
-        Posterior draws per chain after tuning.  Default ``1000``.
-    n_tune : int, optional
-        Tuning steps per chain.  Default ``1000``.
-    target_accept : float, optional
-        NUTS target acceptance rate.  Default ``0.95``.
-    random_seed : int, optional
-        RNG seed for reproducibility.  Default ``42``.
-    sampler : str, optional
-        ``"blackjax"`` (default) uses BlackJAX NUTS with pmap/vmap chain
-        parallelism.  ``"numpyro"`` uses NumPyro MCMC (vectorized vmap).
-        ``"pymc"`` raises :class:`DeprecationWarning` and falls through
-        to the numpyro path.
-    progressbar : bool, optional
-        Show MCMC progress bar (numpyro path only).  Default ``True``.
+    fit_config : FitConfig
+        Complete fitting configuration — sampler backend, chain count,
+        draw count, warmup steps, target acceptance, tree depth, mitigation
+        flags, and logging options.  Single source of truth for all
+        sampling settings.
+    prior_spec : HGFPriorSpec or None, optional
+        Prior distributions for model parameters.  If ``None`` (default),
+        derived from ``fit_config.model_name``: 3-level models get
+        :meth:`HGFPriorSpec.default_3level`, 2-level models get
+        :meth:`HGFPriorSpec.default_2level`.
     warmup_params : dict or None, optional
         Pre-adapted NUTS parameters from a previous call.  When
         provided, warmup is skipped (~1100s savings per call).  Pass
         the second element of the return tuple from a prior call.
         Only used with the BlackJAX path.
-    log_every : int, optional
-        If ``> 0``, emit NUTS progress diagnostics every ``log_every``
-        draws via ``jax.debug.callback`` fired from inside the JIT'd
-        scan.  Reports wall time, integration-step distribution,
-        trajectory-expansion distribution, acceptance rate, and
-        divergence count.  ``0`` (default) disables — keeps the
-        production HLO identical to pre-instrumentation runs so the
-        XLA persistent cache keeps hitting.  Only used with the
-        BlackJAX path, vmap variant (single-device).
 
     Returns
     -------
@@ -2603,18 +2575,34 @@ def fit_batch_hierarchical(
         If ``sim_df`` is missing required columns or participants have
         different trial counts.
     """
-    import warnings
+    from prl_hgf.fitting.preflight import validate_fit_config
 
-    # Deprecation gate for sampler="pymc"
-    if sampler == "pymc":
-        warnings.warn(
-            "sampler='pymc' is deprecated and ignored. "
-            "fit_batch_hierarchical falls through to the numpyro path. "
-            "Use sampler='blackjax' (default) for best performance.",
-            DeprecationWarning,
-            stacklevel=2,
-        )
-        sampler = "numpyro"
+    # ------------------------------------------------------------------
+    # Extract settings from FitConfig
+    # ------------------------------------------------------------------
+    model_name = fit_config.model_name
+    n_chains = fit_config.sampler.n_chains
+    n_draws = fit_config.sampler.n_draws
+    n_tune = fit_config.sampler.n_warmup
+    target_accept = fit_config.sampler.target_accept
+    random_seed = fit_config.sampler.random_seed
+    sampler = fit_config.sampler.backend
+    progressbar = fit_config.progressbar
+    log_every = fit_config.log_every
+    max_tree_depth = fit_config.sampler.max_tree_depth
+    use_laplace_warmup = fit_config.mitigation.use_laplace_warmup
+
+    # ------------------------------------------------------------------
+    # Derive prior_spec if not provided
+    # ------------------------------------------------------------------
+    if prior_spec is None:
+        if model_name == "hgf_3level":
+            prior_spec = HGFPriorSpec.default_3level()
+        else:
+            prior_spec = HGFPriorSpec.default_2level()
+
+    # Pre-flight validation
+    validate_fit_config(fit_config, prior_spec)
 
     _t_fb0 = time.perf_counter()
     print(
@@ -2707,18 +2695,6 @@ def fit_batch_hierarchical(
 
     rng_key = jax.random.PRNGKey(random_seed)
 
-    # ------------------------------------------------------------------
-    # Translate legacy tight_omega3_prior kwarg to HGFPriorSpec
-    # ------------------------------------------------------------------
-    from prl_hgf.fitting.priors import HGFPriorSpec
-
-    if tight_omega3_prior:
-        _prior_spec = HGFPriorSpec.tight_3level()
-    elif model_name == "hgf_3level":
-        _prior_spec = HGFPriorSpec.default_3level()
-    else:
-        _prior_spec = HGFPriorSpec.default_2level()
-
     if sampler == "blackjax":
         # ==============================================================
         # BlackJAX path (default): pure JAX log-posterior + NUTS
@@ -2745,7 +2721,7 @@ def fit_batch_hierarchical(
             jax_trial_mask,
             n_participants,
             model_name,
-            prior_spec=_prior_spec,
+            prior_spec=prior_spec,
         )
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "
@@ -2803,7 +2779,7 @@ def fit_batch_hierarchical(
             phase_label=model_name.replace("hgf_", ""),
             max_tree_depth=max_tree_depth,
             use_laplace_warmup=use_laplace_warmup,
-            prior_spec=_prior_spec,
+            prior_spec=prior_spec,
         )
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "
@@ -2829,6 +2805,9 @@ def fit_batch_hierarchical(
             f"(BlackJAX path returning, total wall {time.perf_counter() - _t_fb0:.1f}s)",
             flush=True,
         )
+
+        # Provenance: record full config in idata attrs
+        idata.attrs["fit_config"] = fit_config.to_json()
 
         # Return adapted params so caller can skip warmup next time
         if warmup_params is None:
@@ -2866,7 +2845,7 @@ def fit_batch_hierarchical(
             model_fn,
             n_participants=n_participants,
             batched_logp_fn=logp_fn,
-            prior_spec=_prior_spec,
+            prior_spec=prior_spec,
         )
         kernel = NUTS(bound_model, target_accept_prob=target_accept)
         mcmc = MCMC(
@@ -2903,6 +2882,9 @@ def fit_batch_hierarchical(
             participant_group=("participant", participant_groups),
             participant_session=("participant", participant_sessions),
         )
+
+    # Provenance: record full config in idata attrs
+    idata.attrs["fit_config"] = fit_config.to_json()
 
     return idata
 

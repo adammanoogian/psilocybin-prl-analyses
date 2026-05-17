@@ -2,6 +2,15 @@
 
 Public API surface:
 
+* Configuration (Phase 28):
+
+  - :class:`FitConfig` -- single source of truth for fitting parameters
+  - :class:`SamplerConfig` -- NUTS/Laplace backend settings
+  - :class:`MitigationConfig` -- conditioning cliff mitigations
+  - :class:`CovariateConfig` -- hierarchical pooling and covariates
+  - :class:`HGFPriorSpec` -- prior distributions for model parameters
+  - :class:`PriorDist` -- single prior distribution specification
+
 * Legacy v1.1 per-participant sequential path (frozen, in
   :mod:`prl_hgf.fitting.legacy`):
 
@@ -14,7 +23,7 @@ Public API surface:
 * v1.2 batched hierarchical path:
 
   - :func:`build_logp_fn_batched` -- pure JAX logp factory (numpyro path)
-  - :func:`fit_batch_hierarchical` -- single-call cohort MCMC via numpyro
+  - :func:`fit_batch_hierarchical` -- single-call cohort MCMC via FitConfig
   - :func:`build_logp_ops_batched` -- (deprecated) PyTensor Op wrapper
   - :func:`build_pymc_model_batched` -- (deprecated) PyMC model factory
 """
@@ -25,6 +34,14 @@ from __future__ import annotations
 # existing call sites such as ``from prl_hgf.fitting import fit_batch`` keep
 # resolving without code changes.
 from prl_hgf.fitting.batch import fit_batch
+
+# Configuration dataclasses (Phase 28)
+from prl_hgf.fitting.config import (
+    CovariateConfig,
+    FitConfig,
+    MitigationConfig,
+    SamplerConfig,
+)
 from prl_hgf.fitting.hierarchical import (  # noqa: F401
     build_logp_fn_batched,
     build_logp_ops_batched,
@@ -39,6 +56,7 @@ from prl_hgf.fitting.ops import (
     build_logp_ops_2level,
     build_logp_ops_3level,
 )
+from prl_hgf.fitting.priors import HGFPriorSpec, PriorDist
 from prl_hgf.fitting.single import (
     extract_summary_rows,
     fit_participant,
@@ -46,6 +64,13 @@ from prl_hgf.fitting.single import (
 )
 
 __all__ = [
+    # Configuration (Phase 28)
+    "FitConfig",
+    "SamplerConfig",
+    "MitigationConfig",
+    "CovariateConfig",
+    "HGFPriorSpec",
+    "PriorDist",
     # legacy v1.1 path
     "fit_batch",
     "fit_participant",

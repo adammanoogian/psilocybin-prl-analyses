@@ -40,6 +40,8 @@ import pandas as pd
 from prl_hgf.analysis.bms import compute_subject_waic, run_group_bms
 from prl_hgf.analysis.recovery import build_recovery_df, compute_recovery_metrics
 from prl_hgf.fitting.batch import fit_batch
+from prl_hgf.fitting.config import FitConfig, MitigationConfig, SamplerConfig
+from prl_hgf.fitting.priors import HGFPriorSpec
 from prl_hgf.power.config import PowerConfig, make_power_config
 from prl_hgf.power.contrasts import compute_all_contrasts
 from prl_hgf.simulation.batch import simulate_batch
@@ -837,6 +839,7 @@ def run_sbf_iteration(
     child_seed: int,
     n_per_group_grid: list[int],
     power_config: PowerConfig,
+    fit_config: FitConfig | None = None,
     n_chains: int = 2,
     n_draws: int = 500,
     n_tune: int = 500,
@@ -896,12 +899,20 @@ def run_sbf_iteration(
         Sample sizes per group to evaluate via subsampling.
     power_config : PowerConfig
         Power analysis grid configuration (provides ``bf_threshold``).
+    fit_config : FitConfig or None, optional
+        Complete fitting configuration.  When provided, overrides the
+        legacy kwargs (n_chains, n_draws, n_tune, etc.).  When ``None``
+        (default), a FitConfig is built from the legacy kwargs for
+        backward compatibility.
     n_chains : int, optional
-        Number of MCMC chains.  Default ``2``.
+        Number of MCMC chains.  Default ``2``.  Ignored if ``fit_config``
+        is provided.
     n_draws : int, optional
-        Posterior draws per chain.  Default ``500``.
+        Posterior draws per chain.  Default ``500``.  Ignored if
+        ``fit_config`` is provided.
     n_tune : int, optional
-        Tuning steps per chain.  Default ``500``.
+        Tuning steps per chain.  Default ``500``.  Ignored if
+        ``fit_config`` is provided.
     sampler : str, optional
         .. deprecated:: 1.2
             The ``sampler`` parameter is ignored for the batched path
@@ -919,6 +930,68 @@ def run_sbf_iteration(
         ``3 * len(n_per_group_grid)`` dicts conforming to
         :data:`~prl_hgf.power.schema.POWER_SCHEMA` (13 columns each).
     """
+    # ------------------------------------------------------------------
+    # Build FitConfig from legacy kwargs if not explicitly provided
+    # ------------------------------------------------------------------
+    if fit_config is None:
+        fit_config_3 = FitConfig(
+            model_name="hgf_3level",
+            sampler=SamplerConfig(
+                backend="blackjax",
+                n_chains=n_chains,
+                n_draws=n_draws,
+                n_warmup=n_tune,
+                target_accept=0.9,
+                random_seed=child_seed,
+                max_tree_depth=max_tree_depth,
+            ),
+            mitigation=MitigationConfig(
+                use_laplace_warmup=use_laplace_warmup,
+            ),
+            progressbar=False,
+        )
+        fit_config_2 = FitConfig(
+            model_name="hgf_2level",
+            sampler=SamplerConfig(
+                backend="blackjax",
+                n_chains=n_chains,
+                n_draws=n_draws,
+                n_warmup=n_tune,
+                target_accept=0.9,
+                random_seed=child_seed + 1,
+                max_tree_depth=max_tree_depth,
+            ),
+            mitigation=MitigationConfig(
+                use_laplace_warmup=use_laplace_warmup,
+            ),
+            progressbar=False,
+        )
+        _prior_spec_3 = (
+            HGFPriorSpec.tight_3level() if tight_omega3_prior else None
+        )
+        _prior_spec_2 = None
+    else:
+        # Caller-provided FitConfig: build model-specific variants
+        # by overriding model_name and random_seed
+        import dataclasses
+
+        fit_config_3 = dataclasses.replace(
+            fit_config,
+            model_name="hgf_3level",
+            sampler=dataclasses.replace(
+                fit_config.sampler, random_seed=child_seed
+            ),
+        )
+        fit_config_2 = dataclasses.replace(
+            fit_config,
+            model_name="hgf_2level",
+            sampler=dataclasses.replace(
+                fit_config.sampler, random_seed=child_seed + 1
+            ),
+        )
+        _prior_spec_3 = None
+        _prior_spec_2 = None
+
     max_n = max(n_per_group_grid)
 
     # Step 1: Build frozen config at max N
@@ -982,32 +1055,16 @@ def run_sbf_iteration(
         # skip wiring.
         _fit_3 = fit_batch_hierarchical(
             sim_df,
-            "hgf_3level",
-            n_chains=n_chains,
-            n_draws=n_draws,
-            n_tune=n_tune,
-            target_accept=0.9,
-            random_seed=child_seed,
-            progressbar=False,
-            max_tree_depth=max_tree_depth,
-            use_laplace_warmup=use_laplace_warmup,
-            tight_omega3_prior=tight_omega3_prior,
+            fit_config_3,
+            prior_spec=_prior_spec_3,
         )
         idata_3 = _fit_3[0] if isinstance(_fit_3, tuple) else _fit_3
 
         # Step 4 (batched): Fit 2-level model — single NUTS call
         _fit_2 = fit_batch_hierarchical(
             sim_df,
-            "hgf_2level",
-            n_chains=n_chains,
-            n_draws=n_draws,
-            n_tune=n_tune,
-            target_accept=0.9,
-            random_seed=child_seed + 1,
-            progressbar=False,
-            max_tree_depth=max_tree_depth,
-            use_laplace_warmup=use_laplace_warmup,
-            tight_omega3_prior=tight_omega3_prior,
+            fit_config_2,
+            prior_spec=_prior_spec_2,
         )
         idata_2 = _fit_2[0] if isinstance(_fit_2, tuple) else _fit_2
 

@@ -98,6 +98,7 @@ def run_fit_and_save(
     import jax
 
     from prl_hgf.env.task_config import load_config
+    from prl_hgf.fitting.config import FitConfig, SamplerConfig
     from prl_hgf.fitting.hierarchical import fit_batch_hierarchical
     from prl_hgf.power.config import make_power_config
     from prl_hgf.simulation.batch import simulate_batch
@@ -131,17 +132,22 @@ def run_fit_and_save(
         f"[VALID-03] Fitting hgf_3level: "
         f"chains={n_chains}, draws={n_draws}, tune={n_tune}"
     )
-    t1 = time.perf_counter()
-    idata = fit_batch_hierarchical(
-        sim_df,
+    fit_config = FitConfig(
         model_name="hgf_3level",
-        n_chains=n_chains,
-        n_draws=n_draws,
-        n_tune=n_tune,
-        target_accept=0.9,
-        random_seed=seed,
+        sampler=SamplerConfig(
+            backend="blackjax",
+            n_chains=n_chains,
+            n_draws=n_draws,
+            n_warmup=n_tune,
+            target_accept=0.9,
+            random_seed=seed,
+        ),
         progressbar=False,
     )
+    t1 = time.perf_counter()
+    _result = fit_batch_hierarchical(sim_df, fit_config)
+    # BlackJAX cold call returns (idata, adapted_params)
+    idata = _result[0] if isinstance(_result, tuple) else _result
     fit_time = time.perf_counter() - t1
     print(f"[VALID-03] Fit complete in {fit_time:.2f}s")
 

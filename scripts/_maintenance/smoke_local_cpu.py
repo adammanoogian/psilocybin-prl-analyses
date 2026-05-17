@@ -40,6 +40,7 @@ import jax  # noqa: E402
 import numpy as np  # noqa: E402
 
 from prl_hgf.env.task_config import load_config  # noqa: E402
+from prl_hgf.fitting.config import FitConfig, SamplerConfig  # noqa: E402
 from prl_hgf.fitting.hierarchical import fit_batch_hierarchical  # noqa: E402
 from prl_hgf.power.config import make_power_config  # noqa: E402
 from prl_hgf.simulation.batch import simulate_batch  # noqa: E402
@@ -110,49 +111,47 @@ def main() -> None:
     )
     print(f"  participant-sessions={n_ps}  trials/session={n_trials}")
 
-    # --- Cold: full warmup + sample ---
-    t0 = time.perf_counter()
-    idata_cold, adapted = fit_batch_hierarchical(
-        sim_df,
-        args.model,
-        n_chains=args.chains,
-        n_draws=args.draws,
-        n_tune=args.tune,
-        target_accept=0.9,
-        random_seed=42,
+    import dataclasses as _dc
+
+    _fit_config = FitConfig(
+        model_name=args.model,
+        sampler=SamplerConfig(
+            backend="blackjax",
+            n_chains=args.chains,
+            n_draws=args.draws,
+            n_warmup=args.tune,
+            target_accept=0.9,
+            random_seed=42,
+        ),
         progressbar=False,
     )
+
+    # --- Cold: full warmup + sample ---
+    t0 = time.perf_counter()
+    idata_cold, adapted = fit_batch_hierarchical(sim_df, _fit_config)
     cold_s = time.perf_counter() - t0
     _summary("cold (warmup+sample)", idata_cold, cold_s)
 
     # --- Warm 1: skip warmup, new seed ---
+    _warm1_config = _dc.replace(
+        _fit_config,
+        sampler=_dc.replace(_fit_config.sampler, random_seed=43),
+    )
     t0 = time.perf_counter()
     idata_warm1 = fit_batch_hierarchical(
-        sim_df,
-        args.model,
-        n_chains=args.chains,
-        n_draws=args.draws,
-        n_tune=args.tune,
-        target_accept=0.9,
-        random_seed=43,
-        progressbar=False,
-        warmup_params=adapted,
+        sim_df, _warm1_config, warmup_params=adapted
     )
     warm1_s = time.perf_counter() - t0
     _summary("warm1 (sample only)", idata_warm1, warm1_s)
 
     # --- Warm 2: trace-cache hit ---
+    _warm2_config = _dc.replace(
+        _fit_config,
+        sampler=_dc.replace(_fit_config.sampler, random_seed=44),
+    )
     t0 = time.perf_counter()
     idata_warm2 = fit_batch_hierarchical(
-        sim_df,
-        args.model,
-        n_chains=args.chains,
-        n_draws=args.draws,
-        n_tune=args.tune,
-        target_accept=0.9,
-        random_seed=44,
-        progressbar=False,
-        warmup_params=adapted,
+        sim_df, _warm2_config, warmup_params=adapted
     )
     warm2_s = time.perf_counter() - t0
     _summary("warm2 (sample only)", idata_warm2, warm2_s)

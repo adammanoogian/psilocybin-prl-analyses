@@ -389,15 +389,11 @@ def test_valid_02_batched_numpyro_convergence(_five_participant_sim_df):
     Uses ``model_name="hgf_2level"`` for speed (3 params: omega_2,
     beta, zeta) with ``n_chains=2, n_draws=500, n_tune=500``.
     """
+    from prl_hgf.fitting.config import FitConfig, SamplerConfig
     from prl_hgf.fitting.hierarchical import fit_batch_hierarchical
 
     sim_df = _five_participant_sim_df
     model_name = "hgf_2level"
-    n_chains = 2
-    n_draws = 500
-    n_tune = 500
-    target_accept = 0.9
-    random_seed = 42
     var_names = ["omega_2", "beta", "zeta"]
 
     # Reasonable parameter bounds (within prior support)
@@ -407,20 +403,23 @@ def test_valid_02_batched_numpyro_convergence(_five_participant_sim_df):
         "zeta": (-2.0, 5.0),
     }
 
+    fit_config = FitConfig(
+        model_name=model_name,
+        sampler=SamplerConfig(
+            backend="numpyro",
+            n_chains=2,
+            n_draws=500,
+            n_warmup=500,
+            target_accept=0.9,
+            random_seed=42,
+        ),
+        progressbar=False,
+    )
+
     # ------------------------------------------------------------------
     # Batched path: single-call cohort fit (numpyro fallback)
     # ------------------------------------------------------------------
-    batched_idata = fit_batch_hierarchical(
-        sim_df,
-        model_name=model_name,
-        n_chains=n_chains,
-        n_draws=n_draws,
-        n_tune=n_tune,
-        target_accept=target_accept,
-        random_seed=random_seed,
-        sampler="numpyro",
-        progressbar=False,
-    )
+    batched_idata = fit_batch_hierarchical(sim_df, fit_config)
 
     # ------------------------------------------------------------------
     # Check 1: Structure — posterior has expected variables
@@ -859,15 +858,11 @@ def test_valid_02_batched_blackjax_convergence(_five_participant_sim_df):
     Note: VALID-03 (cross-platform CPU/GPU consistency) is deferred to
     Phase 14 and is not tested here.
     """
+    from prl_hgf.fitting.config import FitConfig, SamplerConfig
     from prl_hgf.fitting.hierarchical import fit_batch_hierarchical
 
     sim_df = _five_participant_sim_df
     model_name = "hgf_2level"
-    n_chains = 2
-    n_draws = 500
-    n_tune = 500
-    target_accept = 0.9
-    random_seed = 42
     var_names = ["omega_2", "beta", "zeta"]
 
     # Reasonable parameter bounds (within prior support)
@@ -877,19 +872,25 @@ def test_valid_02_batched_blackjax_convergence(_five_participant_sim_df):
         "zeta": (-2.0, 5.0),
     }
 
+    fit_config = FitConfig(
+        model_name=model_name,
+        sampler=SamplerConfig(
+            backend="blackjax",
+            n_chains=2,
+            n_draws=500,
+            n_warmup=500,
+            target_accept=0.9,
+            random_seed=42,
+        ),
+        progressbar=False,
+    )
+
     # ------------------------------------------------------------------
     # Batched path: single-call cohort fit (BlackJAX NUTS, default)
     # ------------------------------------------------------------------
-    batched_idata = fit_batch_hierarchical(
-        sim_df,
-        model_name=model_name,
-        n_chains=n_chains,
-        n_draws=n_draws,
-        n_tune=n_tune,
-        target_accept=target_accept,
-        random_seed=random_seed,
-        progressbar=False,
-    )
+    _result = fit_batch_hierarchical(sim_df, fit_config)
+    # BlackJAX cold call returns (idata, adapted_params)
+    batched_idata = _result[0] if isinstance(_result, tuple) else _result
 
     # ------------------------------------------------------------------
     # Check 1: Structure -- posterior has expected variables

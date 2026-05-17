@@ -10,26 +10,26 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 ## Current Position
 
 Phase: 28 of 10 (FitConfig + HGFPriorSpec refactor)
-Plan: 2 of 5 complete (28-01, 28-02 closed)
+Plan: 3 of 5 complete (28-01, 28-02, 28-03 closed)
 Status: In progress
-Last activity: 2026-05-17 — Completed 28-02-PLAN.md (FitConfig dataclass hierarchy)
+Last activity: 2026-05-17 — Completed 28-03-PLAN.md (HGFPriorSpec extraction)
 
-Progress: [███░░░░░░░] 12% (6 of 9 remaining v1.0 plans in Phase 28)
+Progress: [████░░░░░░] 16% (5 of 9 remaining v1.0 plans in Phase 28)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 6
+- Total plans completed: 7
 - Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
-- Phase 28 wall-clock: 2 plans in ~1 day (code-only, fast)
-- Effective work time across plans: ~5.5h
+- Phase 28 wall-clock: 3 plans in ~1 day (code-only, fast)
+- Effective work time across plans: ~5.8h
 
 **By Phase:**
 
 | Phase | Plans | Status | Completed |
 |-------|-------|--------|-----------|
 | 27-dependency-upgrade-chain | 4 of 4 | ✓ Complete | 2026-05-08 |
-| 28-fitconfig-hgfpriorspec-refactor | 2 of 5 | In progress | — |
+| 28-fitconfig-hgfpriorspec-refactor | 3 of 5 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -77,8 +77,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-17
-Stopped at: Completed 28-02-PLAN.md (FitConfig dataclass hierarchy)
-Resume: `/gsd:execute-phase` on 28-03-PLAN.md
+Stopped at: Completed 28-03-PLAN.md (HGFPriorSpec extraction)
+Resume: `/gsd:execute-phase` on 28-04-PLAN.md
 
 ---
-*Last updated: 2026-05-17 after 28-02 completion*
+*Last updated: 2026-05-17 after 28-03 completion*

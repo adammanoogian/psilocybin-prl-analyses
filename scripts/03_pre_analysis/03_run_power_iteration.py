@@ -48,6 +48,8 @@ import jax
 
 import config as _cfg
 from prl_hgf.env.task_config import load_config
+from prl_hgf.fitting.config import FitConfig, MitigationConfig, SamplerConfig
+from prl_hgf.fitting.priors import HGFPriorSpec
 from prl_hgf.power.config import load_power_config
 from prl_hgf.power.grid import (
     chunk_task_ids,
@@ -865,21 +867,34 @@ def _run_smoke_test(
                 f"{g['vram_used_mb']}/{g['vram_total_mb']} MB"
             )
 
+    # Build FitConfig for smoke test
+    _smoke_fit_config = FitConfig(
+        model_name=model_smoke,
+        sampler=SamplerConfig(
+            backend="blackjax",
+            n_chains=n_chains_smoke,
+            n_draws=n_draws_smoke,
+            n_warmup=n_tune_smoke,
+            target_accept=0.9,
+            random_seed=42,
+            max_tree_depth=args.max_tree_depth,
+        ),
+        mitigation=MitigationConfig(
+            use_laplace_warmup=args.laplace_warmup,
+        ),
+        log_every=log_every_smoke,
+        progressbar=False,
+    )
+    _smoke_prior_spec = (
+        HGFPriorSpec.tight_3level() if args.tight_omega3_prior else None
+    )
+
     t0 = time.perf_counter()
     # Cold call: full warmup, returns (idata, adapted_params)
     idata_cold, adapted_params = fit_batch_hierarchical(
         sim_smoke,
-        model_smoke,
-        n_chains=n_chains_smoke,
-        n_draws=n_draws_smoke,
-        n_tune=n_tune_smoke,
-        target_accept=0.9,
-        random_seed=42,
-        progressbar=False,
-        log_every=log_every_smoke,
-        max_tree_depth=args.max_tree_depth,
-        use_laplace_warmup=args.laplace_warmup,
-        tight_omega3_prior=args.tight_omega3_prior,
+        _smoke_fit_config,
+        prior_spec=_smoke_prior_spec,
     )
     jit_cold_s = time.perf_counter() - t0
     results["jit_cold_s"] = round(jit_cold_s, 2)
@@ -914,20 +929,17 @@ def _run_smoke_test(
     # Warm call 1: skip warmup by reusing adapted params from cold call.
     # Still incurs Python-level retrace of sample_loop_vmap (new closure),
     # but XLA compile should hit the persistent on-disk cache.
+    import dataclasses as _dc
+
+    _warm1_config = _dc.replace(
+        _smoke_fit_config,
+        sampler=_dc.replace(_smoke_fit_config.sampler, random_seed=43),
+    )
     idata_warm1 = fit_batch_hierarchical(
         sim_smoke_2,
-        model_smoke,
-        n_chains=n_chains_smoke,
-        n_draws=n_draws_smoke,
-        n_tune=n_tune_smoke,
-        target_accept=0.9,
-        random_seed=43,
-        progressbar=False,
+        _warm1_config,
+        prior_spec=_smoke_prior_spec,
         warmup_params=adapted_params,
-        log_every=log_every_smoke,
-        max_tree_depth=args.max_tree_depth,
-        use_laplace_warmup=args.laplace_warmup,
-        tight_omega3_prior=args.tight_omega3_prior,
     )
     jit_warm_s = time.perf_counter() - t0
     results["jit_warm_s"] = round(jit_warm_s, 2)
@@ -940,21 +952,16 @@ def _run_smoke_test(
     # Python retrace overhead).  If warm2 ≈ warm1, sampling itself is
     # the bottleneck; if warm2 << warm1, tracing/compile dominates.
     print("\nStep 3b: Warm JIT #2 (pure execute — trace cache reuse)...")
+    _warm2_config = _dc.replace(
+        _smoke_fit_config,
+        sampler=_dc.replace(_smoke_fit_config.sampler, random_seed=44),
+    )
     t0 = time.perf_counter()
     idata_warm2 = fit_batch_hierarchical(
         sim_smoke_2,
-        model_smoke,
-        n_chains=n_chains_smoke,
-        n_draws=n_draws_smoke,
-        n_tune=n_tune_smoke,
-        target_accept=0.9,
-        random_seed=44,
-        progressbar=False,
+        _warm2_config,
+        prior_spec=_smoke_prior_spec,
         warmup_params=adapted_params,
-        log_every=log_every_smoke,
-        max_tree_depth=args.max_tree_depth,
-        use_laplace_warmup=args.laplace_warmup,
-        tight_omega3_prior=args.tight_omega3_prior,
     )
     jit_warm2_s = time.perf_counter() - t0
     results["jit_warm2_s"] = round(jit_warm2_s, 2)
@@ -1242,22 +1249,37 @@ def _run_benchmark(
         results["chunk_n_participant_sessions"] = n_chunk_ps
         results["cohort_n_participant_sessions_full"] = n_total_ps
 
+    # Build FitConfig for benchmark cold/warm calls
+    import dataclasses as _dc
+
+    _bench_fit_config = FitConfig(
+        model_name=args.benchmark_model,
+        sampler=SamplerConfig(
+            backend="blackjax",
+            n_chains=args.fit_chains,
+            n_draws=args.fit_draws,
+            n_warmup=args.fit_tune,
+            target_accept=0.9,
+            random_seed=42,
+            max_tree_depth=args.max_tree_depth,
+        ),
+        mitigation=MitigationConfig(
+            use_laplace_warmup=args.laplace_warmup,
+        ),
+        progressbar=False,
+    )
+    _bench_prior_spec = (
+        HGFPriorSpec.tight_3level() if args.tight_omega3_prior else None
+    )
+
     t0 = time.perf_counter()
     # Cold call: returns (idata, adapted_params) when warmup_params is None
     # (Phase 21 Patch C: capture adapted params so the warm call can skip
     # window adaptation and we get a real cold-vs-warm comparison).
     _cold_return = fit_batch_hierarchical(
         sim_warm,
-        args.benchmark_model,
-        n_chains=args.fit_chains,
-        n_draws=args.fit_draws,
-        n_tune=args.fit_tune,
-        target_accept=0.9,
-        random_seed=42,
-        progressbar=False,
-        max_tree_depth=args.max_tree_depth,
-        use_laplace_warmup=args.laplace_warmup,
-        tight_omega3_prior=args.tight_omega3_prior,
+        _bench_fit_config,
+        prior_spec=_bench_prior_spec,
     )
     if isinstance(_cold_return, tuple):
         _idata_cold, adapted_params = _cold_return
@@ -1292,19 +1314,15 @@ def _run_benchmark(
     # NUTS window adaptation.  This eliminates the ~1100s warmup-duplication
     # confound observed in job-54899271 (1.1x speedup was because both cold
     # and warm re-ran warmup, not because the XLA cache was missing).
+    _bench_warm_config = _dc.replace(
+        _bench_fit_config,
+        sampler=_dc.replace(_bench_fit_config.sampler, random_seed=43),
+    )
     fit_batch_hierarchical(
         sim_warm,
-        args.benchmark_model,
-        n_chains=args.fit_chains,
-        n_draws=args.fit_draws,
-        n_tune=args.fit_tune,
-        target_accept=0.9,
-        random_seed=43,
-        progressbar=False,
+        _bench_warm_config,
+        prior_spec=_bench_prior_spec,
         warmup_params=adapted_params,
-        max_tree_depth=args.max_tree_depth,
-        use_laplace_warmup=args.laplace_warmup,
-        tight_omega3_prior=args.tight_omega3_prior,
     )
     jit_warm_s = time.perf_counter() - t0
     results["jit_warm_s"] = round(jit_warm_s, 2)
@@ -1341,6 +1359,24 @@ def _run_benchmark(
     monitor = _GpuMonitor(interval_s=2.0)
     monitor.start()
 
+    # Build FitConfig for the full iteration call
+    _iter_fit_config = FitConfig(
+        model_name=args.benchmark_model,
+        sampler=SamplerConfig(
+            backend="blackjax",
+            n_chains=args.fit_chains,
+            n_draws=args.fit_draws,
+            n_warmup=args.fit_tune,
+            target_accept=0.9,
+            random_seed=99999,
+            max_tree_depth=args.max_tree_depth,
+        ),
+        mitigation=MitigationConfig(
+            use_laplace_warmup=args.laplace_warmup,
+        ),
+        progressbar=False,
+    )
+
     t0 = time.perf_counter()
     run_sbf_iteration(
         base_config=base_config,
@@ -1349,15 +1385,10 @@ def _run_benchmark(
         child_seed=99999,
         n_per_group_grid=power_config.n_per_group_grid,
         power_config=power_config,
-        n_chains=args.fit_chains,
-        n_draws=args.fit_draws,
-        n_tune=args.fit_tune,
+        fit_config=_iter_fit_config,
         use_legacy=False,
-        max_tree_depth=args.max_tree_depth,
         participant_chunk_id=args.participant_chunk_id,
         participant_chunk_count=args.participant_chunk_count,
-        use_laplace_warmup=args.laplace_warmup,
-        tight_omega3_prior=args.tight_omega3_prior,
     )
     per_iteration_s = time.perf_counter() - t0
 
@@ -2085,16 +2116,31 @@ def main() -> None:
             power_config.n_per_group_grid,
         )
 
+        _loop_seed = int(rngs[i].integers(0, 2**31))
+        _loop_fit_config = FitConfig(
+            model_name="hgf_3level",  # overridden inside run_sbf_iteration
+            sampler=SamplerConfig(
+                backend="blackjax",
+                n_chains=args.fit_chains,
+                n_draws=args.fit_draws,
+                n_warmup=args.fit_tune,
+                target_accept=0.9,
+                random_seed=_loop_seed,
+                max_tree_depth=args.max_tree_depth,
+            ),
+            mitigation=MitigationConfig(
+                use_laplace_warmup=args.laplace_warmup,
+            ),
+            progressbar=False,
+        )
         results = run_sbf_iteration(
             base_config=base_config,
             effect_size_delta=effect_size_delta,
             iteration=iteration,
-            child_seed=int(rngs[i].integers(0, 2**31)),
+            child_seed=_loop_seed,
             n_per_group_grid=power_config.n_per_group_grid,
             power_config=power_config,
-            n_chains=args.fit_chains,
-            n_draws=args.fit_draws,
-            n_tune=args.fit_tune,
+            fit_config=_loop_fit_config,
             use_legacy=args.legacy,
         )
         all_results.extend(results)

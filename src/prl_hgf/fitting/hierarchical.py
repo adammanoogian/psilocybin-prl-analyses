@@ -1494,7 +1494,7 @@ def _run_blackjax_nuts(
         shaped ``(n_chains, n_draws)``.
     n_chains_actual : int
         Actual number of chains used (may differ from ``n_chains`` if
-        pmap path adjusts it).
+        shard_map path adjusts device count).
     adapted_params : dict
         Adapted NUTS parameters (``step_size`` and
         ``inverse_mass_matrix``).  Pass back as ``warmup_params`` on
@@ -1596,11 +1596,14 @@ def _run_blackjax_nuts(
         )
 
     # Phase 2: Determine chain strategy
+    # MitigationConfig.use_shard_map is reserved for Phase 31 forced-sharding
+    # behaviour (shard_map even when n_devices < n_chains via vmap-over-chains
+    # per device).  For now the decision remains automatic.
     n_devices = jax.device_count()
-    use_pmap = n_devices >= n_chains
+    use_multi_device = n_devices >= n_chains
     print(
         f"[hierarchical t={time.perf_counter() - _t_fn0:.1f}s] "
-        f"chain strategy: use_pmap={use_pmap} (n_devices={n_devices}, "
+        f"chain strategy: use_shard_map={use_multi_device} (n_devices={n_devices}, "
         f"n_chains={n_chains})",
         flush=True,
     )
@@ -1627,7 +1630,7 @@ def _run_blackjax_nuts(
             model_name,
             n_chains,
             n_draws,
-            use_pmap,
+            use_multi_device,
             log_every=log_every,
             phase_label=phase_label,
             max_num_doublings=max_tree_depth,
@@ -1687,8 +1690,8 @@ def _run_blackjax_nuts(
 
         # Post-process: convert JAX arrays to numpy
         _t_p0 = time.perf_counter()
-        if use_pmap:
-            # pmap: (n_chains, n_draws, P) -- already correct layout
+        if use_multi_device:
+            # shard_map: (n_chains, n_draws, P) -- already correct layout
             positions_dict = {k: np.asarray(v) for k, v in all_states.position.items()}
             stats_dict = _extract_nuts_stats(all_infos, transpose=False)
         else:
@@ -1720,8 +1723,8 @@ def _run_blackjax_nuts(
     if warmup_state is None:
         warmup_state = nuts.init(initial_position)
 
-    if use_pmap:
-        positions, stats, n_actual = _run_pmap_chains(
+    if use_multi_device:
+        positions, stats, n_actual = _run_shard_map_chains(
             nuts,
             warmup_state,
             sample_key,
@@ -1807,14 +1810,19 @@ def _run_vmap_chains(
     return positions_dict, stats_dict, n_chains
 
 
-def _run_pmap_chains(
+def _run_shard_map_chains(
     nuts,  # noqa: ANN001
     warmup_state,  # noqa: ANN001
     sample_key: jnp.ndarray,
     n_draws: int,
     n_chains: int,
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], int]:
-    """Run multiple MCMC chains via pmap across devices.
+    """Run multiple MCMC chains via shard_map across devices.
+
+    Uses ``jax.experimental.shard_map.shard_map`` over a 1-D Mesh
+    (axis name ``"chains"``) for chain-axis parallelism.  Each device
+    receives a unique PRNG key ensuring independent samples (P7
+    prevention: pmap/shard_map accidentally broadcasting same RNG).
 
     Parameters
     ----------
@@ -1838,9 +1846,17 @@ def _run_pmap_chains(
     n_chains_actual : int
         Number of chains (equals ``n_chains``).
     """
+    from jax.experimental.shard_map import shard_map
+    from jax.sharding import Mesh
+    from jax.sharding import PartitionSpec as P
+
+    devices = jax.devices()[:n_chains]
+    mesh = Mesh(np.array(devices), axis_names=("chains",))
+
+    # Each chain gets a unique PRNG key -- P7 prevention
     chain_keys = jax.random.split(sample_key, n_chains)
 
-    # Replicate warmup state across devices
+    # Replicate warmup state across chain axis
     replicated_state = jax.tree_util.tree_map(
         lambda x: jnp.broadcast_to(x, (n_chains, *x.shape)),
         warmup_state,
@@ -1850,7 +1866,6 @@ def _run_pmap_chains(
         rng_key: jnp.ndarray,
         state,  # noqa: ANN001
     ) -> tuple:
-        @jax.jit
         def _one_step(s, k):  # noqa: ANN001
             new_s, info = nuts.step(k, s)
             return new_s, (new_s, info)
@@ -1859,11 +1874,20 @@ def _run_pmap_chains(
         _, (states, infos) = lax.scan(_one_step, state, keys)
         return states, infos
 
-    # pmap: distribute chains across devices
-    all_states, all_infos = jax.pmap(_sample_one_chain)(
-        chain_keys,
-        replicated_state,
-    )
+    # shard_map: leading axis is "chains", one shard per device.
+    # in_specs:  chain_keys (n_chains,) and replicated_state (n_chains, ...)
+    #            are both sharded on the "chains" axis.
+    # out_specs: outputs have the same leading chain axis.
+    @jax.jit
+    def _run_sharded(chain_keys_arr, rep_state):  # noqa: ANN001
+        return shard_map(
+            _sample_one_chain,
+            mesh=mesh,
+            in_specs=(P("chains"), P("chains")),
+            out_specs=(P("chains"), P("chains")),
+        )(chain_keys_arr, rep_state)
+
+    all_states, all_infos = _run_sharded(chain_keys, replicated_state)
 
     # all_states.position: dict of (n_chains, n_draws, P) -- already correct
     positions_dict = {k: np.asarray(v) for k, v in all_states.position.items()}
@@ -1944,7 +1968,7 @@ def _build_sample_loop(
     model_name: str,
     n_chains: int,
     n_draws: int,
-    use_pmap: bool,
+    use_multi_device: bool,
     log_every: int = 0,
     phase_label: str = "sample",
     max_num_doublings: int = 10,
@@ -1979,8 +2003,9 @@ def _build_sample_loop(
         Number of MCMC chains.
     n_draws : int
         Number of posterior draws per chain.
-    use_pmap : bool
-        If ``True``, use ``jax.pmap`` for multi-GPU chain parallelism.
+    use_multi_device : bool
+        If ``True``, use ``jax.experimental.shard_map`` over a 1-D Mesh
+        for multi-device chain parallelism (MODEA-06 migration from pmap).
         If ``False``, use ``jax.vmap`` on a single device with
         ``@jax.jit``.
     prior_spec : HGFPriorSpec or None, optional
@@ -2018,9 +2043,17 @@ def _build_sample_loop(
         prior_omega_3 = prior_spec.omega_3.to_numpyro_dist()
         # κ frozen at _KAPPA_FIXED (1.0); no sampled prior.
 
-    if use_pmap:
-        # pmap path: pmap handles its own JIT compilation
-        def sample_loop_pmap(
+    if use_multi_device:
+        # shard_map path: distribute chains across devices via Mesh
+        # (MODEA-06: migrated from deprecated jax.pmap)
+        from jax.experimental.shard_map import shard_map
+        from jax.sharding import Mesh
+        from jax.sharding import PartitionSpec as P
+
+        devices = jax.devices()[:n_chains]
+        mesh = Mesh(np.array(devices), axis_names=("chains",))
+
+        def sample_loop_shard_map(
             init_position: dict[str, jnp.ndarray],
             warmup_params: dict,
             sample_key: jnp.ndarray,
@@ -2030,6 +2063,7 @@ def _build_sample_loop(
             trial_mask: jnp.ndarray,
         ) -> tuple:
             # Reconstruct logdensity_fn with traced data args
+            # (identical to vmap path -- only dispatch mechanism differs)
             def logdensity_fn(params: dict[str, jnp.ndarray]) -> jnp.ndarray:
                 omega_2 = params["omega_2"]
                 log_beta = params["log_beta"]
@@ -2079,6 +2113,7 @@ def _build_sample_loop(
             )
             # Build initial state INSIDE JIT — value_and_grad uses traced data
             initial_state = nuts.init(init_position)
+            # Each chain gets a unique PRNG key (P7 prevention)
             chain_keys = jax.random.split(sample_key, n_chains)
 
             replicated_state = jax.tree_util.tree_map(
@@ -2090,7 +2125,6 @@ def _build_sample_loop(
                 rng_key: jnp.ndarray,
                 state,  # noqa: ANN001
             ) -> tuple:
-                @jax.jit
                 def _one_step(s, k):  # noqa: ANN001
                     new_s, info = nuts.step(k, s)
                     return new_s, (new_s, info)
@@ -2099,13 +2133,16 @@ def _build_sample_loop(
                 _, (states, infos) = lax.scan(_one_step, state, keys)
                 return states, infos
 
-            all_states, all_infos = jax.pmap(_sample_one_chain)(
-                chain_keys,
-                replicated_state,
-            )
+            # shard_map: leading axis is "chains", one shard per device.
+            all_states, all_infos = shard_map(
+                _sample_one_chain,
+                mesh=mesh,
+                in_specs=(P("chains"), P("chains")),
+                out_specs=(P("chains"), P("chains")),
+            )(chain_keys, replicated_state)
             return all_states, all_infos
 
-        return sample_loop_pmap
+        return sample_loop_shard_map
 
     # vmap path: wrap with @jax.jit for persistent cache
     @jax.jit

@@ -5,16 +5,16 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 29 in progress — mass matrix wiring + pre-flight estimator.
+**Current focus:** Phase 30 in progress — Laplace warmup multi-start upgrade + fp64/multi-GPU flags.
 
 ## Current Position
 
-Phase: 29 (M1 dense/low-rank mass matrix wiring)
-Plan: 3 of 3 complete (29-01, 29-02, 29-03 all done)
-Status: Phase complete
-Last activity: 2026-05-17 — Completed 29-02-PLAN.md (memory pre-flight estimator)
+Phase: 30 (Laplace warmup fp64 multigpu flags)
+Plan: 2 of N complete (30-02 done)
+Status: In progress
+Last activity: 2026-05-17 — Completed 30-02-PLAN.md (multi-start Laplace warmup with basin diagnostic)
 
-Progress: [█████████░] 40% (12 of ~14 remaining v1.0 plans; Phase 29 complete)
+Progress: [█████████░] 41% (13 of ~15 remaining v1.0 plans; Phase 30 in progress)
 
 ## Performance Metrics
 
@@ -31,6 +31,7 @@ Progress: [█████████░] 40% (12 of ~14 remaining v1.0 plans; 
 | 27-dependency-upgrade-chain | 4 of 4 | ✓ Complete | 2026-05-08 |
 | 28-fitconfig-hgfpriorspec-refactor | 5 of 5 | Complete | 2026-05-17 |
 | 29-m1-dense-lowrank-mass-matrix-wiring | 3 of 3 | Complete | 2026-05-17 |
+| 30-laplace-warmup-fp64-multigpu-flags | 2+ of N | In progress | 2026-05-17 |
 
 *Updated after each phase verification.*
 
@@ -60,6 +61,11 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - **[28-04] prior_spec stays separate from FitConfig**: Prior distributions are domain-specific (vary per experiment hypothesis), while FitConfig is infrastructure-level (sampler settings, chain count); mixing them would conflate concerns. `HGFPriorSpec` is passed as a separate optional kwarg.
 - **[28-04] run_sbf_iteration legacy kwargs preserved**: `fit_config=None` triggers internal FitConfig construction from the legacy `n_chains/n_draws/n_tune` kwargs for backward compatibility with callers not yet migrated.
 - **[29-02] 25% device memory threshold for dense refusal**: Pre-flight refuses dense mass matrix when D^2*8*n_chains*(4 if pmap) exceeds 25% of detected device memory. Error message points to low_rank and M3 cluster.
+- **[30-01] GUARD-05 via prl_hgf.runtime.set_x64**: Centralized fp64 toggle sets env var + jax.config.update + post-call assertion; RuntimeError on silent-flip (PyTensor P6 prevention). All scripts must import from prl_hgf.runtime, not call jax.config.update directly.
+- **[30-01] Phase 32 sampler-audit obligation**: `04_sampler_audit.py` does not exist yet; Phase 32 plan MUST include `from prl_hgf.runtime import set_x64` as its first JAX-config action.
+- **[30-02] n_starts=4 not threaded through FitConfig**: roadmap specifies "n >= 4" as a fixed architectural minimum, not a user-configurable knob; `use_laplace_warmup: bool` in `MitigationConfig` is the user-facing toggle.
+- **[30-02] Two-pass Hessian for basin comparison**: Hessian diagonal at best MAP provides the SE reference (se = sqrt(1/hess_diag_pd)); more principled than raw parameter spread vs perturbation scale.
+- **[30-02] n_success < 2 returns None without basin check**: insufficient convergence to judge unimodality — conservative fallback to window_adaptation.
 
 ### Pending Todos
 
@@ -83,8 +89,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-17
-Stopped at: Completed 29-02-PLAN.md (memory pre-flight estimator)
-Resume: Phase 29 complete. Next: Phase 30 (Laplace warmup).
+Stopped at: Completed 30-02-PLAN.md (multi-start Laplace warmup with basin diagnostic)
+Resume: Phase 30 in progress. Next: 30-03 (fp64 flag) or 30-04 (multi-GPU flags).
 
 ---
-*Last updated: 2026-05-17 after 29-02 completion*
+*Last updated: 2026-05-17 after 30-02 completion*

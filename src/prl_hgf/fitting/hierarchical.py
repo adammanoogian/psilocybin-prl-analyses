@@ -2612,8 +2612,7 @@ def fit_batch_hierarchical(
         else:
             prior_spec = HGFPriorSpec.default_2level()
 
-    # Pre-flight validation
-    validate_fit_config(fit_config, prior_spec)
+    # Pre-flight validation (n_participants not yet known; deferred below)
 
     _t_fb0 = time.perf_counter()
     print(
@@ -2683,6 +2682,9 @@ def fit_batch_hierarchical(
 
     n_trials = trial_counts[0]
     n_participants = len(input_data_list)
+
+    # Pre-flight validation (memory guard for dense mass matrix)
+    validate_fit_config(fit_config, prior_spec, n_participants)
 
     input_data_arr = np.stack(input_data_list, axis=0)
     observed_arr = np.stack(observed_list, axis=0)

@@ -10,16 +10,16 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 ## Current Position
 
 Phase: 29 (M1 dense/low-rank mass matrix wiring)
-Plan: 3 of 3 in progress (29-03 complete)
+Plan: 1 of 3 complete (29-01 done, 29-03 done; 29-02 remaining)
 Status: In progress
-Last activity: 2026-05-17 — Completed 29-03-PLAN.md (capability-map Mass-Matrix column)
+Last activity: 2026-05-17 — Completed 29-01-PLAN.md (mass_matrix_kind threading)
 
-Progress: [███████░░░] 30% (29-03 complete; 29-01, 29-02 status TBD)
+Progress: [████████░░] 35% (11 of ~14 remaining v1.0 plans; 29-01+29-03 complete)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 10
+- Total plans completed: 11
 - Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
 - Phase 28 wall-clock: 5 plans in ~1 day (code-only, fast)
 - Effective work time across plans: ~6.5h
@@ -30,6 +30,7 @@ Progress: [███████░░░] 30% (29-03 complete; 29-01, 29-02 sta
 |-------|-------|--------|-----------|
 | 27-dependency-upgrade-chain | 4 of 4 | ✓ Complete | 2026-05-08 |
 | 28-fitconfig-hgfpriorspec-refactor | 5 of 5 | Complete | 2026-05-17 |
+| 29-m1-dense-lowrank-mass-matrix-wiring | 2 of 3 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -81,8 +82,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-17
-Stopped at: Completed 29-03-PLAN.md (capability-map Mass-Matrix column + closure-guard)
-Resume: Phase 29 continues (29-01, 29-02 pending)
+Stopped at: Completed 29-01-PLAN.md (mass_matrix_kind threading through backends)
+Resume: Phase 29 continues (29-02 pending)
 
 ---
-*Last updated: 2026-05-17 after 29-03 completion*
+*Last updated: 2026-05-17 after 29-01 completion*

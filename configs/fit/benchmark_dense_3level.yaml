@@ -1,0 +1,20 @@
+schema_version: 1
+model_name: hgf_3level
+sampler:
+  backend: blackjax
+  n_chains: 4
+  n_draws: 2000
+  n_warmup: 1000
+  target_accept: 0.95
+  max_tree_depth: 10
+  random_seed: 42
+mitigation:
+  mass_matrix_kind: dense
+  use_laplace_warmup: false
+  use_fp64: false
+  use_shard_map: false
+  non_centered: []
+covariate:
+  pooling: none
+log_every: 0
+progressbar: true

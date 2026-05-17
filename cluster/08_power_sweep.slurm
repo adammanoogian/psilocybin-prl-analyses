@@ -68,6 +68,10 @@ conda activate /scratch/${_PROJECT}/${USER}/conda/envs/ds_env 2>/dev/null || {
     exit 1
 }
 
+# Fitting configuration (FitConfig YAML — Phase 28)
+FIT_CONFIG="${FIT_CONFIG:-configs/fit/default_2level.yaml}"
+echo "Fit config: ${FIT_CONFIG}"
+
 # GPU deps: pip install -r cluster/requirements-gpu.txt
 
 # =============================================================================
@@ -205,9 +209,7 @@ echo ""
 python scripts/03_pre_analysis/03_run_power_iteration.py \
     --chunk-id "${SLURM_ARRAY_TASK_ID}" \
     --job-id "${SLURM_ARRAY_JOB_ID}" \
-    --fit-chains 4 \
-    --fit-draws 500 \
-    --fit-tune 500 \
+    --fit-config "${FIT_CONFIG}" \
     --sampler "${SAMPLER:-blackjax}" \
     ${MODE_FLAG}
 

@@ -118,34 +118,44 @@ def parse_args() -> argparse.Namespace:
         ),
     )
     parser.add_argument(
+        "--fit-config",
+        type=Path,
+        default=None,
+        help=(
+            "Path to a FitConfig YAML file (configs/fit/*.yaml). When "
+            "provided, sampler settings (n_chains, n_draws, n_warmup, "
+            "max_tree_depth) are loaded from the YAML and override the "
+            "legacy --fit-chains/--fit-draws/--fit-tune/--max-tree-depth "
+            "CLI args."
+        ),
+    )
+    # Legacy CLI args — kept for backward compatibility.  When --fit-config
+    # is provided these are ignored (YAML values take precedence).
+    parser.add_argument(
         "--fit-chains",
         type=int,
         default=2,
-        help="Number of MCMC chains for power sweep fits.",
+        help="[DEPRECATED: use --fit-config] Number of MCMC chains.",
     )
     parser.add_argument(
         "--fit-draws",
         type=int,
         default=500,
-        help="Posterior draws per chain.",
+        help="[DEPRECATED: use --fit-config] Posterior draws per chain.",
     )
     parser.add_argument(
         "--fit-tune",
         type=int,
         default=500,
-        help="Tuning steps per chain.",
+        help="[DEPRECATED: use --fit-config] Tuning steps per chain.",
     )
     parser.add_argument(
         "--max-tree-depth",
         type=int,
         default=10,
         help=(
-            "NUTS max tree depth (BlackJAX `max_num_doublings`).  Caps the "
-            "binary-tree expansion so each draw runs at most 2^d leapfrog "
-            "evaluations.  Default 10 (BlackJAX/Stan default, 1024 leapfrogs "
-            "max per draw).  Phase 14.2 variant 1 uses 8 (256 leapfrogs max) "
-            "as a runtime ceiling — converges in bounded time even when the "
-            "posterior geometry would otherwise saturate the default cap."
+            "[DEPRECATED: use --fit-config] NUTS max tree depth "
+            "(BlackJAX `max_num_doublings`).  Default 10."
         ),
     )
     parser.add_argument(
@@ -1943,6 +1953,25 @@ def main() -> None:
         On argument parse error (via argparse).
     """
     args = parse_args()
+
+    # -----------------------------------------------------------------
+    # FitConfig YAML loading: when --fit-config is provided, populate the
+    # legacy args.fit_chains / fit_draws / fit_tune / max_tree_depth from
+    # the YAML so downstream code that reads those attrs keeps working.
+    # -----------------------------------------------------------------
+    if args.fit_config is not None:
+        _loaded_cfg = FitConfig.from_yaml(args.fit_config)
+        args.fit_chains = _loaded_cfg.sampler.n_chains
+        args.fit_draws = _loaded_cfg.sampler.n_draws
+        args.fit_tune = _loaded_cfg.sampler.n_warmup
+        args.max_tree_depth = _loaded_cfg.sampler.max_tree_depth
+        args.laplace_warmup = _loaded_cfg.mitigation.use_laplace_warmup
+        print(
+            f"[FitConfig] Loaded from {args.fit_config}: "
+            f"chains={args.fit_chains} draws={args.fit_draws} "
+            f"warmup={args.fit_tune} max_tree_depth={args.max_tree_depth}",
+            flush=True,
+        )
 
     # -----------------------------------------------------------------
     # Phase 21 diagnostic mutual-exclusion guards (BENCH-DIAG-04).

@@ -96,12 +96,8 @@ export SAMPLER="${SAMPLER:-blackjax}"
 export MAX_TREE_DEPTH="${MAX_TREE_DEPTH:-10}"
 export PARTICIPANT_CHUNK_COUNT="${PARTICIPANT_CHUNK_COUNT:-6}"
 
-# variant 2: Laplace warmup
-export LAPLACE_WARMUP="${LAPLACE_WARMUP:-0}"
-_LAPLACE_FLAG=""
-if [[ "${LAPLACE_WARMUP}" == "1" ]]; then
-    _LAPLACE_FLAG="--laplace-warmup"
-fi
+# Fitting configuration (FitConfig YAML — Phase 28)
+FIT_CONFIG="${FIT_CONFIG:-configs/fit/default_2level.yaml}"
 
 # variant 3: tight ω₃ prior
 export TIGHT_OMEGA3="${TIGHT_OMEGA3:-0}"
@@ -129,9 +125,9 @@ echo "Node:           ${SLURMD_NODENAME:-$(hostname)}"
 echo "GPU(s):         ${CUDA_VISIBLE_DEVICES:-none}"
 echo "Sampler:        ${SAMPLER}"
 echo "Max tree depth: ${MAX_TREE_DEPTH}"
+echo "Fit config:     ${FIT_CONFIG}"
 echo "Chunk count:    ${PARTICIPANT_CHUNK_COUNT}"
 echo "Chunk id:       ${SLURM_ARRAY_TASK_ID:-0}"
-echo "Laplace warmup: ${LAPLACE_WARMUP}"
 echo "Tight omega3:   ${TIGHT_OMEGA3}"
 echo "Laplace only:   ${LAPLACE_ONLY}"
 echo "Start:          $(date)"
@@ -142,14 +138,11 @@ python scripts/03_pre_analysis/03_run_power_iteration.py \
     --benchmark \
     --chunk-id 0 \
     --job-id "${SLURM_ARRAY_JOB_ID:-bench14arr}_${SLURM_ARRAY_TASK_ID:-0}" \
-    --fit-chains 4 \
-    --fit-draws 500 \
-    --fit-tune 500 \
+    --fit-config "${FIT_CONFIG}" \
     --sampler "${SAMPLER}" \
     --max-tree-depth "${MAX_TREE_DEPTH}" \
     --participant-chunk-id "${SLURM_ARRAY_TASK_ID:-0}" \
     --participant-chunk-count "${PARTICIPANT_CHUNK_COUNT}" \
-    ${_LAPLACE_FLAG} \
     ${_TIGHT_OMEGA3_FLAG} \
     ${_LAPLACE_ONLY_FLAG}
 

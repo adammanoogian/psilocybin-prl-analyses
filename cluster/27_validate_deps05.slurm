@@ -74,6 +74,7 @@ echo ""
 
 # =============================================================================
 # DEPS-05 validation gate
+# Legacy Phase 27 validation script — not migrated to FitConfig
 # =============================================================================
 N_WARMUP="${N_WARMUP:-1000}"
 N_DRAWS="${N_DRAWS:-500}"

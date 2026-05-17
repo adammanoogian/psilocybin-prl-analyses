@@ -1079,15 +1079,18 @@ def _laplace_warmup_params(
     logdensity_fn,  # noqa: ANN001
     initial_position: dict[str, jnp.ndarray],
     *,
+    n_starts: int = 4,
     n_lbfgs_iter: int = 200,
     lbfgs_tol: float = 1e-5,
     ridge: float = 1e-4,
 ) -> dict | None:
-    """Compute (step_size, inverse_mass_matrix) via Laplace approximation.
+    """Compute (step_size, inverse_mass_matrix) via multi-start Laplace approximation.
 
-    Variant 2 of the Phase 14.2 comparison.  Runs ``jaxopt.LBFGS`` on
-    ``-logdensity_fn`` to find an approximate MAP, then computes the
-    Hessian diagonal at the MAP via Hessian-vector products
+    Variant 2 of the Phase 14.2 comparison, upgraded to multi-start LBFGS with
+    basin-comparison diagnostic (Phase 30, MODEA-04).  Runs ``jaxopt.LBFGS`` on
+    ``-logdensity_fn`` from ``n_starts`` perturbed starting points to find an
+    approximate MAP, selects the best MAP (lowest neg_logp), then computes the
+    Hessian diagonal at the best MAP via Hessian-vector products
     (one ``jvp`` per parameter).  Regularizes positive, inverts to a
     per-parameter inverse mass matrix, picks an initial step_size from
     the median IMM.  Returns the dict in the shape that the existing
@@ -1095,18 +1098,38 @@ def _laplace_warmup_params(
     :func:`_run_blackjax_nuts`, BlackJAX's ``window_adaptation`` is
     skipped entirely (see line ~1135 in this file).
 
+    **Multi-start LBFGS (P5 prevention):** When ``n_starts > 1``, LBFGS runs
+    from the original initial position plus ``n_starts - 1`` scale-adaptive
+    perturbations.  After collecting all successful endpoints, a basin-comparison
+    diagnostic checks whether any non-best endpoint disagrees with the best MAP
+    by more than 2 SE (where SE is estimated from the Hessian diagonal at the
+    best MAP).  If any endpoint disagrees, a ``MULTIMODAL WARNING`` is logged and
+    ``None`` is returned, causing the caller to fall back to standard
+    ``window_adaptation`` NUTS warmup.  This prevents Laplace warmup from silently
+    locking onto one mode of a multimodal posterior (e.g., label-switching at high
+    P), which would bias the subsequent NUTS chain.
+
+    **Basin-comparison criterion:** ``|endpoint_i - best_map| / se_per_param > 2.0``
+    on any parameter dimension triggers disagreement.  ``se_per_param =
+    sqrt(1 / hess_diag_pd)`` is the Laplace posterior SD estimate.
+
+    **Single-start backward compatibility:** When ``n_starts=1``, the basin check
+    is skipped and the function behaves identically to the original single-start
+    version.
+
     The Hessian diagonal is mathematically equivalent to the diagonal
     of a per-PS block-Hessian because the BlackJAX path uses IID priors
     per participant-session and a likelihood that factorizes across
     PS — the off-block entries of the joint Hessian are zero by
     construction.  See ``_build_log_posterior`` for that factorization.
 
-    Cost is ~``P*K`` likelihood evaluations (one jvp each) plus the
-    LBFGS iterations.  At the production shape (P=300, K=4) that's
-    ~1200 evaluations for the diagonal — minutes, not hours.
+    Cost is ~``P*K`` likelihood evaluations (one jvp each) plus
+    ``n_starts`` × LBFGS iterations.  At the production shape (P=300, K=4)
+    that's ~1200 evaluations for the diagonal — minutes, not hours.
 
     Returns ``None`` if any step (LBFGS, Hessian, regularization)
-    produces NaNs or non-finite outputs; caller falls back to the
+    produces NaNs or non-finite outputs, or if fewer than 2 starts converge,
+    or if basin comparison detects multimodality; caller falls back to the
     standard window_adaptation warmup with a logged warning.
 
     Parameters
@@ -1116,6 +1139,11 @@ def _laplace_warmup_params(
     initial_position : dict[str, jnp.ndarray]
         Starting point for LBFGS (typically prior means).  Each value
         has shape ``(P,)``.
+    n_starts : int, default 4
+        Number of LBFGS runs from perturbed starting points.  Start 0 is the
+        original ``initial_position``.  Starts 1..n_starts-1 are
+        ``flat_init + Normal(0, 0.5 * |flat_init| + 0.1)`` perturbations.
+        When ``n_starts=1``, basin comparison is skipped (backward compat).
     n_lbfgs_iter : int, default 200
         ``jaxopt.LBFGS`` ``maxiter``.
     lbfgs_tol : float, default 1e-5
@@ -1128,7 +1156,7 @@ def _laplace_warmup_params(
     -------
     dict or None
         ``{"step_size": float, "inverse_mass_matrix": jnp.ndarray}`` or
-        None on failure.
+        None on failure or multimodality detection.
     """
     try:
         import jaxopt
@@ -1146,43 +1174,96 @@ def _laplace_warmup_params(
 
     grad_neg_logp_flat = jax.jit(jax.grad(neg_logp_flat))
 
+    # ------------------------------------------------------------------ #
+    # Generate perturbed starting points                                   #
+    # ------------------------------------------------------------------ #
+    # Use a deterministic key derived from a hash of flat_init so results
+    # are reproducible across calls with the same initial position.
+    _key_seed = int(jnp.sum(jnp.abs(flat_init))) % (2**31)
+    _rng = jax.random.PRNGKey(_key_seed)
+    starts: list[jnp.ndarray] = [flat_init]
+    for _s in range(1, n_starts):
+        _rng, _subkey = jax.random.split(_rng)
+        _noise_scale = 0.5 * jnp.abs(flat_init) + 0.1
+        _noise = jax.random.normal(_subkey, shape=flat_init.shape) * _noise_scale
+        starts.append(flat_init + _noise)
+
     print(
-        f"[laplace_warmup] running LBFGS (n_flat={n_flat}, max_iter="
-        f"{n_lbfgs_iter}, tol={lbfgs_tol})...",
-        flush=True,
-    )
-    t0 = time.perf_counter()
-    try:
-        solver = jaxopt.LBFGS(
-            fun=neg_logp_flat,
-            maxiter=n_lbfgs_iter,
-            tol=lbfgs_tol,
-        )
-        res = solver.run(flat_init)
-        flat_map = res.params
-        jax.block_until_ready(flat_map)
-    except Exception as exc:  # noqa: BLE001
-        print(f"[laplace_warmup] LBFGS raised {exc!r}; falling back", flush=True)
-        return None
-    lbfgs_s = time.perf_counter() - t0
-    map_neg_logp = float(neg_logp_flat(flat_map))
-    if not np.isfinite(map_neg_logp):
-        print(
-            f"[laplace_warmup] LBFGS returned non-finite neg_logp="
-            f"{map_neg_logp}; falling back",
-            flush=True,
-        )
-        return None
-    print(
-        f"[laplace_warmup] LBFGS done in {lbfgs_s:.1f}s, "
-        f"final neg_logp={map_neg_logp:.2f}",
+        f"[laplace_warmup] running multi-start LBFGS (n_starts={n_starts}, "
+        f"n_flat={n_flat}, max_iter={n_lbfgs_iter}, tol={lbfgs_tol})...",
         flush=True,
     )
 
-    # Hessian diagonal via Hessian-vector products: H[i,i] = e_i^T (H @ e_i).
-    # Computed as jvp(grad_neg_logp_flat, x, e_i) which is one extra forward
-    # pass on top of the existing reverse-mode grad.  vmap'd across the i
-    # dimension produces the full diagonal in one compiled call.
+    solver = jaxopt.LBFGS(
+        fun=neg_logp_flat,
+        maxiter=n_lbfgs_iter,
+        tol=lbfgs_tol,
+    )
+
+    # ------------------------------------------------------------------ #
+    # Run LBFGS from each start                                            #
+    # ------------------------------------------------------------------ #
+    successful_maps: list[jnp.ndarray] = []
+    successful_neg_logps: list[float] = []
+
+    for i, start_i in enumerate(starts):
+        t0 = time.perf_counter()
+        try:
+            res_i = solver.run(start_i)
+            flat_map_i = res_i.params
+            jax.block_until_ready(flat_map_i)
+        except Exception as exc:  # noqa: BLE001
+            elapsed = time.perf_counter() - t0
+            print(
+                f"[laplace_warmup] start {i + 1}/{n_starts}: LBFGS raised "
+                f"{exc!r} ({elapsed:.1f}s) — skipping",
+                flush=True,
+            )
+            continue
+        elapsed = time.perf_counter() - t0
+        neg_logp_i = float(neg_logp_flat(flat_map_i))
+        if not np.isfinite(neg_logp_i):
+            print(
+                f"[laplace_warmup] start {i + 1}/{n_starts}: "
+                f"neg_logp={neg_logp_i} (non-finite, {elapsed:.1f}s) — skipping",
+                flush=True,
+            )
+            continue
+        print(
+            f"[laplace_warmup] start {i + 1}/{n_starts}: "
+            f"neg_logp={neg_logp_i:.2f} ({elapsed:.1f}s)",
+            flush=True,
+        )
+        successful_maps.append(flat_map_i)
+        successful_neg_logps.append(neg_logp_i)
+
+    n_success = len(successful_maps)
+    if n_success == 0:
+        print(
+            "[laplace_warmup] all LBFGS starts failed; falling back",
+            flush=True,
+        )
+        return None
+
+    # ------------------------------------------------------------------ #
+    # Select best MAP (lowest neg_logp)                                    #
+    # ------------------------------------------------------------------ #
+    best_idx = int(np.argmin(successful_neg_logps))
+    flat_map = successful_maps[best_idx]
+    map_neg_logp = successful_neg_logps[best_idx]
+    print(
+        f"[laplace_warmup] best MAP: start index={best_idx}, "
+        f"neg_logp={map_neg_logp:.2f} ({n_success}/{n_starts} starts converged)",
+        flush=True,
+    )
+
+    # ------------------------------------------------------------------ #
+    # Hessian diagonal via Hessian-vector products: H[i,i] = e_i^T H e_i #
+    # Computed as jvp(grad_neg_logp_flat, x, e_i) which is one extra      #
+    # forward pass on top of the existing reverse-mode grad.  vmap'd       #
+    # across the i dimension produces the full diagonal in one compiled    #
+    # call.                                                                 #
+    # ------------------------------------------------------------------ #
     print(
         f"[laplace_warmup] computing Hessian diagonal (n={n_flat} jvps)...",
         flush=True,
@@ -1230,6 +1311,75 @@ def _laplace_warmup_params(
     inverse_mass_matrix = 1.0 / hess_diag_pd
     inverse_mass_matrix_np = np.asarray(inverse_mass_matrix)
 
+    # ------------------------------------------------------------------ #
+    # Basin-comparison diagnostic (P5 prevention)                          #
+    # ------------------------------------------------------------------ #
+    # se_per_param = sqrt(1 / hess_diag_pd) is the Laplace posterior SD   #
+    # estimate.  For each non-best successful endpoint, check whether any  #
+    # parameter dimension differs from the best MAP by more than 2 SE.     #
+    # If so, the posterior is likely multimodal and Laplace warmup would   #
+    # lock onto one mode — return None to trigger window_adaptation.       #
+    # Basin check is skipped when n_starts=1 (backward compatibility) or  #
+    # when fewer than 2 starts converged.                                  #
+    # ------------------------------------------------------------------ #
+    se_per_param = np.sqrt(1.0 / np.asarray(hess_diag_pd))
+    flat_map_np = np.asarray(flat_map)
+
+    max_dev_overall = 0.0
+    worst_dim = -1
+    basin_status = "AGREE"
+
+    if n_starts > 1 and n_success >= 2:
+        for j, other_map in enumerate(successful_maps):
+            if j == best_idx:
+                continue
+            other_np = np.asarray(other_map)
+            deviations = np.abs(other_np - flat_map_np) / (se_per_param + 1e-30)
+            max_dev_j = float(deviations.max())
+            dim_j = int(deviations.argmax())
+            if max_dev_j > max_dev_overall:
+                max_dev_overall = max_dev_j
+                worst_dim = dim_j
+            if max_dev_j > 2.0:
+                basin_status = "DISAGREE"
+
+        if basin_status == "DISAGREE":
+            print(
+                f"[laplace_warmup] MULTIMODAL WARNING: endpoints disagree by "
+                f"{max_dev_overall:.1f} SE on parameter dim {worst_dim} "
+                f"— falling back to standard window_adaptation. "
+                "This posterior may be multimodal; Laplace warmup would lock "
+                "onto one mode.",
+                flush=True,
+            )
+    elif n_starts > 1 and n_success < 2:
+        print(
+            f"[laplace_warmup] only {n_success}/{n_starts} starts converged; "
+            "cannot perform basin comparison — falling back",
+            flush=True,
+        )
+        print(
+            f"[laplace_warmup] basin diagnostic: {n_success}/{n_starts} starts "
+            f"converged, best_neg_logp={map_neg_logp:.2f}, "
+            f"max_deviation=N/A (threshold=2.0, status=INSUFFICIENT)",
+            flush=True,
+        )
+        return None
+
+    print(
+        f"[laplace_warmup] basin diagnostic: {n_success}/{n_starts} starts "
+        f"converged, best_neg_logp={map_neg_logp:.2f}, "
+        f"max_deviation={max_dev_overall:.2f} "
+        f"(threshold=2.0, status={basin_status})",
+        flush=True,
+    )
+
+    if basin_status == "DISAGREE":
+        return None
+
+    # ------------------------------------------------------------------ #
+    # Build warmup_params from best MAP Hessian                            #
+    # ------------------------------------------------------------------ #
     # Heuristic step size: sqrt of median IMM gives an O(1) leapfrog
     # displacement under the preconditioned Hamiltonian.  BlackJAX's
     # default initial step_size when window_adaptation runs is 1.0, so
@@ -1373,7 +1523,7 @@ def _run_blackjax_nuts(
         _t_lp0 = time.perf_counter()
         print(
             f"[hierarchical t={_t_lp0 - _t_fn0:.1f}s] "
-            "computing Laplace warmup_params (variant 2)...",
+            "computing Laplace warmup_params (multi-start, n_starts=4)...",
             flush=True,
         )
         laplace_params = _laplace_warmup_params(logdensity_fn, initial_position)

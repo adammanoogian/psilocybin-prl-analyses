@@ -2626,6 +2626,106 @@ def _samples_to_idata(
     return idata
 
 
+def _samples_to_idata_hierarchical(
+    positions: dict[str, np.ndarray],
+    sample_stats: dict[str, np.ndarray],
+    var_names: list[str],
+    participant_ids: list[str],
+    participant_groups: list[str],
+    participant_sessions: list[str],
+    group_labels: list[str],
+    model_name: str = "hgf_3level",
+) -> az.InferenceData:
+    """Convert hierarchical BlackJAX samples to ArviZ InferenceData.
+
+    Extends :func:`_samples_to_idata` with group-level coordinate handling
+    for Mode B hierarchical models.  Hyperparameters (``mu_*``) get a
+    ``group`` dimension; participant-level parameters get a ``participant``
+    dimension; scalars (``log_sigma_*``, ``beta_*``) get no extra dims.
+
+    Parameters
+    ----------
+    positions : dict[str, numpy.ndarray]
+        Posterior samples.  Values have shape ``(n_chains, n_draws, ...)``.
+    sample_stats : dict[str, numpy.ndarray]
+        NUTS diagnostics.
+    var_names : list[str]
+        All variable names to include in idata.
+    participant_ids : list[str]
+        Participant identifier strings.
+    participant_groups : list[str]
+        Group labels per participant.
+    participant_sessions : list[str]
+        Session labels per participant.
+    group_labels : list[str]
+        Sorted unique group labels.
+    model_name : str, optional
+        ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+
+    Returns
+    -------
+    arviz.InferenceData
+        Posterior with participant and group coordinates.
+    """
+    import arviz as az
+
+    n_participants = len(participant_ids)
+    n_groups = len(group_labels)
+
+    # Build posterior dict and dims from sampled positions
+    posterior_dict: dict[str, np.ndarray] = {}
+    dims_dict: dict[str, list[str]] = {}
+
+    for var in var_names:
+        if var == "beta":
+            # Deterministic transform of log_beta
+            if "log_beta" in positions:
+                posterior_dict["beta"] = np.exp(positions["log_beta"])
+                dims_dict["beta"] = ["participant"]
+            elif "log_beta_nc" in positions:
+                # Non-centered: log_beta stored elsewhere; skip beta here
+                continue
+            continue
+        if var not in positions:
+            continue
+
+        arr = positions[var]
+        posterior_dict[var] = arr
+
+        # Determine dimension from array shape
+        # positions shape: (n_chains, n_draws, ...) or (n_chains, n_draws)
+        if arr.ndim == 3:
+            last_dim = arr.shape[-1]
+            if last_dim == n_participants:
+                dims_dict[var] = ["participant"]
+            elif last_dim == n_groups:
+                dims_dict[var] = ["group"]
+            else:
+                # Unknown dimension — leave undimmed
+                pass
+        # ndim == 2 means scalar parameter — no extra dims
+
+    coords_dict: dict[str, list[str]] = {
+        "participant": participant_ids,
+        "group": group_labels,
+    }
+
+    idata = az.from_dict(
+        posterior=posterior_dict,
+        sample_stats=sample_stats,
+        dims=dims_dict,
+        coords=coords_dict,
+    )
+
+    # Attach group and session metadata as additional coords
+    idata.posterior = idata.posterior.assign_coords(
+        participant_group=("participant", participant_groups),
+        participant_session=("participant", participant_sessions),
+    )
+
+    return idata
+
+
 # ---------------------------------------------------------------------------
 # NumPyro model functions
 # ---------------------------------------------------------------------------
@@ -3368,6 +3468,7 @@ def fit_batch_hierarchical(
     fit_config: FitConfig,
     prior_spec: HGFPriorSpec | None = None,
     warmup_params: dict | None = None,
+    x_covariate: np.ndarray | None = None,
 ) -> az.InferenceData | tuple[az.InferenceData, dict]:
     """Fit an entire cohort via BlackJAX NUTS (default) or NumPyro MCMC.
 
@@ -3378,11 +3479,19 @@ def fit_batch_hierarchical(
     parameter so downstream analysis can map posterior slices back to
     individual participants.
 
+    **Mode A** (``fit_config.covariate.pooling == "none"``): Independent
+    priors per participant — no hyperpriors, no partial pooling.
+
+    **Mode B** (``fit_config.covariate.pooling == "hierarchical"``): Group-
+    level hyperpriors per Boehm 2018.  Routes to hierarchical model
+    builders that implement partial pooling with optional covariates.
+
     **BlackJAX path** (default): Builds a pure JAX log-posterior via
-    :func:`_build_log_posterior`, runs NUTS with window adaptation via
-    :func:`_run_blackjax_nuts`, and converts to ArviZ via
-    :func:`_samples_to_idata`.  Compiles the NUTS step function once via
-    ``jax.jit`` and reuses it across all MCMC steps — no per-call
+    :func:`_build_log_posterior` (Mode A) or
+    :func:`_build_log_posterior_hierarchical` (Mode B), runs NUTS with
+    window adaptation via :func:`_run_blackjax_nuts`, and converts to
+    ArviZ via :func:`_samples_to_idata`.  Compiles the NUTS step function
+    once via ``jax.jit`` and reuses it across all MCMC steps — no per-call
     recompilation.
 
     **NumPyro path** (fallback): Uses numpyro MCMC with
@@ -3401,14 +3510,20 @@ def fit_batch_hierarchical(
         sampling settings.
     prior_spec : HGFPriorSpec or None, optional
         Prior distributions for model parameters.  If ``None`` (default),
-        derived from ``fit_config.model_name``: 3-level models get
-        :meth:`HGFPriorSpec.default_3level`, 2-level models get
-        :meth:`HGFPriorSpec.default_2level`.
+        derived from ``fit_config.model_name`` and pooling mode: Mode A
+        uses :meth:`HGFPriorSpec.default_2level` / ``default_3level``;
+        Mode B uses ``default_2level_hierarchical`` /
+        ``default_3level_hierarchical``.
     warmup_params : dict or None, optional
         Pre-adapted NUTS parameters from a previous call.  When
         provided, warmup is skipped (~1100s savings per call).  Pass
         the second element of the return tuple from a prior call.
         Only used with the BlackJAX path.
+    x_covariate : numpy.ndarray or None, optional
+        Continuous covariate array of shape ``(P,)`` matching participant
+        order from the groupby.  Mean-centered internally before passing
+        to model functions.  Only used when
+        ``fit_config.covariate.pooling == "hierarchical"``.
 
     Returns
     -------
@@ -3459,11 +3574,18 @@ def fit_batch_hierarchical(
     # ------------------------------------------------------------------
     # Derive prior_spec if not provided
     # ------------------------------------------------------------------
+    is_hierarchical = fit_config.covariate.pooling == "hierarchical"
     if prior_spec is None:
-        if model_name == "hgf_3level":
-            prior_spec = HGFPriorSpec.default_3level()
+        if is_hierarchical:
+            if model_name == "hgf_3level":
+                prior_spec = HGFPriorSpec.default_3level_hierarchical()
+            else:
+                prior_spec = HGFPriorSpec.default_2level_hierarchical()
         else:
-            prior_spec = HGFPriorSpec.default_2level()
+            if model_name == "hgf_3level":
+                prior_spec = HGFPriorSpec.default_3level()
+            else:
+                prior_spec = HGFPriorSpec.default_2level()
 
     # Pre-flight validation (n_participants not yet known; deferred below)
 
@@ -3536,6 +3658,27 @@ def fit_batch_hierarchical(
     n_trials = trial_counts[0]
     n_participants = len(input_data_list)
 
+    # ------------------------------------------------------------------
+    # Extract group_idx and mean-center covariate (Mode B only)
+    # ------------------------------------------------------------------
+    if is_hierarchical:
+        group_labels = sorted(set(participant_groups))
+        group_idx = np.array(
+            [group_labels.index(g) for g in participant_groups]
+        )
+        n_groups = len(group_labels)
+        # Mean-center covariate before passing to model functions
+        if x_covariate is not None:
+            if x_covariate.shape != (n_participants,):
+                msg = (
+                    f"x_covariate shape mismatch: expected ({n_participants},), "
+                    f"got {x_covariate.shape}"
+                )
+                raise ValueError(msg)
+            x_covariate_centered = x_covariate - np.mean(x_covariate)
+        else:
+            x_covariate_centered = None
+
     # Pre-flight validation (memory guard for dense mass matrix)
     validate_fit_config(fit_config, prior_spec, n_participants)
 
@@ -3568,7 +3711,7 @@ def fit_batch_hierarchical(
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "
             f"cohort assembled: P={n_participants} n_trials={n_trials} "
-            "(BlackJAX path)",
+            f"(BlackJAX path, {'Mode B' if is_hierarchical else 'Mode A'})",
             flush=True,
         )
 
@@ -3579,16 +3722,45 @@ def fit_batch_hierarchical(
             "building closure-based logdensity (warmup-only, no JIT yet)",
             flush=True,
         )
-        logdensity_fn = _build_log_posterior(
-            logp_fn,
-            jax_input_data,
-            jax_observed,
-            jax_choices,
-            jax_trial_mask,
-            n_participants,
-            model_name,
-            prior_spec=prior_spec,
-        )
+
+        if is_hierarchical:
+            # ----------------------------------------------------------
+            # Mode B: hierarchical log-posterior with hyperpriors
+            # ----------------------------------------------------------
+            jax_x_covariate = (
+                jnp.array(x_covariate_centered, dtype=jnp.float32)
+                if x_covariate_centered is not None
+                else None
+            )
+            logdensity_fn = _build_log_posterior_hierarchical(
+                logp_fn,
+                jax_input_data,
+                jax_observed,
+                jax_choices,
+                jax_trial_mask,
+                n_participants,
+                n_groups,
+                jnp.array(group_idx, dtype=jnp.int32),
+                model_name,
+                prior_spec=prior_spec,
+                non_centered=fit_config.mitigation.non_centered,
+                x_covariate=jax_x_covariate,
+            )
+        else:
+            # ----------------------------------------------------------
+            # Mode A: independent priors per participant (no hyperpriors)
+            # ----------------------------------------------------------
+            logdensity_fn = _build_log_posterior(
+                logp_fn,
+                jax_input_data,
+                jax_observed,
+                jax_choices,
+                jax_trial_mask,
+                n_participants,
+                model_name,
+                prior_spec=prior_spec,
+            )
+
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "
             f"logdensity built in {time.perf_counter() - _t_lp0:.1f}s",
@@ -3596,28 +3768,63 @@ def fit_batch_hierarchical(
         )
 
         # Build initial position dict at prior modes.
-        # κ is frozen at _KAPPA_FIXED (1.0) — not sampled, not in initial_position.
-        if model_name == "hgf_3level":
-            initial_position: dict[str, jnp.ndarray] = {
-                "omega_2": jnp.full((n_participants,), -3.0),
-                "omega_3": jnp.full((n_participants,), -6.0),
-                "log_beta": jnp.full((n_participants,), 0.0),
-                "zeta": jnp.full((n_participants,), 0.0),
-            }
-            var_names = [
-                "omega_2",
-                "omega_3",
-                "log_beta",
-                "beta",
-                "zeta",
-            ]
+        if is_hierarchical:
+            # Mode B initial position: hyperpriors + participant-level
+            jax_x_cov_init = (
+                jnp.array(x_covariate_centered, dtype=jnp.float32)
+                if x_covariate_centered is not None
+                else None
+            )
+            initial_position = _build_initial_position_hierarchical(
+                n_participants,
+                n_groups,
+                model_name,
+                prior_spec=prior_spec,
+                non_centered=fit_config.mitigation.non_centered,
+                x_covariate=jax_x_cov_init,
+            )
+            # var_names for hierarchical idata include hyperprior keys
+            h_params = (
+                _HIERARCHICAL_PARAMS_3LEVEL
+                if model_name == "hgf_3level"
+                else _HIERARCHICAL_PARAMS_2LEVEL
+            )
+            var_names: list[str] = []
+            for p_name in h_params:
+                var_names.append(f"mu_{p_name}")
+                var_names.append(f"log_sigma_{p_name}")
+                if x_covariate_centered is not None:
+                    var_names.append(f"beta_{p_name}")
+                # Participant-level key
+                if p_name in fit_config.mitigation.non_centered:
+                    var_names.append(f"{p_name}_nc")
+                else:
+                    var_names.append(p_name)
+            # Add deterministic beta (exp(log_beta))
+            var_names.append("beta")
         else:
-            initial_position = {
-                "omega_2": jnp.full((n_participants,), -3.0),
-                "log_beta": jnp.full((n_participants,), 0.0),
-                "zeta": jnp.full((n_participants,), 0.0),
-            }
-            var_names = ["omega_2", "log_beta", "beta", "zeta"]
+            # Mode A initial position: κ frozen — not sampled.
+            if model_name == "hgf_3level":
+                initial_position = {
+                    "omega_2": jnp.full((n_participants,), -3.0),
+                    "omega_3": jnp.full((n_participants,), -6.0),
+                    "log_beta": jnp.full((n_participants,), 0.0),
+                    "zeta": jnp.full((n_participants,), 0.0),
+                }
+                var_names = [
+                    "omega_2",
+                    "omega_3",
+                    "log_beta",
+                    "beta",
+                    "zeta",
+                ]
+            else:
+                initial_position = {
+                    "omega_2": jnp.full((n_participants,), -3.0),
+                    "log_beta": jnp.full((n_participants,), 0.0),
+                    "zeta": jnp.full((n_participants,), 0.0),
+                }
+                var_names = ["omega_2", "log_beta", "beta", "zeta"]
 
         # Run MCMC (data as traced args for JIT cache reuse)
         _t_nuts0 = time.perf_counter()
@@ -3658,19 +3865,33 @@ def fit_batch_hierarchical(
 
         # Convert to ArviZ InferenceData
         _t_id0 = time.perf_counter()
-        idata = _samples_to_idata(
-            positions,
-            sample_stats,
-            var_names,
-            participant_ids,
-            participant_groups,
-            participant_sessions,
-            model_name,
-        )
+        if is_hierarchical:
+            # Mode B: hierarchical idata with group coords
+            idata = _samples_to_idata_hierarchical(
+                positions,
+                sample_stats,
+                var_names,
+                participant_ids,
+                participant_groups,
+                participant_sessions,
+                group_labels,
+                model_name,
+            )
+        else:
+            idata = _samples_to_idata(
+                positions,
+                sample_stats,
+                var_names,
+                participant_ids,
+                participant_groups,
+                participant_sessions,
+                model_name,
+            )
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "
             f"_samples_to_idata complete in {time.perf_counter() - _t_id0:.1f}s "
-            f"(BlackJAX path returning, total wall {time.perf_counter() - _t_fb0:.1f}s)",
+            f"(BlackJAX path returning, total wall "
+            f"{time.perf_counter() - _t_fb0:.1f}s)",
             flush=True,
         )
 
@@ -3690,31 +3911,67 @@ def fit_batch_hierarchical(
         import arviz as az
         from numpyro.infer import MCMC, NUTS
 
-        if model_name == "hgf_3level":
-            model_fn = _numpyro_model_3level
-            # κ frozen — not in fitted var_names (see _KAPPA_FIXED docstring).
-            var_names = [
-                "omega_2",
-                "omega_3",
-                "log_beta",
-                "beta",
-                "zeta",
-            ]
+        if is_hierarchical:
+            # ----------------------------------------------------------
+            # Mode B: hierarchical NumPyro model with reparam
+            # ----------------------------------------------------------
+            model_fn = _get_numpyro_model_hierarchical(
+                model_name, fit_config.mitigation.non_centered
+            )
+            # var_names for hierarchical models
+            h_params = (
+                _HIERARCHICAL_PARAMS_3LEVEL
+                if model_name == "hgf_3level"
+                else _HIERARCHICAL_PARAMS_2LEVEL
+            )
+            var_names = []
+            for p_name in h_params:
+                var_names.extend([
+                    f"mu_{p_name}",
+                    f"sigma_{p_name}",
+                    p_name,
+                ])
+                if x_covariate is not None:
+                    var_names.append(f"beta_{p_name}")
+            var_names.append("beta")  # deterministic exp(log_beta)
         else:
-            model_fn = _numpyro_model_2level
-            var_names = ["omega_2", "log_beta", "beta", "zeta"]
+            # ----------------------------------------------------------
+            # Mode A: independent priors per participant
+            # ----------------------------------------------------------
+            if model_name == "hgf_3level":
+                model_fn = _numpyro_model_3level
+                # κ frozen — not in fitted var_names.
+                var_names = [
+                    "omega_2",
+                    "omega_3",
+                    "log_beta",
+                    "beta",
+                    "zeta",
+                ]
+            else:
+                model_fn = _numpyro_model_2level
+                var_names = ["omega_2", "log_beta", "beta", "zeta"]
 
         # Always use "vectorized" (vmap): compiles a single fused kernel
         # for all chains, enables jit_model_args for trace-cache reuse
         # across calls with the same shapes.
         from functools import partial
 
-        bound_model = partial(
-            model_fn,
-            n_participants=n_participants,
-            batched_logp_fn=logp_fn,
-            prior_spec=prior_spec,
-        )
+        if is_hierarchical:
+            bound_model = partial(
+                model_fn,
+                n_participants=n_participants,
+                n_groups=n_groups,
+                batched_logp_fn=logp_fn,
+                prior_spec=prior_spec,
+            )
+        else:
+            bound_model = partial(
+                model_fn,
+                n_participants=n_participants,
+                batched_logp_fn=logp_fn,
+                prior_spec=prior_spec,
+            )
         kernel = NUTS(
             bound_model,
             target_accept_prob=target_accept,
@@ -3730,20 +3987,56 @@ def fit_batch_hierarchical(
             jit_model_args=True,
             progress_bar=progressbar,
         )
-        mcmc.run(
-            rng_key,
-            extra_fields=("num_steps", "mean_accept_prob"),
-            input_data=jax_input_data,
-            observed=jax_observed,
-            choices=jax_choices,
-            trial_mask=jax_trial_mask,
-        )
+
+        if is_hierarchical:
+            # Mode B: pass group_idx and covariate to NumPyro model
+            jax_group_idx = jnp.array(group_idx, dtype=jnp.int32)
+            jax_x_covariate = (
+                jnp.array(x_covariate_centered, dtype=jnp.float32)
+                if x_covariate_centered is not None
+                else None
+            )
+            mcmc.run(
+                rng_key,
+                extra_fields=("num_steps", "mean_accept_prob"),
+                input_data=jax_input_data,
+                observed=jax_observed,
+                choices=jax_choices,
+                trial_mask=jax_trial_mask,
+                group_idx=jax_group_idx,
+                x_covariate=jax_x_covariate,
+            )
+        else:
+            mcmc.run(
+                rng_key,
+                extra_fields=("num_steps", "mean_accept_prob"),
+                input_data=jax_input_data,
+                observed=jax_observed,
+                choices=jax_choices,
+                trial_mask=jax_trial_mask,
+            )
 
         # Convert to ArviZ InferenceData with participant coords
-        dims_dict = {vn: ["participant"] for vn in var_names}
-        coords_dict: dict[str, list[str]] = {
-            "participant": participant_ids,
-        }
+        if is_hierarchical:
+            # Mode B: add group dimension for hyperparameters
+            dims_dict: dict[str, list[str]] = {}
+            for vn in var_names:
+                if vn.startswith("mu_"):
+                    dims_dict[vn] = ["group"]
+                elif vn in (
+                    "omega_2", "omega_3", "log_beta", "zeta", "beta"
+                ):
+                    dims_dict[vn] = ["participant"]
+                # sigma_* and beta_* are scalar — no dims needed
+            coords_dict: dict[str, list[str]] = {
+                "participant": participant_ids,
+                "group": group_labels,
+            }
+        else:
+            dims_dict = {vn: ["participant"] for vn in var_names}
+            coords_dict = {
+                "participant": participant_ids,
+            }
 
         idata = az.from_numpyro(
             mcmc,

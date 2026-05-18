@@ -3675,6 +3675,12 @@ def fit_batch_hierarchical(
                     f"got {x_covariate.shape}"
                 )
                 raise ValueError(msg)
+            # P8 prevention: refuse collinear covariate before expensive work
+            from prl_hgf.fitting.preflight import (
+                check_covariate_collinearity,
+            )
+
+            check_covariate_collinearity(x_covariate, group_idx)
             x_covariate_centered = x_covariate - np.mean(x_covariate)
         else:
             x_covariate_centered = None

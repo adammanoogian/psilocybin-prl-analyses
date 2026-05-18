@@ -10,11 +10,11 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 ## Current Position
 
 Phase: 33 (TS-1 + M2 + W4 fused)
-Plan: 2 of 6 complete (33-02 done)
+Plan: 3 of 6 complete (33-03 done)
 Status: In progress
-Last activity: 2026-05-18 — Completed 33-02-PLAN.md (NumPyro hierarchical models + LocScaleReparam)
+Last activity: 2026-05-18 — Completed 33-03-PLAN.md (CovariateConfig + Mode B routing)
 
-Progress: [███████████████] 64% (21 of ~32 remaining v1.0 plans; Phase 33 in progress)
+Progress: [████████████████] 67% (22 of ~32 remaining v1.0 plans; Phase 33 in progress)
 
 ## Performance Metrics
 
@@ -34,7 +34,7 @@ Progress: [███████████████] 64% (21 of ~32 remaini
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
 | 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
 | 32-sampler-audit-harness | 3 of 5 | In progress | — |
-| 33-ts1-m2-w4-fused | 2 of 6 | In progress | — |
+| 33-ts1-m2-w4-fused | 3 of 6 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -103,8 +103,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-18
-Stopped at: Completed 33-02-PLAN.md (NumPyro hierarchical models + LocScaleReparam)
-Resume: Phase 33, plan 03
+Stopped at: Completed 33-03-PLAN.md (CovariateConfig + Mode B routing)
+Resume: Phase 33, plan 04
 
 ---
-*Last updated: 2026-05-18 after 33-02 completion*
+*Last updated: 2026-05-18 after 33-03 completion*

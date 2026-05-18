@@ -4,6 +4,8 @@ from __future__ import annotations
 
 import warnings
 
+import numpy as np
+
 from prl_hgf.fitting.config import FitConfig
 from prl_hgf.fitting.priors import HGFPriorSpec
 
@@ -156,3 +158,41 @@ def validate_fit_config(
             f"GPU memory (Phase 35)."
         )
         raise ValueError(msg)
+
+
+def check_covariate_collinearity(
+    x_covariate: np.ndarray,
+    group_idx: np.ndarray,
+    threshold: float = 0.7,
+) -> None:
+    """Refuse when covariate is highly collinear with group assignment.
+
+    Pre-flight gate (P8 prevention): if |cor(x_k, group_idx_k)| > threshold,
+    beta_p and mu_g are unidentifiable. The fit should not proceed.
+
+    Parameters
+    ----------
+    x_covariate : np.ndarray, shape (P,)
+        Continuous covariate values per participant.
+    group_idx : np.ndarray, shape (P,)
+        Integer group indices per participant.
+    threshold : float
+        Maximum tolerated absolute Pearson correlation. Default 0.7.
+
+    Raises
+    ------
+    ValueError
+        When |cor(x, group_idx)| exceeds threshold, with diagnostic
+        message showing actual correlation and remediation suggestions.
+    """
+    r = np.corrcoef(x_covariate.astype(float), group_idx.astype(float))[0, 1]
+    if abs(r) > threshold:
+        raise ValueError(
+            f"Pre-flight collinearity check failed: "
+            f"|cor(x_covariate, group_idx)| = {abs(r):.3f} > {threshold}. "
+            f"Covariate effects (beta_p) and group means (mu_g) are "
+            f"unidentifiable when collinear. "
+            f"Remediation: use group-mean-centered covariate "
+            f"x_k - mean(x_k | g(k)), or analyze within-group effects only. "
+            f"Expected |r| < {threshold}, got {abs(r):.3f}."
+        )

@@ -83,6 +83,15 @@ class PriorDist:
 class HGFPriorSpec:
     """Complete prior specification for HGF model parameters.
 
+    Supports two pooling modes:
+
+    - ``pooling="none"`` (Mode A): Independent per-participant priors.
+      Hyperprior fields are ``None``.
+    - ``pooling="hierarchical"`` (Mode B): Group-level hyperpriors
+      (mu_p, sigma_p) per cognitive parameter with non-centered
+      reparameterization support.  Participant-level priors are
+      ``Normal`` (required for LocScaleReparam).
+
     Parameters
     ----------
     omega_2 : PriorDist
@@ -97,6 +106,24 @@ class HGFPriorSpec:
         Prior for volatility coupling (None = frozen at 1.0).
     mu3_0 : PriorDist or None
         Prior for initial volatility belief (3-level only).
+    pooling : str
+        Pooling mode: ``"none"`` for Mode A, ``"hierarchical"`` for Mode B.
+    omega_2_mu_hyper : PriorDist or None
+        Hyperprior on group mean of omega_2.
+    omega_2_sigma_hyper : PriorDist or None
+        Hyperprior on shared sigma of omega_2.
+    log_beta_mu_hyper : PriorDist or None
+        Hyperprior on group mean of log_beta.
+    log_beta_sigma_hyper : PriorDist or None
+        Hyperprior on shared sigma of log_beta.
+    zeta_mu_hyper : PriorDist or None
+        Hyperprior on group mean of zeta.
+    zeta_sigma_hyper : PriorDist or None
+        Hyperprior on shared sigma of zeta.
+    omega_3_mu_hyper : PriorDist or None
+        Hyperprior on group mean of omega_3 (3-level only).
+    omega_3_sigma_hyper : PriorDist or None
+        Hyperprior on shared sigma of omega_3 (3-level only).
     """
 
     omega_2: PriorDist
@@ -106,10 +133,26 @@ class HGFPriorSpec:
     kappa: PriorDist | None = None
     mu3_0: PriorDist | None = None
 
+    # --- Mode B: pooling and hyperprior fields ---
+    pooling: Literal["none", "hierarchical"] = "none"
+    omega_2_mu_hyper: PriorDist | None = None
+    omega_2_sigma_hyper: PriorDist | None = None
+    log_beta_mu_hyper: PriorDist | None = None
+    log_beta_sigma_hyper: PriorDist | None = None
+    zeta_mu_hyper: PriorDist | None = None
+    zeta_sigma_hyper: PriorDist | None = None
+    omega_3_mu_hyper: PriorDist | None = None
+    omega_3_sigma_hyper: PriorDist | None = None
+
     @property
     def is_3level(self) -> bool:
         """Whether this spec includes 3-level parameters."""
         return self.omega_3 is not None
+
+    @property
+    def is_hierarchical(self) -> bool:
+        """Whether this spec uses hierarchical (Mode B) pooling."""
+        return self.pooling == "hierarchical"
 
     @classmethod
     def default_2level(cls) -> HGFPriorSpec:
@@ -143,6 +186,71 @@ class HGFPriorSpec:
             log_beta=PriorDist("normal", loc=0.0, scale=1.5),
             zeta=PriorDist("normal", loc=0.0, scale=2.0),
             omega_3=PriorDist("normal", loc=-6.0, scale=1.0),
+        )
+
+    @classmethod
+    def default_2level_hierarchical(cls) -> HGFPriorSpec:
+        """Default 2-level hierarchical (Mode B) priors.
+
+        Participant-level priors are Normal (not TruncatedNormal)
+        because LocScaleReparam requires unconstrained support.
+        The hyperprior centering provides soft constraint.
+
+        Hyperprior defaults (Boehm 2018 convention):
+
+        - mu_omega2 ~ Normal(-3, 1)
+        - sigma_omega2 ~ HalfNormal(1)
+        - mu_log_beta ~ Normal(0, 1.5)
+        - sigma_log_beta ~ HalfNormal(1)
+        - mu_zeta ~ Normal(0, 2)
+        - sigma_zeta ~ HalfNormal(1)
+        """
+        return cls(
+            omega_2=PriorDist("normal", loc=-3.0, scale=2.0),
+            log_beta=PriorDist("normal", loc=0.0, scale=1.5),
+            zeta=PriorDist("normal", loc=0.0, scale=2.0),
+            pooling="hierarchical",
+            omega_2_mu_hyper=PriorDist("normal", loc=-3.0, scale=1.0),
+            omega_2_sigma_hyper=PriorDist("half_normal", scale=1.0),
+            log_beta_mu_hyper=PriorDist("normal", loc=0.0, scale=1.5),
+            log_beta_sigma_hyper=PriorDist("half_normal", scale=1.0),
+            zeta_mu_hyper=PriorDist("normal", loc=0.0, scale=2.0),
+            zeta_sigma_hyper=PriorDist("half_normal", scale=1.0),
+        )
+
+    @classmethod
+    def default_3level_hierarchical(cls) -> HGFPriorSpec:
+        """Default 3-level hierarchical (Mode B) priors.
+
+        Participant-level priors are Normal (not TruncatedNormal)
+        because LocScaleReparam requires unconstrained support.
+        The hyperprior centering provides soft constraint.
+
+        Hyperprior defaults (Boehm 2018 convention):
+
+        - mu_omega2 ~ Normal(-3, 1)
+        - sigma_omega2 ~ HalfNormal(1)
+        - mu_log_beta ~ Normal(0, 1.5)
+        - sigma_log_beta ~ HalfNormal(1)
+        - mu_zeta ~ Normal(0, 2)
+        - sigma_zeta ~ HalfNormal(1)
+        - mu_omega3 ~ Normal(-6, 1)
+        - sigma_omega3 ~ HalfNormal(1)
+        """
+        return cls(
+            omega_2=PriorDist("normal", loc=-3.0, scale=2.0),
+            log_beta=PriorDist("normal", loc=0.0, scale=1.5),
+            zeta=PriorDist("normal", loc=0.0, scale=2.0),
+            omega_3=PriorDist("normal", loc=-6.0, scale=2.0),
+            pooling="hierarchical",
+            omega_2_mu_hyper=PriorDist("normal", loc=-3.0, scale=1.0),
+            omega_2_sigma_hyper=PriorDist("half_normal", scale=1.0),
+            log_beta_mu_hyper=PriorDist("normal", loc=0.0, scale=1.5),
+            log_beta_sigma_hyper=PriorDist("half_normal", scale=1.0),
+            zeta_mu_hyper=PriorDist("normal", loc=0.0, scale=2.0),
+            zeta_sigma_hyper=PriorDist("half_normal", scale=1.0),
+            omega_3_mu_hyper=PriorDist("normal", loc=-6.0, scale=1.0),
+            omega_3_sigma_hyper=PriorDist("half_normal", scale=1.0),
         )
 
     @classmethod
@@ -184,6 +292,23 @@ class HGFPriorSpec:
         if "mu3_0" in raw:
             spec_kwargs["mu3_0"] = _parse_prior(raw["mu3_0"])
 
+        # Mode B hyperprior fields
+        if "pooling" in raw:
+            spec_kwargs["pooling"] = raw["pooling"]
+        hyper_fields = [
+            "omega_2_mu_hyper",
+            "omega_2_sigma_hyper",
+            "log_beta_mu_hyper",
+            "log_beta_sigma_hyper",
+            "zeta_mu_hyper",
+            "zeta_sigma_hyper",
+            "omega_3_mu_hyper",
+            "omega_3_sigma_hyper",
+        ]
+        for field in hyper_fields:
+            if field in raw:
+                spec_kwargs[field] = _parse_prior(raw[field])
+
         return cls(**spec_kwargs)
 
     def to_yaml(self, path: str | Path) -> None:
@@ -198,6 +323,11 @@ class HGFPriorSpec:
         path.parent.mkdir(parents=True, exist_ok=True)
 
         data: dict = {}
+
+        # Include pooling if hierarchical
+        if self.pooling != "none":
+            data["pooling"] = self.pooling
+
         for fname in [
             "omega_2",
             "log_beta",
@@ -205,6 +335,14 @@ class HGFPriorSpec:
             "omega_3",
             "kappa",
             "mu3_0",
+            "omega_2_mu_hyper",
+            "omega_2_sigma_hyper",
+            "log_beta_mu_hyper",
+            "log_beta_sigma_hyper",
+            "zeta_mu_hyper",
+            "zeta_sigma_hyper",
+            "omega_3_mu_hyper",
+            "omega_3_sigma_hyper",
         ]:
             val = getattr(self, fname)
             if val is not None:

@@ -10,11 +10,11 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 ## Current Position
 
 Phase: 32 (Sampler audit harness)
-Plan: 2 of 5 complete (32-02 done)
+Plan: 3 of 5 complete (32-03 done)
 Status: In progress
-Last activity: 2026-05-18 — Completed 32-02-PLAN.md (NumPyro gaps + logp parity test)
+Last activity: 2026-05-18 — Completed 32-03-PLAN.md (audit driver + SLURM array job)
 
-Progress: [█████████████] 59% (19 of ~30 remaining v1.0 plans; Phase 32 in progress)
+Progress: [██████████████] 62% (20 of ~30 remaining v1.0 plans; Phase 32 in progress)
 
 ## Performance Metrics
 
@@ -33,7 +33,7 @@ Progress: [█████████████] 59% (19 of ~30 remaining v1.
 | 29-m1-dense-lowrank-mass-matrix-wiring | 3 of 3 | Complete | 2026-05-17 |
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
 | 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
-| 32-sampler-audit-harness | 2 of 5 | In progress | — |
+| 32-sampler-audit-harness | 3 of 5 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -98,8 +98,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-18
-Stopped at: Completed 32-02-PLAN.md (NumPyro gaps + logp parity test)
-Resume: Phase 32, plan 03 (audit driver script)
+Stopped at: Completed 32-03-PLAN.md (audit driver + SLURM array job)
+Resume: Phase 32, plan 04 (head-to-head run submission)
 
 ---
-*Last updated: 2026-05-18 after 32-02 completion*
+*Last updated: 2026-05-18 after 32-03 completion*

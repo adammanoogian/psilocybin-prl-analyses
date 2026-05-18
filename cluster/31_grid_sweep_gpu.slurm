@@ -20,14 +20,14 @@
 #SBATCH --job-name=bench31_grid
 #SBATCH --output=logs/bench31_%A_%a.out
 #SBATCH --error=logs/bench31_%A_%a.err
-#SBATCH --array=0-47%4
+#SBATCH --array=0-47%1
 #SBATCH --time=24:00:00
 #SBATCH --mem=64G
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpu
 #SBATCH --cpus-per-task=1
 #SBATCH --account=fc37
-#SBATCH --exclude=m3g110,m3g112,m3t100
+#SBATCH --nodelist=m3g108
 #SBATCH --signal=B:TERM@120
 
 # =============================================================================

@@ -10,16 +10,16 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 ## Current Position
 
 Phase: 32 (Sampler audit harness)
-Plan: 1 of 5 complete (32-01 done)
+Plan: 2 of 5 complete (32-02 done)
 Status: In progress
-Last activity: 2026-05-18 — Completed 32-01-PLAN.md (AUDIT_PROTOCOL.md pre-registration)
+Last activity: 2026-05-18 — Completed 32-02-PLAN.md (NumPyro gaps + logp parity test)
 
-Progress: [████████████] 57% (18 of ~30 remaining v1.0 plans; Phase 32 started)
+Progress: [█████████████] 59% (19 of ~30 remaining v1.0 plans; Phase 32 in progress)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 12
+- Total plans completed: 13
 - Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
 - Phase 28 wall-clock: 5 plans in ~1 day (code-only, fast)
 - Effective work time across plans: ~6.5h
@@ -33,7 +33,7 @@ Progress: [████████████] 57% (18 of ~30 remaining v1.0 p
 | 29-m1-dense-lowrank-mass-matrix-wiring | 3 of 3 | Complete | 2026-05-17 |
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
 | 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
-| 32-sampler-audit-harness | 1 of 5 | In progress | — |
+| 32-sampler-audit-harness | 2 of 5 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -74,6 +74,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
   - **[30-04] GUARD-03 subprocess isolation**: JAX_LOG_COMPILES=1 + subprocess.run provides clean JIT compile-count baseline; in-process redirect_stderr is contaminated by session-level JIT state. Compile threshold of 12 (3x single-iter budget of 4) catches pathological per-iter recompile (20+) without false-positives from scan-body specialisation.
   - **[30-04] All Phase 30 MitigationConfig fields have explicit smoke-test coverage**: non_centered tuple, use_fp64, use_shard_map YAML round-trips plus hash stability test are CI-verified locally and gated for cluster.
   - **[32-01] AUDIT-01 pre-registration gates all Phase 32 work**: `.planning/AUDIT_PROTOCOL.md` committed before any code or run; locks hyperparameters (target_accept=0.95, n_warmup=1000, n_draws=2000, n_chains=4, max_tree_depth=10), cohort grid (26 SLURM tasks), metrics, and decision rules.
+  - **[32-02] NumPyro config equivalence closed**: max_tree_depth now passed to NumPyro NUTS; extra_fields=(num_steps, mean_accept_prob) requested in mcmc.run(). AUDIT-02 logp parity test guards against future prior drift.
 
 ### Pending Todos
 
@@ -97,8 +98,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-18
-Stopped at: Completed 32-01-PLAN.md (AUDIT_PROTOCOL.md pre-registration)
-Resume: Phase 32, plan 02 (fix NumPyro gaps + logp parity test)
+Stopped at: Completed 32-02-PLAN.md (NumPyro gaps + logp parity test)
+Resume: Phase 32, plan 03 (audit driver script)
 
 ---
-*Last updated: 2026-05-18 after 32-01 completion*
+*Last updated: 2026-05-18 after 32-02 completion*

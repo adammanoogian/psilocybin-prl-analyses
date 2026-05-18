@@ -5,21 +5,21 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 32 started — Sampler audit harness (BlackJAX vs NumPyro).
+**Current focus:** Phase 33 started — TS-1 group hyperpriors + M2 non-centered + W4 covariates (fused).
 
 ## Current Position
 
-Phase: 32 (Sampler audit harness)
-Plan: 3 of 5 complete (32-03 done)
+Phase: 33 (TS-1 + M2 + W4 fused)
+Plan: 1 of 6 complete (33-01 done)
 Status: In progress
-Last activity: 2026-05-18 — Completed 32-03-PLAN.md (audit driver + SLURM array job)
+Last activity: 2026-05-18 — Completed 33-01-PLAN.md (HGFPriorSpec hyperpriors + Mode B closure)
 
-Progress: [██████████████] 62% (20 of ~30 remaining v1.0 plans; Phase 32 in progress)
+Progress: [███████████████] 64% (21 of ~32 remaining v1.0 plans; Phase 33 in progress)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 13
+- Total plans completed: 14
 - Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
 - Phase 28 wall-clock: 5 plans in ~1 day (code-only, fast)
 - Effective work time across plans: ~6.5h
@@ -34,6 +34,7 @@ Progress: [██████████████] 62% (20 of ~30 remaining 
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
 | 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
 | 32-sampler-audit-harness | 3 of 5 | In progress | — |
+| 33-ts1-m2-w4-fused | 1 of 6 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -75,6 +76,10 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
   - **[30-04] All Phase 30 MitigationConfig fields have explicit smoke-test coverage**: non_centered tuple, use_fp64, use_shard_map YAML round-trips plus hash stability test are CI-verified locally and gated for cluster.
   - **[32-01] AUDIT-01 pre-registration gates all Phase 32 work**: `.planning/AUDIT_PROTOCOL.md` committed before any code or run; locks hyperparameters (target_accept=0.95, n_warmup=1000, n_draws=2000, n_chains=4, max_tree_depth=10), cohort grid (26 SLURM tasks), metrics, and decision rules.
   - **[32-02] NumPyro config equivalence closed**: max_tree_depth now passed to NumPyro NUTS; extra_fields=(num_steps, mean_accept_prob) requested in mcmc.run(). AUDIT-02 logp parity test guards against future prior drift.
+  - **[33-01] Mode B uses Normal (not TruncatedNormal) participant priors**: LocScaleReparam requires real support; hyperprior centering (mu_omega2 ~ Normal(-3, 1)) provides soft constraint.
+  - **[33-01] Shared sigma_p per Boehm 2018**: Not per-group. Phase 33-05 simulation validates recovery; per-group sigma is COVAR-EXT-03.
+  - **[33-01] Log-space sigma with Jacobian in BlackJAX closure**: log_sigma_* keys keep NUTS unconstrained; exp-transform + log-abs-det-Jacobian standard pattern.
+  - **[33-01] jax.scipy.stats in Mode B closure (not numpyro)**: Pure JAX log_prob avoids numpyro import inside JIT-traced closure.
 
 ### Pending Todos
 
@@ -85,7 +90,7 @@ None tracked in `.planning/todos/pending/`.
 - **pyhgf 0.2.8 ↔ JAX > 0.4.31 compat** — RESOLVED by 27-02. Strategy C: pip wheel + in-place patch via `scripts/ci/patch_pyhgf_typing.py`. Probe confirmed PASS at JAX 0.10.
 - **DEPS-05 cliff not cleared by BlackJAX 1.5 alone** — RESOLVED-AS-NOT-CLEARED by 27-03 (TIMEOUT @ 24h). Phase 29 (M1 wiring + pre-flight) and Phase 30 (Laplace warmup) inherit; cliff mitigation is the entire purpose of those phases.
 - **cuSPARSE 12.5 / driver 13.0 GPU lottery on M3** — open. Some nodes (m3g112) fall back to CPU under `ds_env_v10` despite GPU allocation; m3g108 works. Phase 28 jobs need device-check + requeue OR `--nodelist` constraint OR a different cuSPARSE wheel pin. Memo'd in `memory/project_phase27_cusparse_node_lottery.md`.
-- **Per-parameter vs shared σ_θ identifiability at P=200 with K=2-3 covariates** — research-flagged for Phase 33 pre-planning; sim-to-inference evidence required before committing to the more flexible variant.
+- **Per-parameter vs shared σ_θ identifiability at P=200 with K=2-3 covariates** — RESOLVED in 33-RESEARCH: shared sigma_p per Boehm 2018; per-group sigma is future COVAR-EXT-03 extension, not Phase 33 blocker.
 - **M3 conditional-independence proof + per-block convergence diagnostics** — research-flagged for Phase 35 pre-planning if it fires; lowest-confidence area in v1.0 scope.
 
 ### v1.0 Carry-forward (from pre-v1.0 work)
@@ -98,8 +103,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-18
-Stopped at: Completed 32-03-PLAN.md (audit driver + SLURM array job)
-Resume: Phase 32, plan 04 (head-to-head run submission)
+Stopped at: Completed 33-01-PLAN.md (HGFPriorSpec hyperpriors + Mode B closure)
+Resume: Phase 33, plan 02 (NumPyro Mode B model)
 
 ---
-*Last updated: 2026-05-18 after 32-03 completion*
+*Last updated: 2026-05-18 after 33-01 completion*

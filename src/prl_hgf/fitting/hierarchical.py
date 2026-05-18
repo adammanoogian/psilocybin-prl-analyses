@@ -2779,6 +2779,372 @@ def _numpyro_model_2level(
 
 
 # ---------------------------------------------------------------------------
+# NumPyro hierarchical (Mode B) model functions
+# ---------------------------------------------------------------------------
+
+
+def _numpyro_model_hierarchical_2level(
+    input_data: jnp.ndarray,
+    observed: jnp.ndarray,
+    choices: jnp.ndarray,
+    trial_mask: jnp.ndarray,
+    n_participants: int,
+    n_groups: int,
+    batched_logp_fn,  # noqa: ANN001
+    prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
+    group_idx=None,  # noqa: ANN001  # jnp.ndarray | None
+    x_covariate=None,  # noqa: ANN001  # jnp.ndarray | None
+) -> None:
+    """NumPyro hierarchical model: 2-level HGF with group hyperpriors.
+
+    Implements Mode B hierarchical pooling per Boehm 2018.  Each cognitive
+    parameter has a group-level mean (``mu_p``) per group and a shared
+    population spread (``sigma_p``).  Participant-level parameters are
+    drawn from ``Normal(mean_p, sigma_p)`` (required for LocScaleReparam).
+
+    Parameters
+    ----------
+    input_data : jnp.ndarray, shape (P, n_trials, 3)
+        Float reward-value arrays.
+    observed : jnp.ndarray, shape (P, n_trials, 3)
+        Binary observed masks.
+    choices : jnp.ndarray, shape (P, n_trials)
+        Chosen cue indices.
+    trial_mask : jnp.ndarray, shape (P, n_trials)
+        Binary trial mask for variable-length cohorts.
+    n_participants : int
+        Number of participants ``P``.
+    n_groups : int
+        Number of experimental groups ``K``.
+    batched_logp_fn : callable
+        Pure JAX batched logp from :func:`build_logp_fn_batched`.
+    prior_spec : HGFPriorSpec or None, optional
+        Prior specification with hyperprior fields populated.
+        If ``None``, uses default 2-level hierarchical priors.
+    group_idx : jnp.ndarray or None, shape (P,)
+        Integer group assignment per participant (0-indexed).
+        Required for group-level hyperpriors.
+    x_covariate : jnp.ndarray or None, shape (P,)
+        Optional continuous covariate (mean-centered internally).
+    """
+    import numpyro
+    import numpyro.distributions as dist
+
+    from prl_hgf.fitting.priors import HGFPriorSpec
+
+    if prior_spec is None:
+        prior_spec = HGFPriorSpec.default_2level_hierarchical()
+
+    has_covariate = x_covariate is not None
+    if has_covariate:
+        x_c = x_covariate - jnp.mean(x_covariate)
+
+    # --- omega_2 hyperpriors ---
+    mu_omega2 = numpyro.sample(
+        "mu_omega2",
+        prior_spec.omega_2_mu_hyper.to_numpyro_dist().expand([n_groups]),
+    )
+    sigma_omega2 = numpyro.sample(
+        "sigma_omega2",
+        prior_spec.omega_2_sigma_hyper.to_numpyro_dist(),
+    )
+    mean_omega2_p = mu_omega2[group_idx]
+    if has_covariate:
+        beta_omega2 = numpyro.sample(
+            "beta_omega2", dist.Normal(0.0, 1.0)
+        )
+        mean_omega2_p = mean_omega2_p + beta_omega2 * x_c
+
+    # --- log_beta hyperpriors ---
+    mu_log_beta = numpyro.sample(
+        "mu_log_beta",
+        prior_spec.log_beta_mu_hyper.to_numpyro_dist().expand([n_groups]),
+    )
+    sigma_log_beta = numpyro.sample(
+        "sigma_log_beta",
+        prior_spec.log_beta_sigma_hyper.to_numpyro_dist(),
+    )
+    mean_log_beta_p = mu_log_beta[group_idx]
+    if has_covariate:
+        beta_log_beta = numpyro.sample(
+            "beta_log_beta", dist.Normal(0.0, 1.0)
+        )
+        mean_log_beta_p = mean_log_beta_p + beta_log_beta * x_c
+
+    # --- zeta hyperpriors ---
+    mu_zeta = numpyro.sample(
+        "mu_zeta",
+        prior_spec.zeta_mu_hyper.to_numpyro_dist().expand([n_groups]),
+    )
+    sigma_zeta = numpyro.sample(
+        "sigma_zeta",
+        prior_spec.zeta_sigma_hyper.to_numpyro_dist(),
+    )
+    mean_zeta_p = mu_zeta[group_idx]
+    if has_covariate:
+        beta_zeta = numpyro.sample(
+            "beta_zeta", dist.Normal(0.0, 1.0)
+        )
+        mean_zeta_p = mean_zeta_p + beta_zeta * x_c
+
+    # --- Per-participant parameters (Normal for LocScaleReparam compat) ---
+    with numpyro.plate("participants", n_participants):
+        omega_2 = numpyro.sample(
+            "omega_2", dist.Normal(mean_omega2_p, sigma_omega2)
+        )
+        log_beta = numpyro.sample(
+            "log_beta", dist.Normal(mean_log_beta_p, sigma_log_beta)
+        )
+        zeta = numpyro.sample(
+            "zeta", dist.Normal(mean_zeta_p, sigma_zeta)
+        )
+
+    beta = numpyro.deterministic("beta", jnp.exp(log_beta))
+
+    # Custom HGF log-likelihood
+    logp = batched_logp_fn(
+        omega_2,
+        beta,
+        zeta,
+        input_data,
+        observed,
+        choices,
+        trial_mask,
+    )
+    numpyro.factor("hgf_loglike", logp)
+
+
+def _numpyro_model_hierarchical_3level(
+    input_data: jnp.ndarray,
+    observed: jnp.ndarray,
+    choices: jnp.ndarray,
+    trial_mask: jnp.ndarray,
+    n_participants: int,
+    n_groups: int,
+    batched_logp_fn,  # noqa: ANN001
+    prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
+    group_idx=None,  # noqa: ANN001  # jnp.ndarray | None
+    x_covariate=None,  # noqa: ANN001  # jnp.ndarray | None
+) -> None:
+    """NumPyro hierarchical model: 3-level HGF with group hyperpriors.
+
+    Implements Mode B hierarchical pooling per Boehm 2018 for the 3-level
+    HGF.  Extends the 2-level variant with omega_3 hyperpriors.  Kappa is
+    frozen at ``_KAPPA_FIXED`` (1.0) to collapse the multiplicative ridge.
+
+    Parameters
+    ----------
+    input_data : jnp.ndarray, shape (P, n_trials, 3)
+        Float reward-value arrays.
+    observed : jnp.ndarray, shape (P, n_trials, 3)
+        Binary observed masks.
+    choices : jnp.ndarray, shape (P, n_trials)
+        Chosen cue indices.
+    trial_mask : jnp.ndarray, shape (P, n_trials)
+        Binary trial mask for variable-length cohorts.
+    n_participants : int
+        Number of participants ``P``.
+    n_groups : int
+        Number of experimental groups ``K``.
+    batched_logp_fn : callable
+        Pure JAX batched logp from :func:`build_logp_fn_batched`.
+    prior_spec : HGFPriorSpec or None, optional
+        Prior specification with hyperprior fields populated.
+        If ``None``, uses default 3-level hierarchical priors.
+    group_idx : jnp.ndarray or None, shape (P,)
+        Integer group assignment per participant (0-indexed).
+        Required for group-level hyperpriors.
+    x_covariate : jnp.ndarray or None, shape (P,)
+        Optional continuous covariate (mean-centered internally).
+    """
+    import numpyro
+    import numpyro.distributions as dist
+
+    from prl_hgf.fitting.priors import HGFPriorSpec
+
+    if prior_spec is None:
+        prior_spec = HGFPriorSpec.default_3level_hierarchical()
+
+    has_covariate = x_covariate is not None
+    if has_covariate:
+        x_c = x_covariate - jnp.mean(x_covariate)
+
+    # --- omega_2 hyperpriors ---
+    mu_omega2 = numpyro.sample(
+        "mu_omega2",
+        prior_spec.omega_2_mu_hyper.to_numpyro_dist().expand([n_groups]),
+    )
+    sigma_omega2 = numpyro.sample(
+        "sigma_omega2",
+        prior_spec.omega_2_sigma_hyper.to_numpyro_dist(),
+    )
+    mean_omega2_p = mu_omega2[group_idx]
+    if has_covariate:
+        beta_omega2 = numpyro.sample(
+            "beta_omega2", dist.Normal(0.0, 1.0)
+        )
+        mean_omega2_p = mean_omega2_p + beta_omega2 * x_c
+
+    # --- log_beta hyperpriors ---
+    mu_log_beta = numpyro.sample(
+        "mu_log_beta",
+        prior_spec.log_beta_mu_hyper.to_numpyro_dist().expand([n_groups]),
+    )
+    sigma_log_beta = numpyro.sample(
+        "sigma_log_beta",
+        prior_spec.log_beta_sigma_hyper.to_numpyro_dist(),
+    )
+    mean_log_beta_p = mu_log_beta[group_idx]
+    if has_covariate:
+        beta_log_beta = numpyro.sample(
+            "beta_log_beta", dist.Normal(0.0, 1.0)
+        )
+        mean_log_beta_p = mean_log_beta_p + beta_log_beta * x_c
+
+    # --- zeta hyperpriors ---
+    mu_zeta = numpyro.sample(
+        "mu_zeta",
+        prior_spec.zeta_mu_hyper.to_numpyro_dist().expand([n_groups]),
+    )
+    sigma_zeta = numpyro.sample(
+        "sigma_zeta",
+        prior_spec.zeta_sigma_hyper.to_numpyro_dist(),
+    )
+    mean_zeta_p = mu_zeta[group_idx]
+    if has_covariate:
+        beta_zeta = numpyro.sample(
+            "beta_zeta", dist.Normal(0.0, 1.0)
+        )
+        mean_zeta_p = mean_zeta_p + beta_zeta * x_c
+
+    # --- omega_3 hyperpriors ---
+    mu_omega3 = numpyro.sample(
+        "mu_omega3",
+        prior_spec.omega_3_mu_hyper.to_numpyro_dist().expand([n_groups]),
+    )
+    sigma_omega3 = numpyro.sample(
+        "sigma_omega3",
+        prior_spec.omega_3_sigma_hyper.to_numpyro_dist(),
+    )
+    mean_omega3_p = mu_omega3[group_idx]
+    if has_covariate:
+        beta_omega3 = numpyro.sample(
+            "beta_omega3", dist.Normal(0.0, 1.0)
+        )
+        mean_omega3_p = mean_omega3_p + beta_omega3 * x_c
+
+    # --- Per-participant parameters (Normal for LocScaleReparam compat) ---
+    with numpyro.plate("participants", n_participants):
+        omega_2 = numpyro.sample(
+            "omega_2", dist.Normal(mean_omega2_p, sigma_omega2)
+        )
+        log_beta = numpyro.sample(
+            "log_beta", dist.Normal(mean_log_beta_p, sigma_log_beta)
+        )
+        zeta = numpyro.sample(
+            "zeta", dist.Normal(mean_zeta_p, sigma_zeta)
+        )
+        omega_3 = numpyro.sample(
+            "omega_3", dist.Normal(mean_omega3_p, sigma_omega3)
+        )
+
+    beta = numpyro.deterministic("beta", jnp.exp(log_beta))
+    # kappa frozen at _KAPPA_FIXED (collapses omega_3 x kappa ridge)
+    kappa = jnp.full((n_participants,), _KAPPA_FIXED)
+
+    # Custom HGF log-likelihood
+    logp = batched_logp_fn(
+        omega_2,
+        omega_3,
+        kappa,
+        beta,
+        zeta,
+        input_data,
+        observed,
+        choices,
+        trial_mask,
+    )
+    numpyro.factor("hgf_loglike", logp)
+
+
+# ---------------------------------------------------------------------------
+# LocScaleReparam application helper
+# ---------------------------------------------------------------------------
+
+
+def _apply_reparam(model_fn, non_centered: tuple[str, ...]):
+    """Wrap a NumPyro model with LocScaleReparam for specified sites.
+
+    Applies fully non-centered reparameterization (``centered=0``) to
+    each site named in ``non_centered``.  Sites must have Normal
+    distribution (unconstrained support) for LocScaleReparam to work.
+
+    When ``non_centered`` is empty, returns the model unchanged (no-op).
+
+    Parameters
+    ----------
+    model_fn : callable
+        NumPyro model function.
+    non_centered : tuple[str, ...]
+        Parameter names to apply non-centered reparameterization.
+        Must be sites with Normal distribution (unconstrained support).
+
+    Returns
+    -------
+    callable
+        Wrapped model with LocScaleReparam applied to specified sites.
+    """
+    if not non_centered:
+        return model_fn
+    from numpyro import handlers
+    from numpyro.infer.reparam import LocScaleReparam
+
+    reparam_config = {
+        name: LocScaleReparam(centered=0) for name in non_centered
+    }
+    return handlers.reparam(config=reparam_config)(model_fn)
+
+
+def _get_numpyro_model_hierarchical(
+    model_name: str, non_centered: tuple[str, ...]
+):
+    """Route to the correct hierarchical NumPyro model and apply reparam.
+
+    Selects between 2-level and 3-level hierarchical model functions
+    based on ``model_name``, then wraps with LocScaleReparam for the
+    sites listed in ``non_centered``.
+
+    Parameters
+    ----------
+    model_name : str
+        Model identifier: ``"hgf_2level"`` or ``"hgf_3level"``.
+    non_centered : tuple[str, ...]
+        Parameter names for non-centered reparameterization.
+
+    Returns
+    -------
+    callable
+        NumPyro model function (possibly reparam-wrapped).
+
+    Raises
+    ------
+    ValueError
+        If ``model_name`` is not recognized.
+    """
+    if model_name == "hgf_2level":
+        model_fn = _numpyro_model_hierarchical_2level
+    elif model_name == "hgf_3level":
+        model_fn = _numpyro_model_hierarchical_3level
+    else:
+        msg = (
+            f"Unknown model_name for hierarchical NumPyro model: "
+            f"{model_name!r}. Expected one of {_MODEL_NAMES}."
+        )
+        raise ValueError(msg)
+    return _apply_reparam(model_fn, non_centered)
+
+
+# ---------------------------------------------------------------------------
 # Hierarchical PyMC model factory (DEPRECATED)
 # ---------------------------------------------------------------------------
 

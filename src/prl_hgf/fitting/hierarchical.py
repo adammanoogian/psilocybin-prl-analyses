@@ -3064,6 +3064,7 @@ def fit_batch_hierarchical(
             bound_model,
             target_accept_prob=target_accept,
             dense_mass=(mass_matrix_kind != "diagonal"),
+            max_tree_depth=max_tree_depth,
         )
         mcmc = MCMC(
             kernel,
@@ -3076,6 +3077,7 @@ def fit_batch_hierarchical(
         )
         mcmc.run(
             rng_key,
+            extra_fields=("num_steps", "mean_accept_prob"),
             input_data=jax_input_data,
             observed=jax_observed,
             choices=jax_choices,

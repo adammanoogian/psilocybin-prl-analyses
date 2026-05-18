@@ -58,7 +58,17 @@ conda activate /scratch/${_PROJECT}/${USER}/conda/envs/ds_env 2>/dev/null || {
 # =============================================================================
 # Add pip-installed ptxas to PATH (from Phase 14 template — GPU compilation)
 # =============================================================================
-PTXAS_BIN=$(python -c 'import nvidia.cuda_nvcc, os; print(os.path.join(os.path.dirname(nvidia.cuda_nvcc.__file__), "bin"))' 2>/dev/null)
+PTXAS_BIN=$(python -c '
+import os
+for mod in ("nvidia.cu13", "nvidia.cuda_nvcc"):
+    try:
+        m = __import__(mod, fromlist=["x"])
+        d = os.path.join(os.path.dirname(m.__file__), "bin")
+        if os.path.isdir(d):
+            print(d); break
+    except ImportError:
+        pass
+' 2>/dev/null)
 if [[ -n "$PTXAS_BIN" && -d "$PTXAS_BIN" ]]; then
     export PATH="$PTXAS_BIN:$PATH"
     echo "Added ptxas to PATH: $PTXAS_BIN"

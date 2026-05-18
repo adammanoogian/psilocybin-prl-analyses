@@ -1,6 +1,4 @@
 # GPU-specific pip requirements for M3 cluster
-# Pin nvidia-cuda-nvcc and nvjitlink to match driver CUDA version (12.8)
-# to enable XLA parallel compilation. See 16-RESEARCH.md NPRO-03.
-nvidia-cuda-nvcc-cu12==12.8.93
-nvidia-nvjitlink-cu12==12.8.93
+# jax[cuda13] brings its own nvidia-nvjitlink and nvcc — no manual pins needed.
+# The cuda13 plugin depends on the new unversioned nvidia-* packages (not -cu12).
 blackjax>=1.2.4

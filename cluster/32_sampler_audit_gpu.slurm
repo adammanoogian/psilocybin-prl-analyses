@@ -28,7 +28,6 @@
 #SBATCH --partition=gpu
 #SBATCH --cpus-per-task=1
 #SBATCH --account=fc37
-#SBATCH --exclude=m3g112
 #SBATCH --signal=B:TERM@120
 
 # =============================================================================
@@ -134,7 +133,7 @@ fi
 export XLA_PYTHON_CLIENT_PREALLOCATE=false
 
 # =============================================================================
-# GPU Assertion (safety net — exclude m3g112 known-bad cuSPARSE node)
+# GPU Assertion (safety net — cuda13 plugin; all nodes should work)
 # =============================================================================
 echo "============================================================"
 echo "Phase 32 Sampler Audit -- Cell ${SLURM_ARRAY_TASK_ID}"

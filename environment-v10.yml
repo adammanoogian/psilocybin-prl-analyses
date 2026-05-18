@@ -24,15 +24,18 @@
 #
 # 4. (M3/MASSIVE GPU clusters only) Install CUDA jaxlib wheels:
 #
-#      conda run -n ds_env_v10 pip install -U "jax[cuda12]>=0.9,<0.10"
+#      conda run -n ds_env_v10 pip install -U "jax[cuda13]>=0.9,<0.10"
 #
-#    The base `jax`/`jaxlib` from PyPI is CPU-only — `jax[cuda12]` adds the
-#    `jax-cuda12-pjrt` + `jax-cuda12-plugin` wheels and bundled cu12 libs.
+#    The base `jax`/`jaxlib` from PyPI is CPU-only — `jax[cuda13]` adds the
+#    `jax-cuda13-pjrt` + `jax-cuda13-plugin` wheels and bundled NVIDIA libs.
 #    No `module load cuda` required (JAX brings its own runtime).
+#    Why cuda13: nvidia-cusparse-cu12 capped at 12.5.10.65 on PyPI, which is
+#    binary-incompatible with M3's R580+ (CUDA 13) driver. jax[cuda13] pulls
+#    the new unversioned nvidia-cusparse (12.7+). Requires SM>=7.5 (drops V100).
 #    Verify on a GPU node: `python -c "import jax; print(jax.devices())"`
 #    should print [CudaDevice(...)] (NOT [CpuDevice(...)]).
 #
-# 4b. Install cluster GPU requirements (optional, M3/MASSIVE only):
+# 4b. (Optional) Install cluster GPU requirements:
 #
 #      conda run -n ds_env_v10 pip install -r cluster/requirements-gpu.txt
 #
@@ -59,13 +62,15 @@ dependencies:
   - python=3.11
   - pip
   - pip:
-    # CPU baseline; on GPU clusters, override with `pip install -U "jax[cuda12]>=0.9,<0.10"`
+    # CPU baseline; on GPU clusters, override with `pip install -U "jax[cuda13]>=0.9,<0.10"`
     # after env create (see step 4 in the runbook above). The base `jax`/`jaxlib`
-    # wheels from PyPI are CPU-only — `jax[cuda12]` pulls the pjrt+plugin wheels
-    # and bundled NVIDIA cu12 libs. No system CUDA module load required.
+    # wheels from PyPI are CPU-only — `jax[cuda13]` pulls the pjrt+plugin wheels
+    # and bundled NVIDIA libs. No system CUDA module load required.
     #
-    # IMPORTANT — capped below 0.10 because JAX 0.10's CUDA plugin requires
-    # nvidia-cusparse-cu12>=12.9 which is not yet on PyPI (latest is 12.5.10.65).
+    # Why cuda13 not cuda12: NVIDIA stopped publishing nvidia-cusparse-cu12 at
+    # 12.5.10.65. M3 driver >=580 (CUDA 13 capable) is binary-incompatible with
+    # cuSPARSE 12.5. jax[cuda13] pulls the new unversioned nvidia-cusparse (12.7+)
+    # which works. Requires SM>=7.5 (T4+), drops V100 (SM 7.0).
     - "jax>=0.9.0,<0.10"
     - "jaxlib>=0.9.0,<0.10"
     - "blackjax>=1.5,<2.0"

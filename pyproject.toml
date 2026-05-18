@@ -10,10 +10,8 @@ requires-python = ">=3.11"
 authors = [{name = "Adam Manoogian"}]
 dependencies = [
     "pyhgf>=0.2.8,<0.3",
-    # Cap below 0.10 — JAX 0.10's bundled CUDA plugin requires
-    # nvidia-cusparse-cu12>=12.9 which is not yet on PyPI (cap is 12.5.10.65).
-    # Hit on M3 GPU node m3g107 during DEPS-05 validation 2026-05-05.
-    # Revisit when nvidia-cusparse-cu12 12.9.x lands on PyPI.
+    # GPU clusters: install jax[cuda13] (not cuda12) — see environment-v10.yml step 4.
+    # nvidia-cusparse-cu12 capped at 12.5 on PyPI, incompatible with R580+ drivers.
     "jax>=0.9.0,<0.10",
     "jaxlib>=0.9.0,<0.10",
     "blackjax>=1.5,<2.0",
@@ -53,7 +51,7 @@ dev = [
 [tool.ruff]
 target-version = "py311"
 line-length = 88
-extend-exclude = ["data", "models", "reports", "logs", ".planning"]
+extend-exclude = ["data", "models", "reports", "logs", ".planning", "vendor"]
 
 [tool.ruff.format]
 quote-style = "double"

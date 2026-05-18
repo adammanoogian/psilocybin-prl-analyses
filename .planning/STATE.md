@@ -5,16 +5,16 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 30 complete — Laplace warmup + fp64 + multi-GPU as first-class flags.
+**Current focus:** Phase 32 started — Sampler audit harness (BlackJAX vs NumPyro).
 
 ## Current Position
 
-Phase: 31 (Benchmark no-pooling mode)
-Plan: 1 of 3 complete (31-01 done)
+Phase: 32 (Sampler audit harness)
+Plan: 1 of 5 complete (32-01 done)
 Status: In progress
-Last activity: 2026-05-17 — Completed 31-01-PLAN.md
+Last activity: 2026-05-18 — Completed 32-01-PLAN.md (AUDIT_PROTOCOL.md pre-registration)
 
-Progress: [███████████] 53% (17 of ~30 remaining v1.0 plans; Phase 31 started)
+Progress: [████████████] 57% (18 of ~30 remaining v1.0 plans; Phase 32 started)
 
 ## Performance Metrics
 
@@ -32,7 +32,8 @@ Progress: [███████████] 53% (17 of ~30 remaining v1.0 plan
 | 28-fitconfig-hgfpriorspec-refactor | 5 of 5 | Complete | 2026-05-17 |
 | 29-m1-dense-lowrank-mass-matrix-wiring | 3 of 3 | Complete | 2026-05-17 |
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
-| 31-benchmark-no-pooling-mode | 1 of 3 | In progress | — |
+| 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
+| 32-sampler-audit-harness | 1 of 5 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -67,6 +68,12 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 - **[30-02] n_starts=4 not threaded through FitConfig**: roadmap specifies "n >= 4" as a fixed architectural minimum, not a user-configurable knob; `use_laplace_warmup: bool` in `MitigationConfig` is the user-facing toggle.
 - **[30-02] Two-pass Hessian for basin comparison**: Hessian diagonal at best MAP provides the SE reference (se = sqrt(1/hess_diag_pd)); more principled than raw parameter spread vs perturbation scale.
 - **[30-02] n_success < 2 returns None without basin check**: insufficient convergence to judge unimodality — conservative fallback to window_adaptation.
+  - **[30-03] check_rep=False mandatory for NUTS+shard_map**: `lax.while_loop` (NUTS tree expansion) has no replication rule in shard_map; `check_rep=False` disables the check while `out_specs=P("chains")` still enforces output sharding.
+  - **[30-03] vmap inside shard body for n_chains > n_devices**: When local_n > 1 (n_chains/n_devices > 1), shard body receives `(local_n, ...)` tensors; `jax.vmap` applies per-chain logic independently. Legacy uint32 key shape `(n, 2)` makes this pattern mandatory.
+  - **[30-03] MitigationConfig.use_shard_map reserved for Phase 31**: Multi-device decision stays automatic (`n_devices >= n_chains`); Phase 31 will consume the flag for forced-sharding with vmap fallback.
+  - **[30-04] GUARD-03 subprocess isolation**: JAX_LOG_COMPILES=1 + subprocess.run provides clean JIT compile-count baseline; in-process redirect_stderr is contaminated by session-level JIT state. Compile threshold of 12 (3x single-iter budget of 4) catches pathological per-iter recompile (20+) without false-positives from scan-body specialisation.
+  - **[30-04] All Phase 30 MitigationConfig fields have explicit smoke-test coverage**: non_centered tuple, use_fp64, use_shard_map YAML round-trips plus hash stability test are CI-verified locally and gated for cluster.
+  - **[32-01] AUDIT-01 pre-registration gates all Phase 32 work**: `.planning/AUDIT_PROTOCOL.md` committed before any code or run; locks hyperparameters (target_accept=0.95, n_warmup=1000, n_draws=2000, n_chains=4, max_tree_depth=10), cohort grid (26 SLURM tasks), metrics, and decision rules.
 
 ### Pending Todos
 
@@ -89,15 +96,9 @@ None tracked in `.planning/todos/pending/`.
 
 ## Session Continuity
 
-Last session: 2026-05-17
-Stopped at: Completed 31-01-PLAN.md (grid-sweep infrastructure)
-Resume: Phase 31, plan 02 (submit grid sweep on M3) or plan 03 (aggregate results).
-
-  - **[30-03] check_rep=False mandatory for NUTS+shard_map**: `lax.while_loop` (NUTS tree expansion) has no replication rule in shard_map; `check_rep=False` disables the check while `out_specs=P("chains")` still enforces output sharding.
-  - **[30-03] vmap inside shard body for n_chains > n_devices**: When local_n > 1 (n_chains/n_devices > 1), shard body receives `(local_n, ...)` tensors; `jax.vmap` applies per-chain logic independently. Legacy uint32 key shape `(n, 2)` makes this pattern mandatory.
-  - **[30-03] MitigationConfig.use_shard_map reserved for Phase 31**: Multi-device decision stays automatic (`n_devices >= n_chains`); Phase 31 will consume the flag for forced-sharding with vmap fallback.
-  - **[30-04] GUARD-03 subprocess isolation**: JAX_LOG_COMPILES=1 + subprocess.run provides clean JIT compile-count baseline; in-process redirect_stderr is contaminated by session-level JIT state. Compile threshold of 12 (3x single-iter budget of 4) catches pathological per-iter recompile (20+) without false-positives from scan-body specialisation.
-  - **[30-04] All Phase 30 MitigationConfig fields have explicit smoke-test coverage**: non_centered tuple, use_fp64, use_shard_map YAML round-trips plus hash stability test are CI-verified locally and gated for cluster.
+Last session: 2026-05-18
+Stopped at: Completed 32-01-PLAN.md (AUDIT_PROTOCOL.md pre-registration)
+Resume: Phase 32, plan 02 (fix NumPyro gaps + logp parity test)
 
 ---
-*Last updated: 2026-05-17 after Phase 30 completion*
+*Last updated: 2026-05-18 after 32-01 completion*

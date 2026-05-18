@@ -332,7 +332,6 @@ def _diagonal_matmul_recursive(
     Prepends identity A=1 and y0 as b to make dimensions consistent,
     then applies jax.lax.associative_scan.
     """
-    T_local = A_diags.shape[0]
     ones = jnp.ones((1, D), dtype=jnp.float64)           # (1, D) — identity
     first_A = jnp.concatenate([ones, A_diags], axis=0)   # (T+1, D)
     first_b = jnp.concatenate([y0[None], bs], axis=0)    # (T+1, D)

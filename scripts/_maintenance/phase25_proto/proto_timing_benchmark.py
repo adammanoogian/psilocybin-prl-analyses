@@ -376,7 +376,7 @@ def time_one_participant(
     par_first_call = time.perf_counter() - t0
 
     t0 = time.perf_counter()
-    ll_seq_w = sequential_likelihood(theta, choices, rewards)
+    sequential_likelihood(theta, choices, rewards)
     seq_first_call = time.perf_counter() - t0
 
     par_walls: list[float] = []

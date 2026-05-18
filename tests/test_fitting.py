@@ -168,7 +168,7 @@ def test_2level_grad_finite(_simulated_data):
     grad_fn = pytensor.function([o2, b, z], grads)
     g_vals = grad_fn(-3.0, 3.0, 0.5)
 
-    for i, (name, gval) in enumerate(zip(["omega_2", "beta", "zeta"], g_vals)):
+    for name, gval in zip(["omega_2", "beta", "zeta"], g_vals, strict=True):
         assert math.isfinite(float(gval)), (
             f"Gradient w.r.t. {name} is not finite: {gval}. "
             "Expected finite gradient at omega_2=-3.0, beta=3.0, zeta=0.5"

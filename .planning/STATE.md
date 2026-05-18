@@ -10,9 +10,9 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 ## Current Position
 
 Phase: 33 (TS-1 + M2 + W4 fused)
-Plan: 1 of 6 complete (33-01 done)
+Plan: 2 of 6 complete (33-02 done)
 Status: In progress
-Last activity: 2026-05-18 — Completed 33-01-PLAN.md (HGFPriorSpec hyperpriors + Mode B closure)
+Last activity: 2026-05-18 — Completed 33-02-PLAN.md (NumPyro hierarchical models + LocScaleReparam)
 
 Progress: [███████████████] 64% (21 of ~32 remaining v1.0 plans; Phase 33 in progress)
 
@@ -34,7 +34,7 @@ Progress: [███████████████] 64% (21 of ~32 remaini
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
 | 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
 | 32-sampler-audit-harness | 3 of 5 | In progress | — |
-| 33-ts1-m2-w4-fused | 1 of 6 | In progress | — |
+| 33-ts1-m2-w4-fused | 2 of 6 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -103,8 +103,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-18
-Stopped at: Completed 33-01-PLAN.md (HGFPriorSpec hyperpriors + Mode B closure)
-Resume: Phase 33, plan 02 (NumPyro Mode B model)
+Stopped at: Completed 33-02-PLAN.md (NumPyro hierarchical models + LocScaleReparam)
+Resume: Phase 33, plan 03
 
 ---
-*Last updated: 2026-05-18 after 33-01 completion*
+*Last updated: 2026-05-18 after 33-02 completion*

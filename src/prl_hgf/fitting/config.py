@@ -57,9 +57,26 @@ class MitigationConfig:
 
 @dataclass(frozen=True)
 class CovariateConfig:
-    """Hierarchical pooling and covariate settings."""
+    """Hierarchical pooling and covariate settings.
+
+    Parameters
+    ----------
+    pooling : str
+        "none" for independent priors (Mode A), "hierarchical" for
+        group-level hyperpriors (Mode B).
+    n_groups : int
+        Number of groups for hierarchical pooling. Ignored when
+        pooling="none".
+    covariate_names : tuple[str, ...]
+        Names of continuous covariates. Empty tuple means no covariates.
+        NOTE: The actual covariate data arrays are passed as arguments to
+        fit_batch_hierarchical (not stored here) because numpy arrays
+        are not hashable and would break frozen dataclass.
+    """
 
     pooling: Literal["none", "hierarchical"] = "none"
+    n_groups: int = 1
+    covariate_names: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -183,6 +200,14 @@ class FitConfig:
             else:
                 mitigation_kwargs["non_centered"] = tuple(nc)
 
+        # Handle covariate_names: YAML list -> Python tuple
+        if "covariate_names" in covariate_kwargs:
+            cn = covariate_kwargs["covariate_names"]
+            if cn is None:
+                covariate_kwargs["covariate_names"] = ()
+            else:
+                covariate_kwargs["covariate_names"] = tuple(cn)
+
         # Build sub-configs
         sampler = SamplerConfig(**sampler_kwargs)
         mitigation = MitigationConfig(**mitigation_kwargs)
@@ -216,6 +241,11 @@ class FitConfig:
             data["mitigation"]["non_centered"] = list(
                 data["mitigation"]["non_centered"]
             )
+        # Convert covariate_names tuple to list for clean YAML
+        if "covariate" in data and "covariate_names" in data["covariate"]:
+            data["covariate"]["covariate_names"] = list(
+                data["covariate"]["covariate_names"]
+            )
         with path.open("w") as f:
             yaml.dump(
                 data,
@@ -238,5 +268,10 @@ class FitConfig:
         if "mitigation" in data and "non_centered" in data["mitigation"]:
             data["mitigation"]["non_centered"] = list(
                 data["mitigation"]["non_centered"]
+            )
+        # Ensure covariate_names is a list for JSON serialization
+        if "covariate" in data and "covariate_names" in data["covariate"]:
+            data["covariate"]["covariate_names"] = list(
+                data["covariate"]["covariate_names"]
             )
         return json.dumps(data, separators=(",", ":"))

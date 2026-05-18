@@ -10,16 +10,16 @@ See: `.planning/PROJECT.md` (updated 2026-05-04)
 ## Current Position
 
 Phase: 33 (TS-1 + M2 + W4 fused)
-Plan: 3 of 6 complete (33-03 done)
+Plan: 4 of 6 complete (33-04 done)
 Status: In progress
-Last activity: 2026-05-18 — Completed 33-03-PLAN.md (CovariateConfig + Mode B routing)
+Last activity: 2026-05-18 — Completed 33-04-PLAN.md (Pre-flight collinearity check)
 
-Progress: [████████████████] 67% (22 of ~32 remaining v1.0 plans; Phase 33 in progress)
+Progress: [█████████████████] 70% (23 of ~32 remaining v1.0 plans; Phase 33 in progress)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 14
+- Total plans completed: 15
 - Phase 27 wall-clock: 4 plans across ~3 days (compute-heavy)
 - Phase 28 wall-clock: 5 plans in ~1 day (code-only, fast)
 - Effective work time across plans: ~6.5h
@@ -34,7 +34,7 @@ Progress: [████████████████] 67% (22 of ~32 rema
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
 | 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
 | 32-sampler-audit-harness | 3 of 5 | In progress | — |
-| 33-ts1-m2-w4-fused | 3 of 6 | In progress | — |
+| 33-ts1-m2-w4-fused | 4 of 6 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -80,6 +80,7 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
   - **[33-01] Shared sigma_p per Boehm 2018**: Not per-group. Phase 33-05 simulation validates recovery; per-group sigma is COVAR-EXT-03.
   - **[33-01] Log-space sigma with Jacobian in BlackJAX closure**: log_sigma_* keys keep NUTS unconstrained; exp-transform + log-abs-det-Jacobian standard pattern.
   - **[33-01] jax.scipy.stats in Mode B closure (not numpyro)**: Pure JAX log_prob avoids numpyro import inside JIT-traced closure.
+  - **[33-04] Collinearity threshold 0.7**: |r|=0.7 implies R^2=0.49 shared variance between covariate and group; beta_p and mu_g become practically unidentifiable. Group-mean-centering is default remediation.
 
 ### Pending Todos
 
@@ -103,8 +104,8 @@ None tracked in `.planning/todos/pending/`.
 ## Session Continuity
 
 Last session: 2026-05-18
-Stopped at: Completed 33-03-PLAN.md (CovariateConfig + Mode B routing)
-Resume: Phase 33, plan 04
+Stopped at: Completed 33-04-PLAN.md (Pre-flight collinearity check)
+Resume: Phase 33, plan 05
 
 ---
-*Last updated: 2026-05-18 after 33-03 completion*
+*Last updated: 2026-05-18 after 33-04 completion*

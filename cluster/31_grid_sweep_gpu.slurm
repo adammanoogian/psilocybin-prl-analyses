@@ -27,7 +27,7 @@
 #SBATCH --partition=gpu
 #SBATCH --cpus-per-task=1
 #SBATCH --account=fc37
-#SBATCH --exclude=m3g112
+#SBATCH --exclude=m3g110,m3g112,m3t100
 #SBATCH --signal=B:TERM@120
 
 # =============================================================================
@@ -149,7 +149,22 @@ echo ""
 
 python -c "import jax; assert jax.devices()[0].platform == 'gpu', f'No GPU: {jax.devices()}'"
 if [[ $? -ne 0 ]]; then
-    echo "ERROR: GPU assertion failed on $(hostname). Exiting."
+    echo "ERROR: GPU assertion failed on $(hostname) — cuSPARSE incompatibility."
+    echo "  Node $(hostname) does not support ds_env_v10 JAX GPU. Writing CRASH result."
+    CELL_ID=$(printf '%04d' ${SLURM_ARRAY_TASK_ID})
+    python -c "
+import json, time
+from pathlib import Path
+result = {
+    'cell_id': ${SLURM_ARRAY_TASK_ID},
+    'status': 'CRASH',
+    'error': 'cuSPARSE incompatible on node $(hostname)',
+    'walltime_s': 0,
+    'job_id': '${SLURM_JOB_ID}_${SLURM_ARRAY_TASK_ID}',
+    'node': '$(hostname)',
+}
+Path('models/power/bench_mode_a_results/cell_${CELL_ID}.json').write_text(json.dumps(result, indent=2))
+"
     exit 1
 fi
 

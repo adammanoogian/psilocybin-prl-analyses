@@ -874,6 +874,295 @@ def _build_log_posterior(
     return logdensity_fn
 
 
+# ---------------------------------------------------------------------------
+# BlackJAX Mode B (hierarchical) log-posterior
+# ---------------------------------------------------------------------------
+
+#: Parameters that participate in the hierarchical model for each level.
+_HIERARCHICAL_PARAMS_2LEVEL: tuple[str, ...] = ("omega_2", "log_beta", "zeta")
+_HIERARCHICAL_PARAMS_3LEVEL: tuple[str, ...] = (
+    "omega_2",
+    "log_beta",
+    "zeta",
+    "omega_3",
+)
+
+
+def _build_log_posterior_hierarchical(
+    batched_logp_fn,  # noqa: ANN001
+    input_data: jnp.ndarray,
+    observed: jnp.ndarray,
+    choices: jnp.ndarray,
+    trial_mask: jnp.ndarray,
+    n_participants: int,
+    n_groups: int,
+    group_idx: jnp.ndarray,
+    model_name: str = "hgf_3level",
+    prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
+    non_centered: tuple[str, ...] = (),
+    x_covariate: jnp.ndarray | None = None,
+) -> callable:
+    """Build a pure JAX log-posterior for Mode B (hierarchical) BlackJAX NUTS.
+
+    Implements the Boehm 2018 formulation:
+
+        theta_{k,p} ~ Normal(mu_{g(k),p} + beta_p * x_k, sigma_p)
+
+    with shared sigma_p per parameter (not per-group).  Sigma parameters
+    are stored in log-space (``log_sigma_*``) with exp-transform Jacobian
+    correction to keep NUTS unconstrained.
+
+    Parameters
+    ----------
+    batched_logp_fn : callable
+        Pure JAX logp from :func:`build_logp_fn_batched`.
+    input_data : jnp.ndarray, shape (P, n_trials, 3)
+        Float reward-value arrays.
+    observed : jnp.ndarray, shape (P, n_trials, 3)
+        Binary observed masks.
+    choices : jnp.ndarray, shape (P, n_trials)
+        Chosen cue indices.
+    trial_mask : jnp.ndarray, shape (P, n_trials)
+        Binary trial mask for variable-length cohorts.
+    n_participants : int
+        Number of participants ``P``.
+    n_groups : int
+        Number of experimental groups ``G``.
+    group_idx : jnp.ndarray, shape (P,)
+        Integer group index for each participant (0-based).
+    model_name : str, optional
+        ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+    prior_spec : HGFPriorSpec or None, optional
+        Prior specification with hyperprior fields.  If ``None``, uses the
+        hierarchical default for the given ``model_name``.
+    non_centered : tuple of str, optional
+        Parameter names to apply non-centered reparameterization.
+        E.g. ``("omega_2", "omega_3")``.  Non-centered parameters use
+        ``*_nc`` keys in the params dict with N(0,1) prior.
+    x_covariate : jnp.ndarray or None, shape (P,)
+        Mean-centered continuous covariate.  If provided, adds per-param
+        slope ``beta_*`` to the group mean.
+
+    Returns
+    -------
+    logdensity_fn : callable
+        ``dict[str, jnp.ndarray] -> scalar``.  Keys include hyperprior
+        parameters (``mu_*``, ``log_sigma_*``), optional covariate slopes
+        (``beta_*``), and participant-level parameters (``*`` or ``*_nc``).
+    """
+    from prl_hgf.fitting.priors import HGFPriorSpec
+
+    is_3level = model_name == "hgf_3level"
+
+    if prior_spec is None:
+        prior_spec = (
+            HGFPriorSpec.default_3level_hierarchical()
+            if is_3level
+            else HGFPriorSpec.default_2level_hierarchical()
+        )
+
+    # Determine which parameters are hierarchical for this model
+    h_params = _HIERARCHICAL_PARAMS_3LEVEL if is_3level else _HIERARCHICAL_PARAMS_2LEVEL
+
+    # Build hyperprior distribution objects (numpyro dists for log_prob)
+    mu_hypers: dict = {}
+    sigma_hypers: dict = {}
+    for p_name in h_params:
+        mu_hyper_field = getattr(prior_spec, f"{p_name}_mu_hyper", None)
+        sigma_hyper_field = getattr(prior_spec, f"{p_name}_sigma_hyper", None)
+        if mu_hyper_field is not None:
+            mu_hypers[p_name] = mu_hyper_field.to_numpyro_dist()
+        if sigma_hyper_field is not None:
+            sigma_hypers[p_name] = sigma_hyper_field.to_numpyro_dist()
+
+    def logdensity_fn(params: dict[str, jnp.ndarray]) -> jnp.ndarray:
+        """Compute hierarchical log-posterior: hyperprior + prior + lik.
+
+        Parameters
+        ----------
+        params : dict[str, jnp.ndarray]
+            Parameter dict with hyperprior and participant-level keys.
+
+        Returns
+        -------
+        jnp.ndarray
+            Scalar log-posterior.
+        """
+        prior_lp = jnp.array(0.0)
+
+        # Resolve participant-level parameter values from hierarchical
+        # structure
+        resolved: dict[str, jnp.ndarray] = {}
+
+        for p_name in h_params:
+            # --- Hyperpriors ---
+            mu_key = f"mu_{p_name}"
+            log_sigma_key = f"log_sigma_{p_name}"
+
+            mu_p = params[mu_key]  # shape (n_groups,)
+            log_sigma_p = params[log_sigma_key]  # shape ()
+            sigma_p = jnp.exp(log_sigma_p)
+
+            # Hyperprior log-prob on mu_p
+            if p_name in mu_hypers:
+                prior_lp = prior_lp + jnp.sum(mu_hypers[p_name].log_prob(mu_p))
+
+            # Hyperprior log-prob on sigma_p (HalfNormal on sigma_p)
+            # with Jacobian correction for exp-transform:
+            # log p(sigma) + log|d(sigma)/d(log_sigma)|
+            # = log p(exp(log_sigma)) + log_sigma
+            if p_name in sigma_hypers:
+                prior_lp = prior_lp + jnp.sum(
+                    sigma_hypers[p_name].log_prob(sigma_p)
+                )
+                # Jacobian: |d(exp(x))/dx| = exp(x) => log|J| = x
+                prior_lp = prior_lp + log_sigma_p
+
+            # --- Participant-level mean ---
+            mean_p = mu_p[group_idx]  # shape (P,)
+
+            # Covariate slope
+            if x_covariate is not None:
+                beta_key = f"beta_{p_name}"
+                beta_p = params[beta_key]  # shape ()
+                mean_p = mean_p + beta_p * x_covariate
+                # Weakly informative prior on beta_p: N(0, 1)
+                prior_lp = prior_lp + jnp.sum(
+                    jax.scipy.stats.norm.logpdf(beta_p, 0.0, 1.0)
+                )
+
+            # --- Participant-level prior ---
+            if p_name in non_centered:
+                nc_key = f"{p_name}_nc"
+                nc_vals = params[nc_key]  # shape (P,)
+                # Standard normal prior on non-centered params
+                prior_lp = prior_lp + jnp.sum(
+                    jax.scipy.stats.norm.logpdf(nc_vals, 0.0, 1.0)
+                )
+                # Deterministic transform to centered space
+                resolved[p_name] = mean_p + sigma_p * nc_vals
+            else:
+                centered_vals = params[p_name]  # shape (P,)
+                # Normal prior centered on group mean
+                prior_lp = prior_lp + jnp.sum(
+                    jax.scipy.stats.norm.logpdf(
+                        centered_vals, mean_p, sigma_p
+                    )
+                )
+                resolved[p_name] = centered_vals
+
+        # --- Compute likelihood ---
+        omega_2 = resolved["omega_2"]
+        log_beta = resolved["log_beta"]
+        beta = jnp.exp(log_beta)
+        zeta = resolved["zeta"]
+
+        if is_3level:
+            omega_3 = resolved["omega_3"]
+            kappa = jnp.full_like(omega_2, _KAPPA_FIXED)
+            likelihood_lp = batched_logp_fn(
+                omega_2,
+                omega_3,
+                kappa,
+                beta,
+                zeta,
+                input_data,
+                observed,
+                choices,
+                trial_mask,
+            )
+        else:
+            likelihood_lp = batched_logp_fn(
+                omega_2,
+                beta,
+                zeta,
+                input_data,
+                observed,
+                choices,
+                trial_mask,
+            )
+
+        return prior_lp + likelihood_lp
+
+    return logdensity_fn
+
+
+def _build_initial_position_hierarchical(
+    n_participants: int,
+    n_groups: int,
+    model_name: str = "hgf_3level",
+    prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
+    non_centered: tuple[str, ...] = (),
+    x_covariate: jnp.ndarray | None = None,
+) -> dict[str, jnp.ndarray]:
+    """Build initial position dict for Mode B BlackJAX NUTS.
+
+    Returns the initial parameter dict with correct keys matching
+    the logdensity_fn produced by :func:`_build_log_posterior_hierarchical`.
+
+    Parameters
+    ----------
+    n_participants : int
+        Number of participants ``P``.
+    n_groups : int
+        Number of experimental groups ``G``.
+    model_name : str, optional
+        ``"hgf_2level"`` or ``"hgf_3level"`` (default).
+    prior_spec : HGFPriorSpec or None, optional
+        Prior specification with hyperprior fields.
+    non_centered : tuple of str, optional
+        Parameter names using non-centered reparameterization.
+    x_covariate : jnp.ndarray or None, shape (P,)
+        If provided, adds ``beta_*`` keys to the initial position.
+
+    Returns
+    -------
+    position : dict[str, jnp.ndarray]
+        Initial position dict.  Keys:
+        - ``mu_{param}``: shape ``(n_groups,)`` at prior mode
+        - ``log_sigma_{param}``: shape ``()`` at 0.0 (sigma=1)
+        - ``{param}`` or ``{param}_nc``: shape ``(P,)``
+        - ``beta_{param}``: shape ``()`` if covariate provided
+    """
+    from prl_hgf.fitting.priors import HGFPriorSpec
+
+    is_3level = model_name == "hgf_3level"
+
+    if prior_spec is None:
+        prior_spec = (
+            HGFPriorSpec.default_3level_hierarchical()
+            if is_3level
+            else HGFPriorSpec.default_2level_hierarchical()
+        )
+
+    h_params = _HIERARCHICAL_PARAMS_3LEVEL if is_3level else _HIERARCHICAL_PARAMS_2LEVEL
+
+    position: dict[str, jnp.ndarray] = {}
+
+    for p_name in h_params:
+        # mu initialized at hyperprior mode (loc)
+        mu_hyper_field = getattr(prior_spec, f"{p_name}_mu_hyper", None)
+        mu_init = mu_hyper_field.loc if mu_hyper_field is not None else 0.0
+        position[f"mu_{p_name}"] = jnp.full((n_groups,), mu_init)
+
+        # log_sigma initialized at 0.0 (sigma = 1.0)
+        position[f"log_sigma_{p_name}"] = jnp.array(0.0)
+
+        # Participant-level parameters
+        if p_name in non_centered:
+            # Non-centered: initialize at 0 (standard normal mode)
+            position[f"{p_name}_nc"] = jnp.zeros(n_participants)
+        else:
+            # Centered: initialize at prior mode (mu_init)
+            position[p_name] = jnp.full(n_participants, mu_init)
+
+        # Covariate slope
+        if x_covariate is not None:
+            position[f"beta_{p_name}"] = jnp.array(0.0)
+
+    return position
+
+
 def _extract_nuts_stats(
     infos,  # blackjax NUTSInfo pytree
     transpose: bool,

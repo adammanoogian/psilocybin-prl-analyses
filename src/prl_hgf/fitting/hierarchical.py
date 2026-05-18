@@ -1717,6 +1717,7 @@ def _run_blackjax_nuts(
     prior_spec=None,  # noqa: ANN001  # HGFPriorSpec | None
     is_mass_matrix_diagonal: bool = True,
     use_shard_map: bool = False,
+    is_hierarchical: bool = False,
 ) -> tuple[dict[str, np.ndarray], dict[str, np.ndarray], int, dict]:
     """Run BlackJAX NUTS with window_adaptation warmup and lax.scan sampling.
 
@@ -1774,6 +1775,12 @@ def _run_blackjax_nuts(
         warmup is skipped entirely — saves ~1100s per call in the
         power sweep.  Obtain from the 4th element of this function's
         return tuple.
+    is_hierarchical : bool, optional
+        If ``True``, forces the closure-based sampling path instead of
+        the traced-arg ``_build_sample_loop`` path.  Required for
+        Mode B (hierarchical) because ``_build_sample_loop`` rebuilds a
+        Mode A (independent-priors) log-posterior, which would silently
+        discard the hierarchical hyperprior structure.  Default ``False``.
 
     Returns
     -------
@@ -1901,13 +1908,21 @@ def _run_blackjax_nuts(
         flush=True,
     )
 
-    # Phase 3: Sampling with traced-arg sample loop (or legacy fallback)
+    # Phase 3: Sampling with traced-arg sample loop (or closure fallback)
+    #
+    # Mode B (hierarchical) MUST skip the traced-arg path:
+    # _build_sample_loop reconstructs a Mode A (independent-priors)
+    # log-posterior from batched_logp_fn, which discards the hierarchical
+    # hyperprior structure.  The closure-based path uses logdensity_fn
+    # directly, which already captures the correct hierarchical posterior
+    # from _build_log_posterior_hierarchical().
     _has_traced_args = (
         batched_logp_fn is not None
         and input_data is not None
         and observed is not None
         and choices is not None
         and trial_mask is not None
+        and not is_hierarchical
     )
 
     if _has_traced_args:
@@ -2940,20 +2955,20 @@ def _numpyro_model_hierarchical_2level(
         x_c = x_covariate - jnp.mean(x_covariate)
 
     # --- omega_2 hyperpriors ---
-    mu_omega2 = numpyro.sample(
-        "mu_omega2",
+    mu_omega_2 = numpyro.sample(
+        "mu_omega_2",
         prior_spec.omega_2_mu_hyper.to_numpyro_dist().expand([n_groups]),
     )
-    sigma_omega2 = numpyro.sample(
-        "sigma_omega2",
+    sigma_omega_2 = numpyro.sample(
+        "sigma_omega_2",
         prior_spec.omega_2_sigma_hyper.to_numpyro_dist(),
     )
-    mean_omega2_p = mu_omega2[group_idx]
+    mean_omega2_p = mu_omega_2[group_idx]
     if has_covariate:
-        beta_omega2 = numpyro.sample(
-            "beta_omega2", dist.Normal(0.0, 1.0)
+        beta_omega_2 = numpyro.sample(
+            "beta_omega_2", dist.Normal(0.0, 1.0)
         )
-        mean_omega2_p = mean_omega2_p + beta_omega2 * x_c
+        mean_omega2_p = mean_omega2_p + beta_omega_2 * x_c
 
     # --- log_beta hyperpriors ---
     mu_log_beta = numpyro.sample(
@@ -2990,7 +3005,7 @@ def _numpyro_model_hierarchical_2level(
     # --- Per-participant parameters (Normal for LocScaleReparam compat) ---
     with numpyro.plate("participants", n_participants):
         omega_2 = numpyro.sample(
-            "omega_2", dist.Normal(mean_omega2_p, sigma_omega2)
+            "omega_2", dist.Normal(mean_omega2_p, sigma_omega_2)
         )
         log_beta = numpyro.sample(
             "log_beta", dist.Normal(mean_log_beta_p, sigma_log_beta)
@@ -3070,20 +3085,20 @@ def _numpyro_model_hierarchical_3level(
         x_c = x_covariate - jnp.mean(x_covariate)
 
     # --- omega_2 hyperpriors ---
-    mu_omega2 = numpyro.sample(
-        "mu_omega2",
+    mu_omega_2 = numpyro.sample(
+        "mu_omega_2",
         prior_spec.omega_2_mu_hyper.to_numpyro_dist().expand([n_groups]),
     )
-    sigma_omega2 = numpyro.sample(
-        "sigma_omega2",
+    sigma_omega_2 = numpyro.sample(
+        "sigma_omega_2",
         prior_spec.omega_2_sigma_hyper.to_numpyro_dist(),
     )
-    mean_omega2_p = mu_omega2[group_idx]
+    mean_omega2_p = mu_omega_2[group_idx]
     if has_covariate:
-        beta_omega2 = numpyro.sample(
-            "beta_omega2", dist.Normal(0.0, 1.0)
+        beta_omega_2 = numpyro.sample(
+            "beta_omega_2", dist.Normal(0.0, 1.0)
         )
-        mean_omega2_p = mean_omega2_p + beta_omega2 * x_c
+        mean_omega2_p = mean_omega2_p + beta_omega_2 * x_c
 
     # --- log_beta hyperpriors ---
     mu_log_beta = numpyro.sample(
@@ -3118,25 +3133,25 @@ def _numpyro_model_hierarchical_3level(
         mean_zeta_p = mean_zeta_p + beta_zeta * x_c
 
     # --- omega_3 hyperpriors ---
-    mu_omega3 = numpyro.sample(
-        "mu_omega3",
+    mu_omega_3 = numpyro.sample(
+        "mu_omega_3",
         prior_spec.omega_3_mu_hyper.to_numpyro_dist().expand([n_groups]),
     )
-    sigma_omega3 = numpyro.sample(
-        "sigma_omega3",
+    sigma_omega_3 = numpyro.sample(
+        "sigma_omega_3",
         prior_spec.omega_3_sigma_hyper.to_numpyro_dist(),
     )
-    mean_omega3_p = mu_omega3[group_idx]
+    mean_omega3_p = mu_omega_3[group_idx]
     if has_covariate:
-        beta_omega3 = numpyro.sample(
-            "beta_omega3", dist.Normal(0.0, 1.0)
+        beta_omega_3 = numpyro.sample(
+            "beta_omega_3", dist.Normal(0.0, 1.0)
         )
-        mean_omega3_p = mean_omega3_p + beta_omega3 * x_c
+        mean_omega3_p = mean_omega3_p + beta_omega_3 * x_c
 
     # --- Per-participant parameters (Normal for LocScaleReparam compat) ---
     with numpyro.plate("participants", n_participants):
         omega_2 = numpyro.sample(
-            "omega_2", dist.Normal(mean_omega2_p, sigma_omega2)
+            "omega_2", dist.Normal(mean_omega2_p, sigma_omega_2)
         )
         log_beta = numpyro.sample(
             "log_beta", dist.Normal(mean_log_beta_p, sigma_log_beta)
@@ -3145,7 +3160,7 @@ def _numpyro_model_hierarchical_3level(
             "zeta", dist.Normal(mean_zeta_p, sigma_zeta)
         )
         omega_3 = numpyro.sample(
-            "omega_3", dist.Normal(mean_omega3_p, sigma_omega3)
+            "omega_3", dist.Normal(mean_omega3_p, sigma_omega_3)
         )
 
     beta = numpyro.deterministic("beta", jnp.exp(log_beta))
@@ -3861,6 +3876,7 @@ def fit_batch_hierarchical(
             prior_spec=prior_spec,
             is_mass_matrix_diagonal=is_mass_matrix_diagonal,
             use_shard_map=fit_config.mitigation.use_shard_map,
+            is_hierarchical=is_hierarchical,
         )
         print(
             f"[fit_batch_hierarchical t={time.perf_counter() - _t_fb0:.1f}s] "

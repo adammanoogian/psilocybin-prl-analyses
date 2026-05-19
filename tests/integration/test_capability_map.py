@@ -184,9 +184,14 @@ def test_mass_matrix_tags_present(map_text: str) -> None:
 
 
 def test_mode_tags_present(map_text: str) -> None:
-    """Mode column must contain at least [mode-a] tag.
+    """Mode column must contain [mode-a] and [mode-b] tags.
 
-    # NOTE: Only check [mode-a]. [mode-b] is Phase 34+ — do NOT require it here.
+    [mode-a] covers no-pooling runs (Phase 31 grid sweep).
+    [mode-b] covers hierarchical-pooling runs (Phase 34 grid sweep).
+    Both modes are required once the Phase 34 grid sweep is complete.
+
+    NOTE: [mode-b] check is deferred until Phase 34-02 populates rows.
+    Only [mode-a] is enforced here for now.
     """
     assert "[mode-a]" in map_text, (
         "Capability map missing [mode-a] tag in Mode column. "
@@ -198,12 +203,54 @@ def test_mitigation_tags_present(map_text: str) -> None:
     """Mitigation column must contain at least one valid mitigation tag.
 
     Checks that at least one of the known mitigation tags appears in the
-    map.  Does not require ALL tags (the grid sweep in plan 31-02 will
-    populate them progressively).
+    map.  Does not require ALL tags (the grid sweeps in plans 31-02 and
+    34-02 will populate them progressively).
+
+    Valid tags include both Mode A (no-pooling) and Mode B (hierarchical)
+    mitigation variants.
     """
-    valid_tags = {"[none]", "[M1]", "[M1+Laplace]", "[M1+Laplace+fp64]"}
+    valid_tags = {
+        "[none]",
+        "[M1]",
+        "[M1+Laplace]",
+        "[M1+Laplace+fp64]",
+        "[hier+M1]",
+        "[hier+M1+M2]",
+        "[hier+M1+M2+Laplace]",
+        "[hier+M1+M2+Laplace+covariates]",
+    }
     found = any(tag in map_text for tag in valid_tags)
     assert found, (
         f"Capability map missing all mitigation tags. Expected at least one "
         f"of {sorted(valid_tags)} to appear in a Mitigation column."
+    )
+
+
+@pytest.mark.skipif(
+    # TODO(phase-34-03): remove skipif after grid sweep results are populated
+    not bool(
+        __import__("re").search(
+            r"^\|.*\[mode-b\]",
+            __import__("pathlib").Path(__file__).resolve().parents[2]
+            .joinpath("docs", "CAPABILITY_MAP.md")
+            .read_text(encoding="utf-8")
+            if __import__("pathlib").Path(__file__).resolve().parents[2]
+            .joinpath("docs", "CAPABILITY_MAP.md")
+            .is_file()
+            else "",
+            __import__("re").MULTILINE,
+        )
+    ),
+    reason="No [mode-b] rows in capability map yet — skipping until Phase 34-02 runs",
+)
+def test_mode_b_minimum_cells(map_text: str) -> None:
+    """At least 24 Mode B rows must exist with completed status."""
+    mode_b_completed = re.findall(
+        r"^\|.*\[mode-b\].*(?:PASS|FAIL|TIMEOUT|CRASH|INVALID).*\|$",
+        map_text,
+        re.MULTILINE,
+    )
+    assert len(mode_b_completed) >= 24, (
+        f"Capability map has {len(mode_b_completed)} completed Mode B rows, "
+        f"expected at least 24 (2 models x 3 n_per_group x 4 mitigations)."
     )

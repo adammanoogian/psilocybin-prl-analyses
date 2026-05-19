@@ -46,6 +46,7 @@ echo "============================================================"
 
 mkdir -p logs models/power/audit_results
 export PYTHONUNBUFFERED=1
+export PYTHONPATH="${PROJECT_ROOT}:${PROJECT_ROOT}/src:${PYTHONPATH}"
 
 # Activate ds_env_v10 (Phase 32 requires v10 with JAX 0.9 + BlackJAX 1.5)
 _PROJECT="${PROJECT:-fc37}"

@@ -5,16 +5,16 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 33 started — TS-1 group hyperpriors + M2 non-centered + W4 covariates (fused).
+**Current focus:** Phase 33 code complete — cluster jobs running for identifiability (55512114) and recovery validation (55512115). Phase 31 thin sweep also running (55512072).
 
 ## Current Position
 
 Phase: 33 (TS-1 + M2 + W4 fused)
-Plan: 4 of 6 complete (33-04 done)
-Status: In progress
-Last activity: 2026-05-18 — Completed 33-04-PLAN.md (Pre-flight collinearity check)
+Plan: 6 of 6 complete (code written, cluster jobs submitted)
+Status: Complete (pending cluster results for 33-05 and 33-06)
+Last activity: 2026-05-19 — Submitted 33-05/06 SLURM jobs; Phase 31 thin sweep running
 
-Progress: [█████████████████] 70% (23 of ~32 remaining v1.0 plans; Phase 33 in progress)
+Progress: [███████████████████] 80% (25 of ~32 remaining v1.0 plans; Phase 33 code complete)
 
 ## Performance Metrics
 
@@ -34,7 +34,7 @@ Progress: [█████████████████] 70% (23 of ~32 r
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
 | 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
 | 32-sampler-audit-harness | 3 of 5 | In progress | — |
-| 33-ts1-m2-w4-fused | 4 of 6 | In progress | — |
+| 33-ts1-m2-w4-fused | 6 of 6 | Complete (cluster pending) | 2026-05-19 |
 
 *Updated after each phase verification.*
 
@@ -103,9 +103,9 @@ None tracked in `.planning/todos/pending/`.
 
 ## Session Continuity
 
-Last session: 2026-05-18
-Stopped at: Completed 33-04-PLAN.md (Pre-flight collinearity check)
-Resume: Phase 33, plan 05
+Last session: 2026-05-19
+Stopped at: Phase 33 complete (cluster jobs pending), Phase 31 thin sweep running
+Resume: Check cluster job results (55512072 Phase 31, 55512114/55512115 Phase 33), then Phase 34
 
 ---
-*Last updated: 2026-05-18 after 33-04 completion*
+*Last updated: 2026-05-19 after 33-05/06 submission*

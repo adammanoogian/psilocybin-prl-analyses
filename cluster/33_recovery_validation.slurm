@@ -39,6 +39,7 @@ echo "============================================================"
 
 mkdir -p logs
 export PYTHONUNBUFFERED=1
+export PYTHONPATH="${PROJECT_ROOT}:${PROJECT_ROOT}/src:${PYTHONPATH}"
 
 # Activate ds_env_v10
 _PROJECT="${PROJECT:-fc37}"

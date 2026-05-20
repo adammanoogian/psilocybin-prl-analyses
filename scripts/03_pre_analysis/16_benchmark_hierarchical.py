@@ -221,6 +221,18 @@ def main() -> None:
         default="local",
         help="SLURM job ID for provenance (optional).",
     )
+    parser.add_argument(
+        "--n-draws",
+        type=int,
+        default=None,
+        help="Override n_draws from FitConfig YAML (smoke testing).",
+    )
+    parser.add_argument(
+        "--n-warmup",
+        type=int,
+        default=None,
+        help="Override n_warmup from FitConfig YAML (smoke testing).",
+    )
     args = parser.parse_args()
 
     cell_id = args.cell_id
@@ -310,12 +322,24 @@ def main() -> None:
     signal.signal(signal.SIGTERM, _sigterm_handler)
 
     # -----------------------------------------------------------------------
-    # Step 4: Load FitConfig
+    # Step 4: Load FitConfig (with optional CLI overrides for smoke testing)
     # -----------------------------------------------------------------------
     fit_config = FitConfig.from_yaml(yaml_path)
+    if args.n_draws is not None or args.n_warmup is not None:
+        import dataclasses as _dc
+
+        sampler_overrides: dict[str, int] = {}
+        if args.n_draws is not None:
+            sampler_overrides["n_draws"] = args.n_draws
+        if args.n_warmup is not None:
+            sampler_overrides["n_warmup"] = args.n_warmup
+        fit_config = _dc.replace(
+            fit_config, sampler=_dc.replace(fit_config.sampler, **sampler_overrides)
+        )
     print(f"Loaded FitConfig: {yaml_path}")
     print(
         f"  n_draws={fit_config.sampler.n_draws}, "
+        f"n_warmup={fit_config.sampler.n_warmup}, "
         f"mass={fit_config.mitigation.mass_matrix_kind}, "
         f"laplace={fit_config.mitigation.use_laplace_warmup}, "
         f"non_centered={fit_config.mitigation.non_centered}, "

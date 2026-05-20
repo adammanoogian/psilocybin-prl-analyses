@@ -1800,7 +1800,8 @@ def _run_blackjax_nuts(
     import blackjax
 
     _t_fn0 = time.perf_counter()
-    _p_axis = jax.tree_util.tree_leaves(initial_position)[0].shape[0]
+    _leaves = jax.tree_util.tree_leaves(initial_position)
+    _p_axis = next(leaf.shape[0] for leaf in _leaves if leaf.ndim >= 1)
     print(
         f"[hierarchical] _run_blackjax_nuts entered: model={model_name} "
         f"P={_p_axis} n_chains={n_chains} n_tune={n_tune} n_draws={n_draws} "
@@ -2003,9 +2004,10 @@ def _run_blackjax_nuts(
             positions_dict = {k: np.asarray(v) for k, v in all_states.position.items()}
             stats_dict = _extract_nuts_stats(all_infos, transpose=False)
         else:
-            # vmap: (n_draws, n_chains, P) -> (n_chains, n_draws, P)
+            # vmap: (n_draws, n_chains, ...) -> (n_chains, n_draws, ...)
+            # Trailing dims vary: P for participant, G for group, () for scalar.
             positions_dict = {
-                k: np.asarray(jnp.transpose(v, (1, 0, 2)))
+                k: np.asarray(jnp.moveaxis(v, 0, 1))
                 for k, v in all_states.position.items()
             }
             stats_dict = _extract_nuts_stats(all_infos, transpose=True)
@@ -2105,10 +2107,11 @@ def _run_vmap_chains(
         draw_keys,
     )
 
-    # all_states.position: dict of (n_draws, n_chains, P)
-    # Transpose to (n_chains, n_draws, P) for ArviZ
+    # all_states.position: dict of (n_draws, n_chains, ...) where trailing
+    # dims vary by param type (P for participant, G for group, () for scalar).
+    # Swap axes 0↔1 → (n_chains, n_draws, ...) for ArviZ.
     positions_dict = {
-        k: np.asarray(jnp.transpose(v, (1, 0, 2)))
+        k: np.asarray(jnp.moveaxis(v, 0, 1))
         for k, v in all_states.position.items()
     }
 

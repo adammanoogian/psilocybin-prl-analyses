@@ -5,16 +5,16 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 33 code complete — cluster jobs running for identifiability (55512114) and recovery validation (55512115). Phase 31 thin sweep also running (55512072).
+**Current focus:** Phase 34-02 in progress — Mode B grid sweep submitted as SLURM array job 55512257 (24 cells, 4 concurrent, 24h walltime each). Awaiting cluster completion.
 
 ## Current Position
 
-Phase: 33 (TS-1 + M2 + W4 fused)
-Plan: 6 of 6 complete (code written, cluster jobs submitted)
-Status: Complete (pending cluster results for 33-05 and 33-06)
-Last activity: 2026-05-19 — Submitted 33-05/06 SLURM jobs; Phase 31 thin sweep running
+Phase: 34 (benchmark-hierarchical-mode)
+Plan: 2 of 3 (partial — at checkpoint, awaiting cluster results)
+Status: In progress
+Last activity: 2026-05-19 — Task 1 of 34-02 complete (SLURM script created + job 55512257 submitted)
 
-Progress: [███████████████████] 80% (25 of ~32 remaining v1.0 plans; Phase 33 code complete)
+Progress: [████████████████████] 82% (26 of ~32 remaining v1.0 plans)
 
 ## Performance Metrics
 
@@ -35,6 +35,7 @@ Progress: [███████████████████] 80% (25 of
 | 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
 | 32-sampler-audit-harness | 3 of 5 | In progress | — |
 | 33-ts1-m2-w4-fused | 6 of 6 | Complete (cluster pending) | 2026-05-19 |
+| 34-benchmark-hierarchical-mode | 1 of 3 | In progress | — |
 
 *Updated after each phase verification.*
 
@@ -81,6 +82,9 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
   - **[33-01] Log-space sigma with Jacobian in BlackJAX closure**: log_sigma_* keys keep NUTS unconstrained; exp-transform + log-abs-det-Jacobian standard pattern.
   - **[33-01] jax.scipy.stats in Mode B closure (not numpyro)**: Pure JAX log_prob avoids numpyro import inside JIT-traced closure.
   - **[33-04] Collinearity threshold 0.7**: |r|=0.7 implies R^2=0.49 shared variance between covariate and group; beta_p and mu_g become practically unidentifiable. Group-mean-centering is default remediation.
+  - **[34-01] Two-level seed strategy for Mode B**: cohort_seed = seed_base + n_idx*1000 + model_idx*100 is identical across mitigation combos; mcmc_seed = seed_base + cell_id varies per cell. Pitfall 2 prevention.
+  - **[34-01] No fp64 in Mode B grid**: Mode B uses non-centering (M2) for numerical stability; fp64 was Mode A-specific.
+  - **[34-01] test_mode_b_minimum_cells deferred with skipif**: activated in Phase 34-03 after grid sweep populates rows.
 
 ### Pending Todos
 
@@ -103,9 +107,9 @@ None tracked in `.planning/todos/pending/`.
 
 ## Session Continuity
 
-Last session: 2026-05-19
-Stopped at: Phase 33 complete (cluster jobs pending), Phase 31 thin sweep running
-Resume: Check cluster job results (55512072 Phase 31, 55512114/55512115 Phase 33), then Phase 34
+Last session: 2026-05-19T19:33:37Z
+Stopped at: Completed 34-01-PLAN.md (Mode B benchmark infrastructure)
+Resume: Phase 34-02 (SLURM sweep script + submission for 24-cell Mode B grid)
 
 ---
 *Last updated: 2026-05-19 after 33-05/06 submission*

@@ -226,11 +226,85 @@ def test_mitigation_tags_present(map_text: str) -> None:
     )
 
 
+@pytest.mark.xfail(
+    strict=False,
+    reason=(
+        "Phase 31 grid sweep incomplete — only 7 of 48 cells have results "
+        "(all TIMEOUT/CRASH). Remaining cells need cuda13 resubmission."
+    ),
+)
+def test_all_mode_a_mitigation_combos_present(map_text: str) -> None:
+    """All 4 Mode A mitigation combo tags must appear in the map.
+
+    Tags: [none], [M1], [M1+Laplace], [M1+Laplace+fp64].
+    Enforced after Phase 31 grid sweep populates results.
+    """
+    required_tags = {"[none]", "[M1]", "[M1+Laplace]", "[M1+Laplace+fp64]"}
+    mode_a_rows = re.findall(
+        r"^\|.*\[mode-a\].*\|$", map_text, re.MULTILINE
+    )
+    found_tags = set()
+    for row in mode_a_rows:
+        for tag in required_tags:
+            if tag in row:
+                found_tags.add(tag)
+    missing = required_tags - found_tags
+    assert not missing, (
+        f"Capability map Mode A rows missing mitigation tags: {sorted(missing)}. "
+        f"Found {sorted(found_tags)} in {len(mode_a_rows)} Mode A rows."
+    )
+
+
+@pytest.mark.xfail(
+    strict=False,
+    reason=(
+        "Phase 31 grid sweep incomplete — only 7 valid Mode A rows. "
+        "Need cuda13 resubmission for remaining 41 cells."
+    ),
+)
+def test_mode_a_minimum_coverage(map_text: str) -> None:
+    """At least 24 Mode A rows with completed status must exist."""
+    mode_a_completed = re.findall(
+        r"^\|.*\[mode-a\].*(?:PASS|FAIL|TIMEOUT|CRASH|INVALID).*\|$",
+        map_text,
+        re.MULTILINE,
+    )
+    assert len(mode_a_completed) >= 24, (
+        f"Capability map has {len(mode_a_completed)} completed Mode A rows, "
+        f"expected at least 24 (2 models x 6 n_per_group x 2 mitigations min)."
+    )
+
+
+@pytest.mark.xfail(
+    strict=False,
+    reason=(
+        "MODEA-08 not met — no mitigation combo cleared the 3-level cliff "
+        "at P=300. All attempted cells TIMEOUT or CRASH."
+    ),
+)
+def test_cliff_cleared_row_exists(map_text: str) -> None:
+    """At least one 3-level row at P=300 must show PASS with mitigations.
+
+    This is the MODEA-08 closure guard: empirical proof that the mitigation
+    ladder clears the 3-level conditioning cliff at production cohort size.
+    """
+    cliff_rows = re.findall(
+        r"^\|.*3-level.*300.*(?:✅ PASS).*(?:\[M1\+Laplace\]|\[M1\+Laplace\+fp64\]).*\|$",
+        map_text,
+        re.MULTILINE,
+    )
+    assert len(cliff_rows) >= 1, (
+        "No 3-level PASS row at P=300 with M1+Laplace or M1+Laplace+fp64. "
+        "MODEA-08 requires at least one such row. "
+        "See MODEA-08 Status section in CAPABILITY_MAP.md."
+    )
+
+
 @pytest.mark.skipif(
     # TODO(phase-34-03): remove skipif after grid sweep results are populated
     not bool(
         __import__("re").search(
-            r"^\|.*\[mode-b\]",
+            r"^\|.*\[mode-b\].*(?:PASS|FAIL|TIMEOUT|CRASH|INVALID)",
             __import__("pathlib").Path(__file__).resolve().parents[2]
             .joinpath("docs", "CAPABILITY_MAP.md")
             .read_text(encoding="utf-8")
@@ -241,7 +315,7 @@ def test_mitigation_tags_present(map_text: str) -> None:
             __import__("re").MULTILINE,
         )
     ),
-    reason="No [mode-b] rows in capability map yet — skipping until Phase 34-02 runs",
+    reason="No completed [mode-b] data rows in capability map yet — skipping until Phase 34-02 runs",
 )
 def test_mode_b_minimum_cells(map_text: str) -> None:
     """At least 24 Mode B rows must exist with completed status."""

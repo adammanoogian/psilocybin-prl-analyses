@@ -42,6 +42,7 @@ from prl_hgf.fitting.config import (
     MitigationConfig,
     SamplerConfig,
 )
+from prl_hgf.fitting.diagnostics import emit_diagnostic_csv
 from prl_hgf.fitting.hierarchical import (  # noqa: F401
     build_logp_fn_batched,
     build_logp_ops_batched,
@@ -71,6 +72,8 @@ __all__ = [
     "CovariateConfig",
     "HGFPriorSpec",
     "PriorDist",
+    # Diagnostics (Phase 36)
+    "emit_diagnostic_csv",
     # legacy v1.1 path
     "fit_batch",
     "fit_participant",

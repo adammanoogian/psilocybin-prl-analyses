@@ -44,13 +44,17 @@ reparam, prior tightening) get their own rows tagged `[mitigated]`.
 |---|---|---|---|---|---|---|---|---|---|
 | 3-level | NUTS | [diagonal] | [mode-a] | [none] | 30 (n/grp=5) | ❌ TIMEOUT | >8h | job 55143456 (A100 80GB, commit `cc9ee03`) | window_adaptation never completed in 8h walltime — same conditioning failure as P=300 row, just slower to manifest |
 | 3-level | NUTS | [dense] | [mode-a] | [M1] | 30 (n/grp=5) | ❌ NOT CLEARED (TIMEOUT @ 24h) | >24h | DEPS-05 evidence: `.planning/phases/27-dependency-upgrade-chain/DEPS-05-evidence.json`, job 55198489 (m3g108, commit `4a3b541`) | window_adaptation (is_mass_matrix_diagonal=False, n_warmup=1000, n_chains=4) hit 24h walltime; BlackJAX 1.5 only exposes diagonal-vs-dense (no low-rank kwarg per 27-03 API probe), so dense O(D²)/step is the only non-diagonal option at this version and it is not feasible at P=30 — Phase 29 (M1 wiring + pre-flight) inherits |
-| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 60 (n/grp=10) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 60 (n/grp=10) | ❌ TIMEOUT | >24h | Phase 31 grid cell 28, job 55529661 | window_adaptation/sampling did not complete within 24h walltime |
 | 3-level | NUTS | [diagonal] | [mode-a] | [none] | 102 (n/grp=17) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
-| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 150 (n/grp=25) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
+| 3-level | NUTS | [diagonal] | [mode-a] | [none] | 150 (n/grp=25) | ❌ TIMEOUT | >24h | Phase 31 grid cell 36, job 55530460 | window_adaptation/sampling did not complete within 24h walltime |
 | 3-level | NUTS | [diagonal] | [mode-a] | [none] | 198 (n/grp=33) | 🔲 PENDING | — | overnight job 2026-05-04 | — |
 | 3-level | NUTS | [diagonal] | [mode-a] | [none] | 50 | ✅ PASS | 233s | job 54902462, commit `05545b9` | warmup ~100–120s; in-process warm 2.52× |
 | 3-level | NUTS | [diagonal] | [mode-a] | [none] | 300 (n/grp=50) | ❌ TIMEOUT | >10h | job 55139044 (this session) | window_adaptation never finished step 1/500; GPU at 100% util — **conditioning failure** |
-| 2-level | NUTS | [diagonal] | [mode-a] | [none] | any | 🔲 NOT TESTED | — | — | The 2-level NUTS gap — see [Open gaps](#open-gaps) |
+| 2-level | NUTS | [diagonal] | [mode-a] | [none] | 150 (n/grp=25) | ❌ TIMEOUT | >24h | Phase 31 grid cell 12, job 55519892 | window_adaptation/sampling did not complete within 24h walltime |
+| 2-level | NUTS | [dense] | [mode-a] | [M1+Laplace+fp64] | 150 (n/grp=25) | ❌ TIMEOUT | >24h | Phase 31 grid cell 15, job 55519893 | window_adaptation/sampling did not complete within 24h walltime |
+| 2-level | NUTS | [diagonal] | [mode-a] | [none] | 300 (n/grp=50) | ❌ TIMEOUT | >24h | Phase 31 grid cell 20, job 55529659 | window_adaptation/sampling did not complete within 24h walltime |
+| 2-level | NUTS | [dense] | [mode-a] | [M1+Laplace+fp64] | 300 (n/grp=50) | ❌ CRASH | 13m | Phase 31 grid cell 23, job 55529660, commit `4a3b541` | RESOURCE_EXHAUSTED: OOM allocating 6.03GiB during warmup. Dense mass matrix at D~1500 (P=300, fp64) exceeds GPU memory |
+| 3-level | NUTS | [dense] | [mode-a] | [M1+Laplace+fp64] | 60 (n/grp=10) | ❌ TIMEOUT | >24h | Phase 31 grid cell 31, job 55529662 | window_adaptation/sampling did not complete within 24h walltime |
 
 ### PAT-RL — binary safe/dangerous approach-avoid (T=192)
 
@@ -60,6 +64,29 @@ reparam, prior tightening) get their own rows tagged `[mitigated]`.
 | 3-level | Laplace | [n/a] | [mode-a] | [n/a] | 160 | ❌ FAIL | ~3:58 (failed) | job 55139041, commit `b78a51c` | β → exp overflow in σ(β·EV+...); κ MAP stuck at prior mean — documented pathology, persists |
 | 3-level | NUTS | [diagonal] | [mode-a] | [none] | any | 🔲 NOT TESTED | — | — | Deferred from Phase 20 to Phase 14-15 GPU benchmark; gated on the `pick_best_cue` 3-level cliff result |
 | 2-level | NUTS | [diagonal] | [mode-a] | [none] | any | 🔲 NOT TESTED | — | — | Same gap as above |
+
+---
+
+## MODEA-08 Status
+
+**MODEA-08 NOT MET**: No mitigation combination has cleared the 3-level
+conditioning cliff at P=300 (n_per_group=50). The Phase 31 grid sweep
+produced zero PASS rows:
+
+- 3-level cells at P=60 through P=300 all TIMEOUT at 24h (both
+  `[none]` and `[M1+Laplace+fp64]`).
+- 2-level cells at P=150 and P=300 also TIMEOUT or CRASH (OOM on
+  dense fp64 at P=300).
+- Cells 0-8 (2-level, small P) crashed on cuSPARSE incompatibility
+  (pre-cuda13 fix, stale — need resubmission with ds_env_v10 cuda13).
+
+**Implication**: Phase 31-02 must be resubmitted with the fixed cuda13
+environment. The Phase 32 sampler audit should investigate whether NumPyro
+NUTS fares better. The 3-level cliff may fundamentally require Mode B
+(hierarchical pooling) to address.
+
+**Remaining Phase 31 debt**: 32 of 48 cells NOT_RUN, 9 cells need cuda13
+resubmission. See `.planning/STATE.md` DEBT section.
 
 ---
 

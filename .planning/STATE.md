@@ -5,16 +5,16 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Phase 34-02 in progress — Mode B grid sweep submitted as SLURM array job 55512257 (24 cells, 4 concurrent, 24h walltime each). Awaiting cluster completion.
+**Current focus:** Overnight autonomous code sweep (2026-05-21). Phase 36-01 (PPC), 36-02 (diagnostics CSV), 31-03 (closure guard), 36-03 (sampler recommendation) executed locally. Cluster benchmark debt accumulated for Phases 31, 32, 34.
 
 ## Current Position
 
-Phase: 34 (benchmark-hierarchical-mode)
-Plan: 2 of 3 (partial — at checkpoint, awaiting cluster results)
-Status: In progress
-Last activity: 2026-05-19 — Task 1 of 34-02 complete (SLURM script created + job 55512257 submitted)
+Phase: 36 (polish) — code work in parallel with Phase 31/32/34 cluster debt
+Plan: Multiple phases partially advanced (see phase table)
+Status: Active — code deliverables landing, cluster benchmarks deferred
+Last activity: 2026-05-21 — Overnight autonomous execution of Phase 36-01, 36-02, 31-03, 36-03, 34-02 partial
 
-Progress: [████████████████████] 82% (26 of ~32 remaining v1.0 plans)
+Progress: [████████████████████████] 88% (~29 of ~33 v1.0 plans touched)
 
 ## Performance Metrics
 
@@ -32,10 +32,11 @@ Progress: [████████████████████] 82% (26
 | 28-fitconfig-hgfpriorspec-refactor | 5 of 5 | Complete | 2026-05-17 |
 | 29-m1-dense-lowrank-mass-matrix-wiring | 3 of 3 | Complete | 2026-05-17 |
 | 30-laplace-warmup-fp64-multigpu-flags | 4 of 4 | ✓ Complete | 2026-05-17 |
-| 31-benchmark-no-pooling-mode | 2 of 3 | In progress | — |
-| 32-sampler-audit-harness | 3 of 5 | In progress | — |
+| 31-benchmark-no-pooling-mode | 2.5 of 3 | 31-03 code done (xfail); 31-02 cluster DEBT | — |
+| 32-sampler-audit-harness | 3.5 of 5 | 32-04 aggregation script done; cluster DEBT | — |
 | 33-ts1-m2-w4-fused | 6 of 6 | Complete (cluster pending) | 2026-05-19 |
-| 34-benchmark-hierarchical-mode | 1 of 3 | In progress | — |
+| 34-benchmark-hierarchical-mode | 1.5 of 3 | 34-02 smoke done, full grid DEBT | — |
+| 36-polish | 2.5 of 3 | 36-01+36-02 code done; 36-03 partial | — |
 
 *Updated after each phase verification.*
 
@@ -90,11 +91,25 @@ Decisions are logged in PROJECT.md Key Decisions table. Recent decisions affecti
 
 None tracked in `.planning/todos/pending/`.
 
+### Cluster Benchmark DEBT (deferred >1h jobs)
+
+| ID | Phase | Description | Command |
+|----|-------|-------------|---------|
+| DEBT-01 | 31-02 | Mode A grid resubmit — 48 cells (9 stale cuSPARSE, 32 NOT_RUN). Cuda13 env now fixed. | `sbatch cluster/31_grid_sweep_gpu.slurm` |
+| DEBT-02 | 32-04 | Sampler audit head-to-head runs — 26 cells (BlackJAX vs NumPyro). Zero results exist. | `sbatch cluster/32_sampler_audit_gpu.slurm` |
+| DEBT-03 | 34-02 | Mode B full grid sweep — 24 cells, production draws. Smoke test passed (4 cells, tiny draws). | `sbatch cluster/34_grid_sweep_gpu.slurm` |
+
+**Blocking dependencies:**
+- DEBT-01 → Phase 31-03 full completion (remove xfails on MODEA-08, coverage tests)
+- DEBT-02 → Phase 32-05 (sampler recommendation from audit data)
+- DEBT-03 → Phase 34-03 (Phase 35 trigger decision + MODEB-08 sigma decision)
+- Phase 34-03 → Phase 35 (conditional Gibbs sharding, fire/defer)
+
 ### Blockers/Concerns
 
 - **pyhgf 0.2.8 ↔ JAX > 0.4.31 compat** — RESOLVED by 27-02. Strategy C: pip wheel + in-place patch via `scripts/ci/patch_pyhgf_typing.py`. Probe confirmed PASS at JAX 0.10.
 - **DEPS-05 cliff not cleared by BlackJAX 1.5 alone** — RESOLVED-AS-NOT-CLEARED by 27-03 (TIMEOUT @ 24h). Phase 29 (M1 wiring + pre-flight) and Phase 30 (Laplace warmup) inherit; cliff mitigation is the entire purpose of those phases.
-- **cuSPARSE 12.5 / driver 13.0 GPU lottery on M3** — open. Some nodes (m3g112) fall back to CPU under `ds_env_v10` despite GPU allocation; m3g108 works. Phase 28 jobs need device-check + requeue OR `--nodelist` constraint OR a different cuSPARSE wheel pin. Memo'd in `memory/project_phase27_cusparse_node_lottery.md`.
+- **cuSPARSE GPU lottery** — RESOLVED 2026-05-18. Switched `jax[cuda12]` → `jax[cuda13]` in ds_env_v10. GPU works on all M3 nodes. V100 (SM 7.0) dropped. Phase 31 cells 0-8 (pre-fix crashes) need resubmission.
 - **Per-parameter vs shared σ_θ identifiability at P=200 with K=2-3 covariates** — RESOLVED in 33-RESEARCH: shared sigma_p per Boehm 2018; per-group sigma is future COVAR-EXT-03 extension, not Phase 33 blocker.
 - **M3 conditional-independence proof + per-block convergence diagnostics** — research-flagged for Phase 35 pre-planning if it fires; lowest-confidence area in v1.0 scope.
 
@@ -107,9 +122,9 @@ None tracked in `.planning/todos/pending/`.
 
 ## Session Continuity
 
-Last session: 2026-05-19T19:33:37Z
-Stopped at: Completed 34-01-PLAN.md (Mode B benchmark infrastructure)
-Resume: Phase 34-02 (SLURM sweep script + submission for 24-cell Mode B grid)
+Last session: 2026-05-21T04:00:00Z
+Stopped at: Overnight autonomous code sweep — Phases 36-01, 36-02, 31-03, 36-03, 32-04 partial, 34-02 partial
+Resume: Submit cluster DEBT (DEBT-01 through DEBT-03), then execute blocked plans (31-03 full, 32-05, 34-03)
 
 ---
-*Last updated: 2026-05-19 after 33-05/06 submission*
+*Last updated: 2026-05-21 after overnight autonomous execution*

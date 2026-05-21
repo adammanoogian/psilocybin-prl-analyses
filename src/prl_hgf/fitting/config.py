@@ -95,6 +95,11 @@ class FitConfig:
         Mitigation flags for conditioning cliff.
     covariate : CovariateConfig
         Hierarchical pooling and covariate settings.
+    diagnostic_output_dir : str or None
+        Directory for diagnostic CSV side-car files.  When set,
+        ``fit_batch_hierarchical`` writes a CSV with parameter summaries
+        and sampler diagnostics after each run.  String (not Path) to
+        preserve frozen-dataclass hashability.  Default ``None`` (no CSV).
     log_every : int
         Log every N iterations (0 = no logging).
     progressbar : bool
@@ -106,6 +111,7 @@ class FitConfig:
     sampler: SamplerConfig = field(default_factory=SamplerConfig)
     mitigation: MitigationConfig = field(default_factory=MitigationConfig)
     covariate: CovariateConfig = field(default_factory=CovariateConfig)
+    diagnostic_output_dir: str | None = None
     log_every: int = 0
     progressbar: bool = True
 

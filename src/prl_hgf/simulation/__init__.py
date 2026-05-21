@@ -36,6 +36,7 @@ from prl_hgf.simulation.jax_session import (
     simulate_cohort_jax,
     simulate_session_jax,
 )
+from prl_hgf.simulation.ppc import posterior_predictive_replay
 
 __all__ = [
     "simulate_agent",
@@ -46,4 +47,5 @@ __all__ = [
     "simulate_hierarchical_cohort",
     "simulate_session_jax",
     "simulate_cohort_jax",
+    "posterior_predictive_replay",
 ]

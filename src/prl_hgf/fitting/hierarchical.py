@@ -3923,6 +3923,32 @@ def fit_batch_hierarchical(
         # Provenance: record full config in idata attrs
         idata.attrs["fit_config"] = fit_config.to_json()
 
+        # Diagnostic CSV side-car (Phase 36)
+        if fit_config.diagnostic_output_dir is not None:
+            import hashlib as _hashlib
+            from pathlib import Path as _Path
+
+            from prl_hgf.fitting.diagnostics import emit_diagnostic_csv
+
+            _diag_dir = _Path(fit_config.diagnostic_output_dir)
+            _diag_dir.mkdir(parents=True, exist_ok=True)
+            _cfg_hash = _hashlib.md5(
+                fit_config.to_json().encode()
+            ).hexdigest()[:8]
+            _run_id = f"{model_name}_{n_chains}c{n_draws}d_{_cfg_hash}"
+            _diag_path = _diag_dir / f"{_run_id}_diagnostics.csv"
+            _walltime = time.perf_counter() - _t_fb0
+            emit_diagnostic_csv(
+                idata,
+                _diag_path,
+                fit_config=fit_config,
+                walltime_s=_walltime,
+            )
+            print(
+                f"[fit_batch_hierarchical] Diagnostic CSV: {_diag_path}",
+                flush=True,
+            )
+
         # Return adapted params so caller can skip warmup next time
         if warmup_params is None:
             # First call: caller should cache adapted_params
@@ -4077,6 +4103,32 @@ def fit_batch_hierarchical(
 
     # Provenance: record full config in idata attrs
     idata.attrs["fit_config"] = fit_config.to_json()
+
+    # Diagnostic CSV side-car (Phase 36) — NumPyro path
+    if fit_config.diagnostic_output_dir is not None:
+        import hashlib as _hashlib
+        from pathlib import Path as _Path
+
+        from prl_hgf.fitting.diagnostics import emit_diagnostic_csv
+
+        _diag_dir = _Path(fit_config.diagnostic_output_dir)
+        _diag_dir.mkdir(parents=True, exist_ok=True)
+        _cfg_hash = _hashlib.md5(
+            fit_config.to_json().encode()
+        ).hexdigest()[:8]
+        _run_id = f"{model_name}_{n_chains}c{n_draws}d_{_cfg_hash}"
+        _diag_path = _diag_dir / f"{_run_id}_diagnostics.csv"
+        _walltime = time.perf_counter() - _t_fb0
+        emit_diagnostic_csv(
+            idata,
+            _diag_path,
+            fit_config=fit_config,
+            walltime_s=_walltime,
+        )
+        print(
+            f"[fit_batch_hierarchical] Diagnostic CSV: {_diag_path}",
+            flush=True,
+        )
 
     return idata
 

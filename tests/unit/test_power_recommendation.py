@@ -25,7 +25,7 @@ import pandas as pd
 # ---------------------------------------------------------------------------
 
 _SCRIPT_PATH = (
-    Path(__file__).parent.parent / "scripts" / "03_pre_analysis" / "07_write_recommendation.py"
+    Path(__file__).parent.parent.parent / "scripts" / "03_pre_analysis" / "07_write_recommendation.py"
 )
 
 spec = importlib.util.spec_from_file_location("write_rec", str(_SCRIPT_PATH))

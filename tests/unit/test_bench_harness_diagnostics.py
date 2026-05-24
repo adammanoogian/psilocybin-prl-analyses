@@ -32,7 +32,7 @@ from pathlib import Path
 
 import pandas as pd
 
-REPO_ROOT = Path(__file__).parent.parent
+REPO_ROOT = Path(__file__).parent.parent.parent
 SCRIPT_PATH = REPO_ROOT / "scripts" / "08_run_power_iteration.py"
 
 

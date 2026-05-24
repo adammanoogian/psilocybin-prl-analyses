@@ -175,7 +175,7 @@ class TestFitConfigYaml:
 
     def test_round_trip_canonical_configs(self):
         """All canonical configs in configs/fit/ round-trip correctly."""
-        configs_dir = Path(__file__).parent.parent / "configs" / "fit"
+        configs_dir = Path(__file__).parent.parent.parent / "configs" / "fit"
         if not configs_dir.exists():
             pytest.skip("configs/fit/ not found")
         for yaml_file in sorted(configs_dir.glob("*.yaml")):

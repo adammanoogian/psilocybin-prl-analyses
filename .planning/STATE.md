@@ -5,14 +5,14 @@
 See: `.planning/PROJECT.md` (updated 2026-05-04)
 
 **Core value:** Reliable, scalable hierarchical Bayesian HGF fitting that exposes proper posterior UQ at production cohort sizes.
-**Current focus:** Overnight autonomous code sweep (2026-05-21). Phase 36-01 (PPC), 36-02 (diagnostics CSV), 31-03 (closure guard), 36-03 (sampler recommendation) executed locally. Cluster benchmark debt accumulated for Phases 31, 32, 34.
+**Current focus:** Quick task 001 complete (2026-05-24): major repo cleanup — archived 27 cluster scripts, Snakemake scaffold, test reorg, CCDS compliance. Phase 36 polish + cluster benchmark debt continues.
 
 ## Current Position
 
 Phase: 36 (polish) — code work in parallel with Phase 31/32/34 cluster debt
 Plan: Multiple phases partially advanced (see phase table)
 Status: Active — code deliverables landing, cluster benchmarks deferred
-Last activity: 2026-05-21 — Overnight autonomous execution of Phase 36-01, 36-02, 31-03, 36-03, 34-02 partial
+Last activity: 2026-05-24 — Quick task 001: repo cleanup (cluster archive, Snakemake, test reorg, CCDS)
 
 Progress: [████████████████████████] 88% (~29 of ~33 v1.0 plans touched)
 
@@ -104,6 +104,12 @@ None tracked in `.planning/todos/pending/`.
 - DEBT-02 → Phase 32-05 (sampler recommendation from audit data)
 - DEBT-03 → Phase 34-03 (Phase 35 trigger decision + MODEB-08 sigma decision)
 - Phase 34-03 → Phase 35 (conditional Gibbs sharding, fire/defer)
+
+### Quick Tasks Completed
+
+| # | Description | Date | Commit | Directory |
+|---|-------------|------|--------|-----------|
+| 001 | Major repo cleanup: CCDS + Snakemake + test reorg | 2026-05-24 | 42406d8 | [001-major-repo-cleanup](./quick/001-major-repo-cleanup-ccds-snakemake-test-reorg/) |
 
 ### Blockers/Concerns
 

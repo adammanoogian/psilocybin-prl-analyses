@@ -35,9 +35,16 @@ src/prl_hgf/
   power/           # BFDA power analysis (pick_best_cue)
   simulation/      # JAX-native cohort simulation
 scripts/           # Numbered pipeline: 01_*, 02_*, …
-tests/             # Unit + integration tests
-validation/        # Scientific validation (parameter recovery)
+tests/             # Test suite (tiered)
+  unit/            # Fast isolated tests (< 1s, no I/O)
+  integration/     # Cross-module tests (< 60s, structure guards)
+  scientific/      # Slow validation (> 60s, parameter recovery)
 cluster/           # SLURM scripts for M3/MASSIVE-style clusters
+cluster/archive/   # Archived phase-specific SLURM scripts (phases 14-34)
+workflow/          # Snakemake 8.x DAG-based pipeline (replaces submit_full_pipeline.sh)
+  Snakefile        # Top-level: config, includes, target rules
+  rules/           # Modular rule files: simulate, fit, validate, analyze, power, smoke
+  profiles/slurm/  # SLURM executor profile (account=fc37, partition defaults)
 ```
 
 ## Task Structures
@@ -85,7 +92,7 @@ effects on ω₃.
 - Fitted/computed attributes use trailing underscore: `K_`, `x_post_`
 - No wildcard imports. Absolute imports only.
 - Config via `config.py` Path constants — no scattered hardcoded paths
-- Tests in `tests/` (unit/integration), `validation/` (scientific)
+- Tests in `tests/unit/` (fast), `tests/integration/` (cross-module), `tests/scientific/` (slow/validation)
 
 ## Architecture Decisions
 
@@ -114,6 +121,14 @@ effects on ω₃.
   via `--dependency=afterany` so logs come back on success/crash/timeout.
 - **Line endings:** `.gitattributes` enforces LF for all text files +
   per-repo `core.autocrlf=input`. Required for Mutagen Windows↔Linux sync.
+- **Snakemake pipeline:** `snakemake --profile workflow/profiles/slurm/` replaces
+  `bash cluster/submit_full_pipeline.sh`. The Snakefile defines the full fitting
+  DAG (simulate -> fit(2level|3level) -> validate -> analyze) and power DAG
+  (simulate -> sweep(0..N) -> postprocess). Individual rules can be targeted:
+  `snakemake fit --profile workflow/profiles/slurm/`. Legacy shell orchestrators
+  are retained with DEPRECATED headers in cluster/.
+- **cluster/archive/:** Phase-specific one-off SLURM scripts (phases 14-34) are
+  archived here. Active production scripts remain at cluster/ root.
 
 ## M3 / MASSIVE settings
 

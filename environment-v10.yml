@@ -92,6 +92,9 @@ dependencies:
     - "pingouin>=0.5.5"
     - "pyarrow>=14.0"
     - "ptitprince>=0.3.1"
+    # Snakemake 8.x DAG-based pipeline orchestration (replaces shell dependency chains)
+    - "snakemake>=8.0,<9"
+    - "snakemake-executor-plugin-slurm>=0.10"
     # pyhgf is intentionally excluded — install via two-step process above.
     # Do NOT add pyhgf to this pip block; the stale jax<0.4.32 constraint
     # in pyhgf 0.2.8 will cause a resolver conflict.

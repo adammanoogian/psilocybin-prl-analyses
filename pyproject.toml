@@ -51,7 +51,7 @@ dev = [
 [tool.ruff]
 target-version = "py311"
 line-length = 88
-extend-exclude = ["data", "models", "reports", "logs", ".planning", "vendor"]
+extend-exclude = ["data", "models", "reports", "logs", ".planning", "vendor", "workflow"]
 
 [tool.ruff.format]
 quote-style = "double"

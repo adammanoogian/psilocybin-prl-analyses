@@ -1,5 +1,0 @@
-    PID TTY      STAT   TIME COMMAND
- 921422 ?        S      0:00 /bin/bash /var/spool/slurmd/job55170356/slurm_script
- 921427 ?        Ss     0:00 tmux new-session -d -s 4:gpu bash
- 921428 pts/1    Ss+    0:00 bash
- 921440 ?        R      0:00 ps x

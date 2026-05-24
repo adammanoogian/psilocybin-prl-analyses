@@ -123,3 +123,7 @@ bash.exe.stackdump
 
 # Slurm job outputs
 slurm-*.out
+smux-*.out
+smux-*.err
+workflow/.snakemake/
+*.stackdump

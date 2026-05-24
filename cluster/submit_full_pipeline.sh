@@ -1,4 +1,6 @@
 #!/bin/bash
+# DEPRECATED: Use `snakemake --profile workflow/profiles/slurm/` instead.
+# Retained for reference. See workflow/Snakefile for the Snakemake equivalent.
 # =============================================================================
 # Wave Orchestrator: Submit Full PRL HGF Pipeline on M3 Cluster
 # =============================================================================

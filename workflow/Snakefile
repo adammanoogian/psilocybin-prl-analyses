@@ -1,0 +1,60 @@
+# =============================================================================
+# HGF Analysis — Snakemake 8.x DAG-based Pipeline
+# =============================================================================
+# Top-level entrypoint. Replaces cluster/submit_full_pipeline.sh and
+# cluster/submit_power_pipeline.sh with a reproducible DAG. Individual rules
+# are in workflow/rules/*.smk.
+#
+# Usage (from project root, on M3 login node):
+#   snakemake --profile workflow/profiles/slurm/
+#   snakemake --profile workflow/profiles/slurm/ smoke
+#   snakemake --profile workflow/profiles/slurm/ fit --config model=hgf_2level
+#   snakemake -n --profile workflow/profiles/slurm/   # dry run
+#
+# DAG overview:
+#   simulate -> fit(hgf_2level|hgf_3level) -> validate -> analyze
+#   simulate -> power_sweep(0..N) -> power_postprocess
+#   laplace_demo (standalone smoke target)
+#
+# Profile: workflow/profiles/slurm/config.yaml (account=fc37, partition=comp)
+# =============================================================================
+
+configfile: "configs/prl_analysis.yaml"
+
+# ---------------------------------------------------------------------------
+# Load modular rule files
+# ---------------------------------------------------------------------------
+include: "rules/common.smk"
+include: "rules/simulate.smk"
+include: "rules/fit.smk"
+include: "rules/validate.smk"
+include: "rules/analyze.smk"
+include: "rules/power.smk"
+include: "rules/smoke.smk"
+
+# ---------------------------------------------------------------------------
+# Target rules
+# ---------------------------------------------------------------------------
+
+MODELS = ["hgf_2level", "hgf_3level"]
+
+
+rule all:
+    """Full fitting pipeline: simulate -> fit -> validate -> analyze."""
+    input:
+        expand("reports/{model}/analysis_complete.flag", model=MODELS),
+
+
+rule smoke:
+    """Standalone quickcheck: run laplace demo only (no MCMC)."""
+    input:
+        "reports/smoke/laplace_demo_complete.flag",
+
+
+# ---------------------------------------------------------------------------
+# Post-pipeline hook: push results back to git via autopush SLURM job
+# ---------------------------------------------------------------------------
+
+onsuccess:
+    print("Pipeline completed. Triggering result push...")
+    shell("bash cluster/submit_one.sh cluster/99_push_results.slurm || true")

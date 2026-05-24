@@ -1,4 +1,6 @@
 #!/bin/bash
+# DEPRECATED: Use `snakemake --profile workflow/profiles/slurm/` instead.
+# Retained for reference. See workflow/Snakefile for the Snakemake equivalent.
 # =============================================================================
 # Submit Power Analysis Pipeline on M3 Cluster
 # =============================================================================

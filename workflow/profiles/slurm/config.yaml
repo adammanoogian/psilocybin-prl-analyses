@@ -1,0 +1,24 @@
+# =============================================================================
+# Snakemake 8.x SLURM executor profile for M3/MASSIVE cluster
+# =============================================================================
+# Usage: snakemake --profile workflow/profiles/slurm/
+#
+# Requires: snakemake-executor-plugin-slurm>=0.10
+#   (installed via environment-v10.yml)
+#
+# Per-rule resource overrides (partition, mem_mb, runtime, slurm_extra) are
+# specified in each workflow/rules/*.smk file. These defaults apply to any
+# rule that does not specify its own resources.
+#
+# Account: fc37 (M3/MASSIVE Slurm account for HGF project)
+# =============================================================================
+
+executor: slurm
+jobs: 10
+latency-wait: 120
+default-resources:
+  slurm_account: fc37
+  slurm_partition: comp
+  mem_mb: 32768
+  runtime: 120
+  cpus_per_task: 4

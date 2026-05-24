@@ -16,7 +16,7 @@
 #SBATCH --output=logs/smoke34_%A_%a.out
 #SBATCH --error=logs/smoke34_%A_%a.err
 #SBATCH --array=0-3
-#SBATCH --time=00:30:00
+#SBATCH --time=02:00:00
 #SBATCH --mem=32G
 #SBATCH --gres=gpu:1
 #SBATCH --partition=gpu

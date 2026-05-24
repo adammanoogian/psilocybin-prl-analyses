@@ -26,6 +26,10 @@ Public API surface:
   - :func:`fit_batch_hierarchical` -- single-call cohort MCMC via FitConfig
   - :func:`build_logp_ops_batched` -- (deprecated) PyTensor Op wrapper
   - :func:`build_pymc_model_batched` -- (deprecated) PyMC model factory
+
+* VB-Laplace paths (TAPAS ``tapas_fitModel`` equivalent):
+
+  - :func:`fit_vb_laplace_prl` -- pick_best_cue (3-cue PRL) Laplace fit
 """
 
 from __future__ import annotations
@@ -43,6 +47,11 @@ from prl_hgf.fitting.config import (
     SamplerConfig,
 )
 from prl_hgf.fitting.diagnostics import emit_diagnostic_csv
+from prl_hgf.fitting.fit_vb_laplace_prl import (
+    compare_models_laplace,
+    fit_vb_laplace_prl,
+    idata_to_fit_df,
+)
 from prl_hgf.fitting.hierarchical import (  # noqa: F401
     build_logp_fn_batched,
     build_logp_ops_batched,
@@ -88,4 +97,8 @@ __all__ = [
     "build_logp_ops_batched",
     "build_pymc_model_batched",
     "fit_batch_hierarchical",
+    # VB-Laplace paths
+    "fit_vb_laplace_prl",
+    "compare_models_laplace",
+    "idata_to_fit_df",
 ]

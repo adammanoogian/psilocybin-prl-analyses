@@ -36,6 +36,8 @@ __all__ = [
     "_PARAM_ORDER_3LEVEL_C",
     "_PARAM_ORDER_2LEVEL_D",
     "_PARAM_ORDER_3LEVEL_D",
+    "_PARAM_ORDER_PRL_2LEVEL",
+    "_PARAM_ORDER_PRL_3LEVEL",
     "_VALID_PARAM_ORDERS",
 ]
 
@@ -100,6 +102,15 @@ _PARAM_ORDER_3LEVEL_D: tuple[str, ...] = (
     "lam",
 )
 
+# pick_best_cue (3-cue PRL) parameter orders — kappa frozen at 1.0 for 3-level
+_PARAM_ORDER_PRL_2LEVEL: tuple[str, ...] = ("omega_2", "log_beta", "zeta")
+_PARAM_ORDER_PRL_3LEVEL: tuple[str, ...] = (
+    "omega_2",
+    "log_beta",
+    "zeta",
+    "omega_3",
+)
+
 _VALID_PARAM_ORDERS: tuple[tuple[str, ...], ...] = (
     _PARAM_ORDER_2LEVEL,
     _PARAM_ORDER_3LEVEL,
@@ -109,6 +120,8 @@ _VALID_PARAM_ORDERS: tuple[tuple[str, ...], ...] = (
     _PARAM_ORDER_3LEVEL_C,
     _PARAM_ORDER_2LEVEL_D,
     _PARAM_ORDER_3LEVEL_D,
+    _PARAM_ORDER_PRL_2LEVEL,
+    _PARAM_ORDER_PRL_3LEVEL,
 )
 
 

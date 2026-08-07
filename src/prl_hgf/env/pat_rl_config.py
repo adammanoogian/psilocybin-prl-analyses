@@ -21,7 +21,7 @@ from typing import Any
 
 import yaml
 
-from config import CONFIGS_DIR
+from prl_hgf._paths import CONFIGS_DIR
 
 _DEFAULT_PATRL_CONFIG_PATH = CONFIGS_DIR / "pat_rl.yaml"
 

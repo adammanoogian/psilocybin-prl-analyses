@@ -62,7 +62,7 @@ from jinja2 import BaseLoader, Environment
 # as the source of Path constants; config.py is not in the
 # parallel-stack forbidden list (prl_hgf.{env,models,fitting,analysis,
 # gui,power,simulation}).
-from config import PROJECT_ROOT
+from prl_hgf._paths import PROJECT_ROOT
 from prl_hgf.viz.schema import NetworkSpec
 
 __all__ = ["render_viewer_html"]

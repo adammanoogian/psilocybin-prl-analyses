@@ -22,7 +22,7 @@ from typing import Any
 
 import yaml
 
-from config import CONFIGS_DIR
+from prl_hgf._paths import CONFIGS_DIR
 
 _DEFAULT_CONFIG_PATH = CONFIGS_DIR / "prl_analysis.yaml"
 

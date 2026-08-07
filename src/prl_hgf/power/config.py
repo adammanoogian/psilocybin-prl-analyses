@@ -23,7 +23,7 @@ from typing import Any
 
 import yaml
 
-import config as _cfg
+from prl_hgf import _paths as _cfg
 from prl_hgf.env.task_config import AnalysisConfig, SessionConfig, SimulationConfig
 
 _DEFAULT_CONFIG_PATH = _cfg.CONFIGS_DIR / "prl_analysis.yaml"

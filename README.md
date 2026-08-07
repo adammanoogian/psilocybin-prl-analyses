@@ -28,8 +28,11 @@ module in `src/prl_hgf/env/`. The fitting + analysis stack is task-agnostic.
 ### Use cases
 
 - **Psilocybin PRL study** (original): post-concussion psilocybin vs placebo
-  × 3 sessions longitudinal design on pick_best_cue. See `configs/prl_analysis.yaml`
-  and `notebooks/` for hypothesis-level details.
+  × 3 sessions longitudinal design on pick_best_cue. The study itself (task,
+  pipeline scripts, Snakemake/SLURM infra, manuscript) now lives in the
+  [psilocybin_decision_making](https://github.com/adammanoogian/psilocybin_decision_making)
+  repo and consumes this toolbox as a dependency. `configs/prl_analysis.yaml`
+  remains here as the library's default/reference task config.
 - **Approach-avoidance (PAT-RL) studies**: binary-state reversal with
   autonomic covariate modulation. See `configs/pat_rl.yaml` and
   `docs/PAT_RL_API_HANDOFF.md` for the PAT-RL public API.
@@ -100,10 +103,9 @@ src/prl_hgf/
   analysis/            # Group analysis, BMS, trajectory export
   power/               # BFDA power analysis (pick_best_cue)
   simulation/          # JAX-native cohort simulation
-scripts/               # Pipeline scripts (01_*, 02_*, …)
+scripts/               # Toolbox utilities (demo_quickstart, ci/, _maintenance/)
 tests/                 # Unit + integration tests
 validation/            # Scientific validation (parameter recovery)
-cluster/               # SLURM scripts for M3/MASSIVE-style clusters
 notebooks/             # Exploratory notebooks
 docs/                  # Project + API documentation
 results/               # Git-tracked small reference artifacts

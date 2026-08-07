@@ -12,7 +12,10 @@ Validated via simulation-to-inference.
 
 - **`pick_best_cue`** (`configs/prl_analysis.yaml`): 3-cue partial-feedback
   PRL with criterion-based reversals. Original use case: longitudinal
-  psilocybin vs placebo × 3 sessions study on post-concussion participants.
+  psilocybin vs placebo × 3 sessions study on post-concussion participants —
+  the study itself (pipeline, Snakemake/SLURM infra, manuscript) now lives in
+  the `psilocybin_decision_making` repo, which consumes this toolbox as a
+  package dependency. The yaml remains here as the library default.
 - **`pat_rl`** (`configs/pat_rl.yaml`): binary-state safe/dangerous
   approach/avoid reversal learning with 2x2 reward/shock magnitudes,
   hazard-driven reversals, trial-level ΔHR autonomic covariate.
@@ -34,18 +37,16 @@ src/prl_hgf/
   analysis/        # Group-level analysis, BMS, trajectory export
   power/           # BFDA power analysis (pick_best_cue)
   simulation/      # JAX-native cohort simulation
-scripts/           # Numbered pipeline: 01_*, 02_*, …
+scripts/           # Toolbox utilities: demo_quickstart.py, ci/, _maintenance/
 tests/             # Test suite (tiered)
   unit/            # Fast isolated tests (< 1s, no I/O)
   integration/     # Cross-module tests (< 60s, structure guards)
   scientific/      # Slow validation (> 60s, parameter recovery)
-cluster/           # SLURM scripts for M3/MASSIVE-style clusters
-cluster/archive/   # Archived phase-specific SLURM scripts (phases 14-34)
-workflow/          # Snakemake 8.x DAG-based pipeline (replaces submit_full_pipeline.sh)
-  Snakefile        # Top-level: config, includes, target rules
-  rules/           # Modular rule files: simulate, fit, validate, analyze, power, smoke
-  profiles/slurm/  # SLURM executor profile (account=fc37, partition defaults)
 ```
+
+The psilocybin study pipeline (numbered scripts 01–06, `cluster/` SLURM jobs,
+`workflow/` Snakemake DAG, `manuscript/`) moved to the
+`psilocybin_decision_making` repo (2026-08-07) under `analysis/`.
 
 ## Task Structures
 
@@ -115,20 +116,12 @@ effects on ω₃.
 - **Code does not need to be committed-and-pushed before running on M3.**
   Mutagen has already synced. Just commit when you're at a logical
   checkpoint, push when you want a backup or to share.
-- **Results return via `cluster/99_push_results.slurm`** (Pattern A from
-  the slurm-autopush skill). For solo debug runs use
-  `bash cluster/submit_one.sh cluster/<job>.slurm` — chains a single push
-  via `--dependency=afterany` so logs come back on success/crash/timeout.
 - **Line endings:** `.gitattributes` enforces LF for all text files +
   per-repo `core.autocrlf=input`. Required for Mutagen Windows↔Linux sync.
-- **Snakemake pipeline:** `snakemake --profile workflow/profiles/slurm/` replaces
-  `bash cluster/submit_full_pipeline.sh`. The Snakefile defines the full fitting
-  DAG (simulate -> fit(2level|3level) -> validate -> analyze) and power DAG
-  (simulate -> sweep(0..N) -> postprocess). Individual rules can be targeted:
-  `snakemake fit --profile workflow/profiles/slurm/`. Legacy shell orchestrators
-  are retained with DEPRECATED headers in cluster/.
-- **cluster/archive/:** Phase-specific one-off SLURM scripts (phases 14-34) are
-  archived here. Active production scripts remain at cluster/ root.
+- **Study pipelines live downstream:** this repo carries no study pipeline of
+  its own. Snakemake/SLURM orchestration for the psilocybin study is in
+  `psilocybin_decision_making/analysis/`; run heavy toolbox tests
+  (`tests/scientific/`) on M3 per the compute-routing rule.
 
 ## M3 / MASSIVE settings
 
@@ -166,3 +159,24 @@ effects on ω₃.
 5. Fitting: single-subject MCMC via PyMC
 6. Parameter recovery: validate before real data
 7. Group analysis + GUI
+
+## Research track
+
+This repo serves two research tracks:
+
+- **HGF at GPU Scale** (`hgf-gpu`) -- `Tracks/Track - HGF at GPU Scale.md`
+- **Joint DCM-Behavioural Modelling** (`joint-dcm-behaviour`) -- `Tracks/Track - Joint DCM-Behavioural Modelling.md`
+
+The GPU HGF toolbox itself, and the behavioural half of the joint brain-behaviour fits. Its public interface is load-bearing for another track -- check before changing it.
+
+A *track* is a research programme -- one scientific question pursued across many
+repos, over years. The roster, the full repo-to-track map, and the cross-track
+couplings live in the **`research-tracks` skill**
+(`~/.claude/skills/research-tracks/SKILL.md`); the authoritative notes live in
+the Obsidian vault at `C:\Users\aman0087\Documents\Obsidian Vault\Tracks\`.
+
+Read the track note before substantive work here -- it carries the current
+state, the open questions, and the decision log, none of which are duplicated in
+this repo. When work produces something durable (a derivation, a protocol, a
+transferable failure), file it to the vault layer that matches its lifetime
+rather than leaving it in this repo's docs.

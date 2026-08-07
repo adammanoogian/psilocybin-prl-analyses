@@ -1,4 +1,0 @@
-# GPU-specific pip requirements for M3 cluster
-# jax[cuda13] brings its own nvidia-nvjitlink and nvcc — no manual pins needed.
-# The cuda13 plugin depends on the new unversioned nvidia-* packages (not -cu12).
-blackjax>=1.2.4

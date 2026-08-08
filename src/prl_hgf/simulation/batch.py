@@ -54,9 +54,17 @@ def simulate_batch(
 ) -> pd.DataFrame:
     """Simulate a full cohort of synthetic participants across all sessions.
 
-    Uses the JAX-native cohort path: collects all participant-session trial
-    sequences and parameters upfront, then dispatches a single vmapped
-    ``_run_session`` call over the entire cohort for compiled XLA execution.
+    Dispatches on the task schedule mode:
+
+    * **Fixed-phase configs** use the JAX-native cohort path: all
+      participant-session trial sequences and parameters are collected
+      upfront, then a single vmapped ``_run_session`` call runs the entire
+      cohort as compiled XLA.
+    * **Criterion-based configs** (``config.is_criterion_based``) delegate
+      to :func:`~prl_hgf.simulation.criterion_sim.simulate_criterion_batch`,
+      the sequential closed-loop path (phase lengths depend on the agent's
+      own choices, so trials cannot be pre-generated). Output schema is
+      identical; session lengths vary by participant.
 
     Parameters
     ----------
@@ -102,6 +110,13 @@ def simulate_batch(
     >>> df.shape[1]  # columns
     21
     """
+    if config.is_criterion_based:
+        # Local import: keeps the fixed-phase path free of the closed-loop
+        # module and avoids any future circular-import risk.
+        from prl_hgf.simulation.criterion_sim import simulate_criterion_batch
+
+        return simulate_criterion_batch(config, output_path=output_path)
+
     sim_cfg = config.simulation
     n_per_group: int = sim_cfg.n_participants_per_group
     group_names: list[str] = sorted(sim_cfg.groups.keys())

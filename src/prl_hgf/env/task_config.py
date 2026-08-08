@@ -87,6 +87,160 @@ class PhaseConfig:
 
 
 @dataclass(frozen=True)
+class CriterionConfig:
+    """Reversal criterion for criterion-based (closed-loop) task schedules.
+
+    Two criterion types are supported:
+
+    * ``"consecutive_correct"`` — a phase ends once the participant has
+      chosen the objectively best cue on ``threshold`` consecutive trials,
+      where ``threshold`` is drawn uniformly from
+      ``[n_correct_min, n_correct_max]`` (inclusive) at each phase start
+      (jittered criterion).
+    * ``"window"`` — a phase ends once at least ``window_n_correct`` of the
+      last ``window_size`` choices within the phase were of the best cue.
+
+    Parameters
+    ----------
+    criterion_type : str
+        Either ``"consecutive_correct"`` or ``"window"``. Maps to the YAML
+        key ``criterion.type``.
+    n_correct_min : int or None
+        Lower bound (inclusive) of the jittered consecutive-correct
+        threshold. Required for ``"consecutive_correct"``.
+    n_correct_max : int or None
+        Upper bound (inclusive) of the jittered consecutive-correct
+        threshold. Required for ``"consecutive_correct"``.
+    window_size : int or None
+        Sliding window length in trials. Required for ``"window"``.
+    window_n_correct : int or None
+        Number of best-cue choices within the window required to end the
+        phase. Required for ``"window"``.
+    """
+
+    criterion_type: str
+    n_correct_min: int | None = None
+    n_correct_max: int | None = None
+    window_size: int | None = None
+    window_n_correct: int | None = None
+
+    def __post_init__(self) -> None:
+        valid_types = {"consecutive_correct", "window"}
+        if self.criterion_type not in valid_types:
+            raise ValueError(
+                f"CriterionConfig: criterion type must be one of {valid_types}, "
+                f"got '{self.criterion_type}'."
+            )
+        if self.criterion_type == "consecutive_correct":
+            if self.n_correct_min is None or self.n_correct_max is None:
+                raise ValueError(
+                    "CriterionConfig: type 'consecutive_correct' requires "
+                    "n_correct_min and n_correct_max, got "
+                    f"n_correct_min={self.n_correct_min}, "
+                    f"n_correct_max={self.n_correct_max}."
+                )
+            if self.n_correct_min < 1:
+                raise ValueError(
+                    "CriterionConfig: n_correct_min must be >= 1, "
+                    f"got {self.n_correct_min}."
+                )
+            if self.n_correct_max < self.n_correct_min:
+                raise ValueError(
+                    "CriterionConfig: n_correct_max must be >= n_correct_min "
+                    f"(expected >= {self.n_correct_min}, "
+                    f"got {self.n_correct_max})."
+                )
+        else:  # window
+            if self.window_size is None or self.window_n_correct is None:
+                raise ValueError(
+                    "CriterionConfig: type 'window' requires window.size and "
+                    f"window.n_correct, got size={self.window_size}, "
+                    f"n_correct={self.window_n_correct}."
+                )
+            if self.window_size < 1:
+                raise ValueError(
+                    f"CriterionConfig: window.size must be >= 1, "
+                    f"got {self.window_size}."
+                )
+            if not (1 <= self.window_n_correct <= self.window_size):
+                raise ValueError(
+                    "CriterionConfig: window.n_correct must be in "
+                    f"[1, window.size={self.window_size}], "
+                    f"got {self.window_n_correct}."
+                )
+
+
+@dataclass(frozen=True)
+class ReversalConfig:
+    """Criterion-based reversal schedule for a closed-loop task.
+
+    Parameters
+    ----------
+    criterion : CriterionConfig
+        The performance criterion that ends each learning phase.
+    max_trials_per_phase : int
+        Hard cap on trials per learning phase; a reversal fires when the
+        criterion is met OR this cap is reached (must be >= 1).
+    n_reversals_per_set : int
+        Number of reversal phases after the acquisition phase in each set
+        (must be >= 0).
+    target_rule : str
+        Rule for drawing the new best cue at each reversal. Only
+        ``"random_nonbest"`` (uniform over the non-best cues) is supported.
+    """
+
+    criterion: CriterionConfig
+    max_trials_per_phase: int
+    n_reversals_per_set: int
+    target_rule: str
+
+    def __post_init__(self) -> None:
+        valid_rules = {"random_nonbest"}
+        if self.max_trials_per_phase < 1:
+            raise ValueError(
+                "ReversalConfig: max_trials_per_phase must be >= 1, "
+                f"got {self.max_trials_per_phase}."
+            )
+        if self.n_reversals_per_set < 0:
+            raise ValueError(
+                "ReversalConfig: n_reversals_per_set must be >= 0, "
+                f"got {self.n_reversals_per_set}."
+            )
+        if self.target_rule not in valid_rules:
+            raise ValueError(
+                f"ReversalConfig: target_rule must be one of {valid_rules}, "
+                f"got '{self.target_rule}'."
+            )
+
+
+@dataclass(frozen=True)
+class CueProbPair:
+    """Reward probabilities for the best and non-best cues.
+
+    Used by criterion-based tasks, where every learning phase assigns
+    ``best`` to the current best cue and ``other`` to all remaining cues.
+
+    Parameters
+    ----------
+    best : float
+        Reward probability of the current best cue, in [0.0, 1.0].
+    other : float
+        Reward probability of each non-best cue, in [0.0, 1.0].
+    """
+
+    best: float
+    other: float
+
+    def __post_init__(self) -> None:
+        for label in ("best", "other"):
+            p = getattr(self, label)
+            if not (0.0 <= p <= 1.0):
+                raise ValueError(
+                    f"CueProbPair: '{label}' must be in [0.0, 1.0], got {p}."
+                )
+
+
+@dataclass(frozen=True)
 class TransferConfig:
     """Configuration for the transfer phase appended to each set.
 
@@ -142,6 +296,18 @@ class TaskConfig:
 
     Parameters
     ----------
+    Two schedule modes are supported, selected by which fields are present:
+
+    * **Fixed-phase mode** (``reversal is None``): ``phases`` holds a
+      non-empty list of fixed-length :class:`PhaseConfig` entries. This is
+      the original open-loop schedule.
+    * **Criterion-based mode** (``reversal is not None``): ``phases`` must
+      be empty; phase lengths are determined at simulation time by the
+      performance criterion in :class:`ReversalConfig`, with per-phase cue
+      probabilities derived from ``cue_prob_pair`` and the current best cue.
+
+    Parameters
+    ----------
     name : str
         Task name.
     description : str
@@ -153,13 +319,23 @@ class TaskConfig:
     n_sets : int
         Number of times the phase sequence repeats per session (must be >= 1).
     phases : list[PhaseConfig]
-        Ordered list of task phases (must be non-empty).
+        Ordered list of task phases. Must be non-empty in fixed-phase mode
+        and empty in criterion-based mode.
     transfer : TransferConfig
         Transfer phase appended after each set.
     partial_feedback : bool
         If True, only the chosen cue receives a reward signal.
     task_seed : int
         RNG seed for reproducible trial sequence generation.
+    reversal : ReversalConfig or None, optional
+        Criterion-based reversal schedule. ``None`` selects fixed-phase mode.
+    initial_best_per_set : list[int] or None, optional
+        Best cue index for each set's acquisition phase. Required in
+        criterion-based mode; length must equal ``n_sets`` and each entry
+        must be in ``[0, n_cues)``.
+    cue_prob_pair : CueProbPair or None, optional
+        Best/other reward probabilities for criterion-based learning phases.
+        Required in criterion-based mode.
     """
 
     name: str
@@ -171,6 +347,9 @@ class TaskConfig:
     transfer: TransferConfig
     partial_feedback: bool
     task_seed: int
+    reversal: ReversalConfig | None = None
+    initial_best_per_set: list[int] | None = None
+    cue_prob_pair: CueProbPair | None = None
 
     def __post_init__(self) -> None:
         if self.n_cues < 2:
@@ -182,7 +361,9 @@ class TaskConfig:
             )
         if self.n_sets < 1:
             raise ValueError(f"TaskConfig: n_sets must be >= 1, got {self.n_sets}.")
-        if not self.phases:
+        if self.reversal is not None:
+            self._validate_criterion_mode()
+        elif not self.phases:
             raise ValueError("TaskConfig: phases must be non-empty.")
         for phase in self.phases:
             if len(phase.cue_probs) != self.n_cues:
@@ -198,27 +379,118 @@ class TaskConfig:
                 f"got {len(self.transfer.cue_probs)})."
             )
 
+    def _validate_criterion_mode(self) -> None:
+        """Validate criterion-based-mode field constraints.
+
+        Raises
+        ------
+        ValueError
+            If ``phases`` is non-empty, or ``cue_prob_pair`` /
+            ``initial_best_per_set`` are missing or malformed.
+        """
+        if self.phases:
+            raise ValueError(
+                "TaskConfig: 'phases' and 'reversal' are mutually exclusive; "
+                f"expected exactly one, got both ('phases' has "
+                f"{len(self.phases)} entries and 'reversal' is set)."
+            )
+        if self.cue_prob_pair is None:
+            raise ValueError(
+                "TaskConfig: criterion-based mode requires 'cue_probs' as a "
+                "{best, other} mapping (CueProbPair), got None."
+            )
+        if self.initial_best_per_set is None:
+            raise ValueError(
+                "TaskConfig: criterion-based mode requires "
+                "'initial_best_per_set', got None."
+            )
+        if len(self.initial_best_per_set) != self.n_sets:
+            raise ValueError(
+                f"TaskConfig: initial_best_per_set length must equal n_sets "
+                f"(expected {self.n_sets}, "
+                f"got {len(self.initial_best_per_set)})."
+            )
+        for i, best in enumerate(self.initial_best_per_set):
+            if not (0 <= best < self.n_cues):
+                raise ValueError(
+                    f"TaskConfig: initial_best_per_set[{i}] must be in "
+                    f"[0, {self.n_cues - 1}], got {best}."
+                )
+
+    @property
+    def is_criterion_based(self) -> bool:
+        """Whether this task uses a criterion-based (closed-loop) schedule.
+
+        Returns
+        -------
+        bool
+            ``True`` if ``reversal`` is set (criterion-based mode), ``False``
+            for fixed-phase mode.
+        """
+        return self.reversal is not None
+
     @property
     def n_trials_per_set(self) -> int:
         """Number of trials in one set (phases + transfer).
+
+        Only defined for fixed-phase mode — criterion-based session lengths
+        are determined at simulation time. Use :attr:`max_trials_per_set`
+        for the criterion-based upper bound.
 
         Returns
         -------
         int
             Sum of ``n_trials`` across all phases plus transfer phase trials.
+
+        Raises
+        ------
+        ValueError
+            If the task is criterion-based (variable phase lengths).
         """
+        if self.is_criterion_based:
+            raise ValueError(
+                "TaskConfig: n_trials_per_set is undefined for "
+                "criterion-based tasks (expected fixed-phase mode, got "
+                "reversal mode); use max_trials_per_set for the upper bound."
+            )
         return sum(p.n_trials for p in self.phases) + self.transfer.n_trials
 
     @property
     def n_trials_total(self) -> int:
         """Total number of trials for a full session (all sets).
 
+        Only defined for fixed-phase mode; see :attr:`n_trials_per_set`.
+
         Returns
         -------
         int
             ``n_sets * n_trials_per_set``.
+
+        Raises
+        ------
+        ValueError
+            If the task is criterion-based (variable phase lengths).
         """
         return self.n_sets * self.n_trials_per_set
+
+    @property
+    def max_trials_per_set(self) -> int:
+        """Upper bound on the number of trials in one set.
+
+        Returns
+        -------
+        int
+            For criterion-based mode:
+            ``(n_reversals_per_set + 1) * max_trials_per_phase`` plus
+            transfer trials. For fixed-phase mode: :attr:`n_trials_per_set`.
+        """
+        if self.reversal is not None:
+            n_learning_phases = self.reversal.n_reversals_per_set + 1
+            return (
+                n_learning_phases * self.reversal.max_trials_per_phase
+                + self.transfer.n_trials
+            )
+        return self.n_trials_per_set
 
 
 # ---------------------------------------------------------------------------
@@ -436,6 +708,18 @@ class AnalysisConfig:
     simulation: SimulationConfig
     fitting: FittingConfig
 
+    @property
+    def is_criterion_based(self) -> bool:
+        """Whether the task uses a criterion-based (closed-loop) schedule.
+
+        Returns
+        -------
+        bool
+            ``True`` if ``task.reversal`` is set, ``False`` for the
+            fixed-phase schedule.
+        """
+        return self.task.is_criterion_based
+
 
 # ---------------------------------------------------------------------------
 # Parsing helpers
@@ -485,8 +769,113 @@ def _parse_session_config(raw: dict[str, Any], group_name: str) -> SessionConfig
         ) from exc
 
 
+def _parse_criterion_config(raw: dict[str, Any]) -> CriterionConfig:
+    """Parse the ``task.reversal.criterion`` mapping into :class:`CriterionConfig`."""
+    ctx = "task.reversal.criterion"
+    try:
+        criterion_type = str(raw["type"])
+    except KeyError as exc:
+        raise ValueError(f"{ctx}: missing required key {exc}.") from exc
+
+    raw_window = raw.get("window")
+    window_size: int | None = None
+    window_n_correct: int | None = None
+    if raw_window is not None:
+        if not isinstance(raw_window, dict):
+            raise ValueError(
+                f"{ctx}: 'window' must be a mapping with keys 'size' and "
+                f"'n_correct' (or null), got {type(raw_window).__name__}."
+            )
+        try:
+            window_size = int(raw_window["size"])
+            window_n_correct = int(raw_window["n_correct"])
+        except KeyError as exc:
+            raise ValueError(f"{ctx}.window: missing required key {exc}.") from exc
+
+    n_correct_min = raw.get("n_correct_min")
+    n_correct_max = raw.get("n_correct_max")
+    return CriterionConfig(
+        criterion_type=criterion_type,
+        n_correct_min=None if n_correct_min is None else int(n_correct_min),
+        n_correct_max=None if n_correct_max is None else int(n_correct_max),
+        window_size=window_size,
+        window_n_correct=window_n_correct,
+    )
+
+
+def _parse_criterion_task_config(raw: dict[str, Any]) -> TaskConfig:
+    """Parse a criterion-based (closed-loop) ``task`` section.
+
+    Selected when ``task.reversal`` is present. ``phases`` must be absent
+    (or empty); phase lengths are determined at simulation time.
+    """
+    ctx = "task"
+    if raw.get("phases"):
+        raise ValueError(
+            f"{ctx}: 'phases' and 'reversal' are mutually exclusive; "
+            f"expected exactly one, got both."
+        )
+    try:
+        raw_reversal = raw["reversal"]
+        reversal = ReversalConfig(
+            criterion=_parse_criterion_config(raw_reversal["criterion"]),
+            max_trials_per_phase=int(raw_reversal["max_trials_per_phase"]),
+            n_reversals_per_set=int(raw_reversal["n_reversals_per_set"]),
+            target_rule=str(raw_reversal["target_rule"]),
+        )
+    except KeyError as exc:
+        raise ValueError(
+            f"{ctx}.reversal: missing required key {exc} in reversal config."
+        ) from exc
+
+    try:
+        raw_cue_probs = raw["cue_probs"]
+        if not isinstance(raw_cue_probs, dict):
+            raise ValueError(
+                f"{ctx}: criterion-based mode requires cue_probs to be a "
+                f"{{best, other}} mapping, got {type(raw_cue_probs).__name__}."
+            )
+        cue_prob_pair = CueProbPair(
+            best=float(raw_cue_probs["best"]),
+            other=float(raw_cue_probs["other"]),
+        )
+        raw_transfer = raw["transfer"]
+        transfer = TransferConfig(
+            phase_type=str(raw_transfer["phase_type"]),
+            n_trials=int(raw_transfer["n_trials"]),
+            cue_probs=[float(v) for v in raw_transfer["cue_probs"]],
+        )
+        n_cues = int(raw["n_cues"])
+        cue_labels = [str(s) for s in raw.get("cue_labels", [])] or [
+            f"cue_{i}" for i in range(n_cues)
+        ]
+        return TaskConfig(
+            name=str(raw.get("name", "pick_best_cue")),
+            description=str(raw.get("description", "")),
+            n_cues=n_cues,
+            cue_labels=cue_labels,
+            n_sets=int(raw["n_sets"]),
+            phases=[],
+            transfer=transfer,
+            partial_feedback=bool(raw.get("partial_feedback", True)),
+            task_seed=int(raw.get("task_seed", 0)),
+            reversal=reversal,
+            initial_best_per_set=[int(v) for v in raw["initial_best_per_set"]],
+            cue_prob_pair=cue_prob_pair,
+        )
+    except KeyError as exc:
+        raise ValueError(f"{ctx}: missing required key {exc} in task config.") from exc
+
+
 def _parse_task_config(raw: dict[str, Any]) -> TaskConfig:
-    """Parse the ``task`` section of the YAML into :class:`TaskConfig`."""
+    """Parse the ``task`` section of the YAML into :class:`TaskConfig`.
+
+    Dispatches on the presence of ``task.reversal``: if present, the task is
+    criterion-based (closed-loop) and ``phases`` may be absent; otherwise the
+    original fixed-phase schema is required.
+    """
+    if raw.get("reversal") is not None:
+        return _parse_criterion_task_config(raw)
     ctx = "task"
     try:
         raw_phases = raw["phases"]

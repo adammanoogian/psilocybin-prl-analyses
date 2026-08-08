@@ -17,6 +17,12 @@ Public API
 :func:`simulate_batch`
     Orchestrate batch simulation over all groups, participants, and sessions,
     returning a tidy trial-level DataFrame with ground-truth parameters.
+    Dispatches to the closed-loop path for criterion-based configs.
+:func:`simulate_criterion_batch`
+    Closed-loop (criterion-based reversal) cohort simulation with the same
+    output schema as :func:`simulate_batch`.
+:func:`simulate_criterion_session`
+    Simulate one participant-session against the closed-loop environment.
 :func:`simulate_hierarchical_cohort`
     Generate a cohort from a hierarchical generative model for Mode B
     recovery experiments.
@@ -31,6 +37,12 @@ from prl_hgf.simulation.agent import (
     simulate_agent,
 )
 from prl_hgf.simulation.batch import simulate_batch
+from prl_hgf.simulation.criterion_sim import (
+    CriterionEnvironment,
+    CriterionSessionResult,
+    simulate_criterion_batch,
+    simulate_criterion_session,
+)
 from prl_hgf.simulation.hierarchical import simulate_hierarchical_cohort
 from prl_hgf.simulation.jax_session import (
     simulate_cohort_jax,
@@ -44,6 +56,10 @@ __all__ = [
     "SimulationResult",
     "PARAM_BOUNDS",
     "simulate_batch",
+    "simulate_criterion_batch",
+    "simulate_criterion_session",
+    "CriterionEnvironment",
+    "CriterionSessionResult",
     "simulate_hierarchical_cohort",
     "simulate_session_jax",
     "simulate_cohort_jax",

@@ -1,0 +1,7 @@
+E0506 06:48:46.972033 3947302 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:48:46.972588 3947304 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:48:46.972120 3947303 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:48:59.567418 3947352 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:48:59.567489 3947353 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:48:59.567523 3947354 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+[2026-05-06T08:49:39.006] error: *** JOB 55177914 ON m3g119 CANCELLED AT 2026-05-06T08:49:39 DUE TO TIME LIMIT ***

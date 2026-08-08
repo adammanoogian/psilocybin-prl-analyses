@@ -1,0 +1,10 @@
+{
+  "cell_id": 23,
+  "model": "hgf_2level",
+  "n_per_group": 50,
+  "p_total": 300,
+  "mitigation_combo": "M1+Laplace+fp64",
+  "fit_config_yaml": "configs/fit/m1_laplace_fp64_2level.yaml",
+  "job_id": "55529660_23",
+  "started_at": "2026-05-20T08:07:59Z"
+}

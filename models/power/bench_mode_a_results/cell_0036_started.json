@@ -1,0 +1,10 @@
+{
+  "cell_id": 36,
+  "model": "hgf_3level",
+  "n_per_group": 25,
+  "p_total": 150,
+  "mitigation_combo": "none",
+  "fit_config_yaml": "configs/fit/none_3level.yaml",
+  "job_id": "55530460_36",
+  "started_at": "2026-05-20T08:21:48Z"
+}

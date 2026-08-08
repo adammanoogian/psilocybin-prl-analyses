@@ -1,0 +1,24 @@
+============================================================
+Commit: 4a3b541 [177 dirty] — chore(workflow): switch to Mutagen-based code sync, retire inline git push
+Run job:    55484594 array task 8 on m3a107
+============================================================
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/nvidia/cuda_nvcc/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 13.0
+ptxas CUDA version:  12.8
+OK: ptxas version <= driver version (XLA parallel compilation enabled)
+
+============================================================
+Phase 31 Grid Sweep — Cell 8
+============================================================
+Job ID:    55484594_8
+Node:      m3a107
+GPU(s):    0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/shared
+Conda env: ds_env_v10
+Start:     Mon May 18 10:47:24 AM AEST 2026
+============================================================
+
+ERROR: GPU assertion failed on m3a107 — cuSPARSE incompatibility.
+  Node m3a107 does not support ds_env_v10 JAX GPU. Writing CRASH result.

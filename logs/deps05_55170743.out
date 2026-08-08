@@ -1,0 +1,8 @@
+============================================================
+Run commit: e036cbf [18 dirty] — feat(phase27-03): sbatch wrapper for DEPS-05 validation gate
+Run job:    55170743 on m3g107
+============================================================
+
+Verifying GPU + JAX...
+JAX devices: [CpuDevice(id=0)]
+WARNING: No GPU detected; DEPS-05 cliff probe is meaningless on CPU.

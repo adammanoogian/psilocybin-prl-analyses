@@ -1,0 +1,67 @@
+============================================================
+Commit: 4a3b541 [391 dirty] — chore(workflow): switch to Mutagen-based code sync, retire inline git push
+Run job:    55519893 array task 15 on m3t100
+============================================================
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/nvidia/cu13/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 13.0
+ptxas CUDA version:  13.2
+
+ERROR: ptxas CUDA version (13.2) > driver CUDA version (13.0)
+  XLA will disable parallel compilation, causing 2-5x slower JIT.
+  FIX: pip install -r cluster/requirements-gpu.txt
+WARNING: CUDA compatibility issue detected (non-fatal, continuing)
+
+============================================================
+Phase 31 Grid Sweep — Cell 15
+============================================================
+Job ID:    55519893_15
+Node:      m3t100
+GPU(s):    0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/shared
+Conda env: ds_env_v10
+Start:     Wed May 20 02:09:02 PM AEST 2026
+============================================================
+
+Running benchmark cell 15...
+
+============================================================
+Phase 31 Grid Sweep — Cell 0015
+============================================================
+  Model:       hgf_2level
+  n_per_group: 25
+  P_total:     150
+  Mitigation:  M1+Laplace+fp64
+  Job ID:      55519893_15
+============================================================
+
+Loaded FitConfig: configs/fit/m1_laplace_fp64_2level.yaml
+  n_draws=2000, mass=dense, laplace=True, fp64=True
+
+Wrote started marker: models/power/bench_mode_a_results/cell_0015_started.json
+
+Simulating cohort (n_per_group=25)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.5s. Running JAX vmap…
+JAX vmap completed in 5.4s.
+  Simulation done in 20.2s (63000 trial rows)
+
+Fitting (cell 0015)...
+[fit_batch_hierarchical] entered: model=hgf_2level sampler=blackjax n_chains=4 n_tune=1000 n_draws=2000 target_accept=0.95 warmup_skipped=False sim_df_rows=63000
+[fit_batch_hierarchical t=0.7s] cohort assembled: P=150 n_trials=420 (BlackJAX path, Mode A)
+[fit_batch_hierarchical t=0.7s] building closure-based logdensity (warmup-only, no JIT yet)
+[fit_batch_hierarchical t=0.7s] logdensity built in 0.0s
+[fit_batch_hierarchical t=0.7s] dispatching to _run_blackjax_nuts
+[hierarchical] _run_blackjax_nuts entered: model=hgf_2level P=150 n_chains=4 n_tune=1000 n_draws=2000 warmup_skipped=False
+[hierarchical t=0.0s] computing Laplace warmup_params (multi-start, n_starts=4)...
+[laplace_warmup] running multi-start LBFGS (n_starts=4, n_flat=450, max_iter=200, tol=1e-05)...
+[laplace_warmup] start 1/4: neg_logp=62945.74 (39.1s)
+[laplace_warmup] start 2/4: neg_logp=61376.72 (252.4s)
+[laplace_warmup] start 3/4: neg_logp=60939.85 (231.8s)
+[laplace_warmup] start 4/4: neg_logp=58659.89 (233.3s)
+[laplace_warmup] best MAP: start index=3, neg_logp=58659.89 (4/4 starts converged)
+[laplace_warmup] computing Hessian diagonal (n=450 jvps)...
+[laplace_warmup] Hessian-diagonal jvp raised JaxRuntimeError('RESOURCE_EXHAUSTED: Out of memory while trying to allocate 11.02GiB.'); falling back
+[hierarchical t=778.6s] Laplace warmup failed; falling back to standard window_adaptation
+[hierarchical t=778.6s] starting window_adaptation (num_steps=1000, target_accept=0.95)

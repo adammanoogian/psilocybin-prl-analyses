@@ -1,0 +1,19 @@
+============================================================
+Run commit: 7583e4b [0 dirty] — fix(phase27-02): cap jax<0.10 — PyPI cusparse-cu12 capped at 12.5
+Run job:    55177844 on m3g119
+============================================================
+
+Verifying GPU + JAX...
+JAX devices: [CudaDevice(id=0)]
+GPU(s): [CudaDevice(id=0)]
+jax=0.9.2
+blackjax=1.5 numpyro=0.21.0 pyhgf=0.2.8
+
+Running DEPS-05 validation: n_warmup=1000 n_draws=500
+Output JSON: .planning/phases/27-dependency-upgrade-chain/DEPS-05-evidence.json
+
+[DEPS-05] Simulating P=30 cohort (3 groups x 5 x 2 sessions, seed=77777)...
+
+============================================================
+DEPS-05 FAILED (exit 1); .planning/phases/27-dependency-upgrade-chain/DEPS-05-evidence.json may not exist
+============================================================

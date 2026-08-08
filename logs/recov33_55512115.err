@@ -1,0 +1,79 @@
+E0520 20:13:40.669651 3911669 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0520 20:13:40.669736 3911668 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0520 20:13:40.669771 3911667 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0520 20:13:55.093866 3911698 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0520 20:13:55.094014 3911697 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0520 20:13:55.094038 3911696 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+W0520 20:13:55.284055 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.344694 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.748457 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.849396 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.856146 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.868069 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.874725 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.880781 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.886669 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.898758 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.905606 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.911192 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.916917 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.924248 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:55.930654 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:56.020945 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:56.149987 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:56.179539 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:56.185281 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:56.193047 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:56.426330 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:56.432820 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.009259 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.016514 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.021470 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.027716 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.046386 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.051914 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.237929 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.305370 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.311495 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.680007 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.685945 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.691399 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.701487 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.725773 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.744013 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.791322 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.797238 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.802878 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.807789 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.813228 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.821198 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.865906 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:13:57.871867 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:13.959269 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.064987 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.069860 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.074485 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.079483 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.084346 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.088761 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.093444 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.098431 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.104053 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.109008 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0520 20:14:14.475683 3911671 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+Traceback (most recent call last):
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/06_recovery_validation_modeb.py", line 334, in <module>
+    main()
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/06_recovery_validation_modeb.py", line 299, in main
+    result = run_condition(cond, args.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/06_recovery_validation_modeb.py", line 188, in run_condition
+    result = fit_batch_hierarchical(sim_df, fit_config, x_covariate=x_covariate)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py", line 3857, in fit_batch_hierarchical
+    positions, sample_stats, n_chains_actual, adapted_params = _run_blackjax_nuts(
+                                                               ^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py", line 1803, in _run_blackjax_nuts
+    _p_axis = jax.tree_util.tree_leaves(initial_position)[0].shape[0]
+              ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~^^^
+IndexError: tuple index out of range

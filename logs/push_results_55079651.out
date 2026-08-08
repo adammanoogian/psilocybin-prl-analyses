@@ -1,0 +1,39 @@
+============================================================
+Auto-Push Results to Git
+============================================================
+Job ID: 55079651
+Node: m3j000
+Project: /fs04/fc37/adam/projects/hgf-analysis
+Strategy: branch: results/slurm-20260501-164400
+Parent jobs: afterany:55079650
+Start: Fri May  1 04:44:00 PM AEST 2026
+============================================================
+
+Checking git configuration...
+Testing push access to origin...
+  Remote accessible: git@github.com:adammanoogian/psilocybin-prl-analyses.git
+  Current branch: main
+  HEAD: c419689
+
+Staging result files...
+  + phase25 stdout logs (1 files)
+
+Staged changes:
+ logs/phase25/proto_timing_55079650.out | 5 +++++
+ 1 file changed, 5 insertions(+)
+
+Creating results branch: results/slurm-20260501-164400
+[results/slurm-20260501-164400 d4aa950] results: PRL HGF pipeline outputs (SLURM jobs: afterany:55079650)
+ 1 file changed, 5 insertions(+)
+Pushing branch to origin...
+branch 'results/slurm-20260501-164400' set up to track 'origin/results/slurm-20260501-164400'.
+STATUS: PUSHED TO BRANCH results/slurm-20260501-164400
+Returning to branch: main
+Your branch is up to date with 'origin/main'.
+
+============================================================
+Git Push Complete!
+============================================================
+End time: Fri May  1 04:44:07 PM AEST 2026
+Merge locally: git fetch origin && git merge origin/results/slurm-20260501-164400
+============================================================

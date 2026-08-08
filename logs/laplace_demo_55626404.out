@@ -1,0 +1,63 @@
+============================================================
+VB-Laplace Quickstart Demo Smoke Test
+Commit: 4a3b541
+Node:   m3t100
+Start:  Sun May 24 06:39:46 PM AEST 2026
+============================================================
+JAX devices: [CudaDevice(id=0)]
+
+============================================================
+HGF Quickstart Demo
+  Simulate -> Fit (VB-Laplace) -> Recover -> Compare
+============================================================
+
+[Step 1] Simulating synthetic cohort...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.5s. Running JAX vmap…
+JAX vmap completed in 5.3s.
+  Cohort: 10 participants, 420 trials each
+  Simulation: 24.3s
+
+[Step 2] Fitting 3-level HGF via VB-Laplace...
+  3-level fit: 111.1s
+
+[Step 3] Fitting 2-level HGF via VB-Laplace...
+  2-level fit: 60.7s
+
+[Step 4] Parameter recovery (3-level)...
+
+  Recovery metrics:
+  --------------------------------------------------
+     omega_2:  r = 0.309  bias = +0.104  [FAIL]
+     omega_3:  r = -0.030  bias = +1.268  [FAIL]
+        beta:  r = 0.857  bias = +0.388  [PASS]
+        zeta:  r = 0.984  bias = -0.027  [PASS]
+  --------------------------------------------------
+  Plot saved to /fs04/fc37/adam/projects/hgf-analysis/data/demo/demo_recovery_scatter.png
+
+[Step 5] Model comparison (random-effects BMS)...
+
+  Log Model Evidence (LME) summary:
+     model    mean_lme      sum_lme
+hgf_3level -416.427862 -4164.278616
+hgf_2level -416.447474 -4164.474742
+
+  Exceedance probability:           {'hgf_3level': np.float64(0.8177362001248022), 'hgf_2level': np.float64(0.18226379987519792)}
+  Protected exceedance probability: {'hgf_3level': np.float64(0.5640758570438776), 'hgf_2level': np.float64(0.43592414295612236)}
+  Bayesian Omnibus Risk:            0.7983
+
+============================================================
+Demo complete!  Winner: 3-level HGF (sum LME: -4164.3)
+  Outputs in: /fs04/fc37/adam/projects/hgf-analysis/data/demo
+  Next: open notebooks/quickstart_hgf.ipynb for the full tutorial
+============================================================
+
+============================================================
+DEMO COMPLETE — all outputs in data/demo/
+total 773
+drwxr-sr-x+ 2 aman0087 fc37   4096 May 24 18:43 .
+drwxr-sr-x+ 8 aman0087 fc37   4096 May 24 18:39 ..
+-rw-r--r--  1 aman0087 fc37 110994 May 24 18:43 demo_recovery_scatter.png
+-rw-r--r--  1 aman0087 fc37 780662 May 24 18:40 demo_simulated.csv
+End: Sun May 24 06:43:47 PM AEST 2026
+============================================================

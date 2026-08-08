@@ -1,0 +1,57 @@
+============================================================
+Commit: 4a3b541 [416 dirty] — chore(workflow): switch to Mutagen-based code sync, retire inline git push
+Run job:    55534403 array task 4 on m3g109
+============================================================
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/nvidia/cu13/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 13.0
+ptxas CUDA version:  13.2
+
+ERROR: ptxas CUDA version (13.2) > driver CUDA version (13.0)
+  XLA will disable parallel compilation, causing 2-5x slower JIT.
+  FIX: pip install -r cluster/requirements-gpu.txt
+WARNING: CUDA compatibility issue detected (non-fatal, continuing)
+
+============================================================
+Phase 34 Grid Sweep — Cell 4
+============================================================
+Job ID:    55534403_4
+Node:      m3g109
+GPU(s):    0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/shared
+Conda env: ds_env_v10
+Start:     Wed May 20 10:04:21 PM AEST 2026
+============================================================
+
+Running benchmark cell 4...
+
+============================================================
+Phase 34 Grid Sweep (Mode B) — Cell 0004
+============================================================
+  Model:       hgf_2level
+  n_per_group: 17
+  P_total:     102
+  Mitigation:  hier+M1
+  Has cov:     False
+  Cohort seed: 100000
+  MCMC seed:   99004
+  Job ID:      55534403_4
+============================================================
+
+Loaded FitConfig: configs/fit/hier_m1_2level.yaml
+  n_draws=2000, mass=dense, laplace=False, non_centered=(), pooling=hierarchical
+
+Wrote started marker: models/power/bench_mode_b_results/cell_0004_started.json
+
+Simulating hierarchical cohort (n_per_group=17)...
+  Simulation done in 30.7s (42840 trial rows)
+
+Fitting (cell 0004)...
+[fit_batch_hierarchical] entered: model=hgf_2level sampler=blackjax n_chains=4 n_tune=1000 n_draws=2000 target_accept=0.95 warmup_skipped=False sim_df_rows=42840
+[fit_batch_hierarchical t=0.3s] cohort assembled: P=102 n_trials=420 (BlackJAX path, Mode B)
+[fit_batch_hierarchical t=0.3s] building closure-based logdensity (warmup-only, no JIT yet)
+[fit_batch_hierarchical t=0.4s] logdensity built in 0.0s
+[fit_batch_hierarchical t=0.4s] dispatching to _run_blackjax_nuts
+[hierarchical] _run_blackjax_nuts entered: model=hgf_2level P=102 n_chains=4 n_tune=1000 n_draws=2000 warmup_skipped=False
+[hierarchical t=0.0s] starting window_adaptation (num_steps=1000, target_accept=0.95)

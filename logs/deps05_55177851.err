@@ -1,0 +1,22 @@
+E0506 06:34:37.473153 3941819 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:34:37.473242 3941820 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:34:37.473280 3941821 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:34:42.190650 3941870 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:34:42.190725 3941871 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:34:42.190808 3941872 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+Traceback (most recent call last):
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/ci/validate_deps05_lowrank.py", line 505, in <module>
+    main()
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/ci/validate_deps05_lowrank.py", line 487, in main
+    evidence = _run_validation(
+               ^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/ci/validate_deps05_lowrank.py", line 275, in _run_validation
+    ) = _build_cohort_data(_N_PER_GROUP)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/ci/validate_deps05_lowrank.py", line 195, in _build_cohort_data
+    cfg = make_power_config(base_config, n_per_group, effect_size, _SIM_SEED)
+          ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/power/config.py", line 198, in make_power_config
+    sim: SimulationConfig = base.simulation
+                            ^^^^^^^^^^^^^^^
+AttributeError: 'dict' object has no attribute 'simulation'

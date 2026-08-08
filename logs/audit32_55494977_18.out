@@ -1,0 +1,50 @@
+============================================================
+Commit: 4a3b541 [352 dirty] — chore(workflow): switch to Mutagen-based code sync, retire inline git push
+Run job:    55495628 array task 18 on m3g118
+============================================================
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/nvidia/cu13/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 13.0
+ptxas CUDA version:  13.2
+
+ERROR: ptxas CUDA version (13.2) > driver CUDA version (13.0)
+  XLA will disable parallel compilation, causing 2-5x slower JIT.
+  FIX: pip install -r cluster/requirements-gpu.txt
+WARNING: CUDA compatibility issue detected (non-fatal, continuing)
+
+============================================================
+Phase 32 Sampler Audit -- Cell 18
+============================================================
+Job ID:    55495628_18
+Node:      m3g118
+GPU(s):    0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/shared
+Conda env: ds_env_v10
+Start:     Tue May 19 04:23:27 AM AEST 2026
+============================================================
+
+Running audit cell 18...
+
+Validating cell_id decode logic...
+  [OK] All 26 cell_id decode assertions passed.
+
+============================================================
+Phase 32 Sampler Audit -- Cell 18
+============================================================
+  Backend:     numpyro
+  Model:       hgf_3level
+  n_per_group: 25
+  P_total:     150
+  Mass matrix: diagonal
+  Seed:        42
+  Run type:    head-to-head
+  Job ID:      55495628_18
+============================================================
+
+
+============================================================
+CELL 18 FAILED (exit code: 1)
+
+End: Tue May 19 04:23:29 AM AEST 2026
+============================================================

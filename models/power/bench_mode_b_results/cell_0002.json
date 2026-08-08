@@ -1,0 +1,44 @@
+{
+  "cell_id": 2,
+  "model": "hgf_2level",
+  "n_per_group": 10,
+  "p_total": 60,
+  "mitigation_combo": "hier+M1+M2+Laplace",
+  "has_covariate": false,
+  "cohort_seed": 99000,
+  "mcmc_seed": 99002,
+  "status": "INVALID",
+  "walltime_s": 3844.3,
+  "fit_time_s": 3827.67,
+  "rhat_max": 1.98,
+  "ess_min": 6.0,
+  "divergent_rate": 0.22,
+  "n_divergent": 44,
+  "n_total_samples": 200,
+  "recovery_r_individual": {},
+  "recovery_r_mu": {
+    "omega_2": 0.9999999999999999,
+    "log_beta": 1.0,
+    "zeta": 0.9999999999999999
+  },
+  "recovery_sigma": {
+    "omega_2": {
+      "true": 0.5,
+      "posterior_mean": 0.5604118279592422,
+      "relative_error": 0.12082365591848432
+    },
+    "log_beta": {
+      "true": 0.5,
+      "posterior_mean": 0.5870825131273233,
+      "relative_error": 0.17416502625464658
+    },
+    "zeta": {
+      "true": 0.5,
+      "posterior_mean": 0.5033771133199466,
+      "relative_error": 0.006754226639893224
+    }
+  },
+  "fit_config_yaml": "configs/fit/hier_m1_m2_laplace_2level.yaml",
+  "job_id": "55538942_2",
+  "commit": "4a3b541"
+}

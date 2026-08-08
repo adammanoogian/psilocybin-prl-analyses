@@ -1,0 +1,110 @@
+============================================================
+Commit: 4a3b541 [399 dirty] — chore(workflow): switch to Mutagen-based code sync, retire inline git push
+Run job:    55529660 array task 23 on m3t100
+============================================================
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/nvidia/cu13/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 13.0
+ptxas CUDA version:  13.2
+
+ERROR: ptxas CUDA version (13.2) > driver CUDA version (13.0)
+  XLA will disable parallel compilation, causing 2-5x slower JIT.
+  FIX: pip install -r cluster/requirements-gpu.txt
+WARNING: CUDA compatibility issue detected (non-fatal, continuing)
+
+============================================================
+Phase 31 Grid Sweep — Cell 23
+============================================================
+Job ID:    55529660_23
+Node:      m3t100
+GPU(s):    0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/shared
+Conda env: ds_env_v10
+Start:     Wed May 20 06:07:14 PM AEST 2026
+============================================================
+
+Running benchmark cell 23...
+
+============================================================
+Phase 31 Grid Sweep — Cell 0023
+============================================================
+  Model:       hgf_2level
+  n_per_group: 50
+  P_total:     300
+  Mitigation:  M1+Laplace+fp64
+  Job ID:      55529660_23
+============================================================
+
+Loaded FitConfig: configs/fit/m1_laplace_fp64_2level.yaml
+  n_draws=2000, mass=dense, laplace=True, fp64=True
+
+Wrote started marker: models/power/bench_mode_a_results/cell_0023_started.json
+
+Simulating cohort (n_per_group=50)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.9s. Running JAX vmap…
+JAX vmap completed in 5.4s.
+  Simulation done in 33.8s (126000 trial rows)
+
+Fitting (cell 0023)...
+[fit_batch_hierarchical] entered: model=hgf_2level sampler=blackjax n_chains=4 n_tune=1000 n_draws=2000 target_accept=0.95 warmup_skipped=False sim_df_rows=126000
+[fit_batch_hierarchical t=0.5s] cohort assembled: P=300 n_trials=420 (BlackJAX path, Mode A)
+[fit_batch_hierarchical t=0.5s] building closure-based logdensity (warmup-only, no JIT yet)
+[fit_batch_hierarchical t=0.5s] logdensity built in 0.0s
+[fit_batch_hierarchical t=0.6s] dispatching to _run_blackjax_nuts
+[hierarchical] _run_blackjax_nuts entered: model=hgf_2level P=300 n_chains=4 n_tune=1000 n_draws=2000 warmup_skipped=False
+[hierarchical t=0.0s] computing Laplace warmup_params (multi-start, n_starts=4)...
+[laplace_warmup] running multi-start LBFGS (n_starts=4, n_flat=900, max_iter=200, tol=1e-05)...
+[laplace_warmup] start 1/4: neg_logp=126451.31 (41.2s)
+[laplace_warmup] start 2/4: neg_logp=111975.72 (222.0s)
+[laplace_warmup] start 3/4: neg_logp=123423.75 (239.0s)
+[laplace_warmup] start 4/4: neg_logp=115264.76 (194.1s)
+[laplace_warmup] best MAP: start index=1, neg_logp=111975.72 (4/4 starts converged)
+[laplace_warmup] computing Hessian diagonal (n=900 jvps)...
+[laplace_warmup] Hessian-diagonal jvp raised JaxRuntimeError('RESOURCE_EXHAUSTED: Out of memory while trying to allocate 44.86GiB.'); falling back
+[hierarchical t=720.7s] Laplace warmup failed; falling back to standard window_adaptation
+[hierarchical t=720.7s] starting window_adaptation (num_steps=1000, target_accept=0.95)
+
+============================================================
+CRASH after 776.4s: RESOURCE_EXHAUSTED: Out of memory while trying to allocate 6.03GiB.
+Traceback (most recent call last):
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/14_benchmark_no_pooling.py", line 261, in main
+    idata = fit_batch_hierarchical(sim_df, fit_config=fit_config)
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py", line 3857, in fit_batch_hierarchical
+    positions, sample_stats, n_chains_actual, adapted_params = _run_blackjax_nuts(
+                                                               ^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py", line 1867, in _run_blackjax_nuts
+    jax.block_until_ready(warmup_state.position)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax/_src/api.py", line 3135, in block_until_ready
+    xc.batched_block_until_ready(arrays)
+jax.errors.JaxRuntimeError: RESOURCE_EXHAUSTED: Out of memory while trying to allocate 6.03GiB.
+
+============================================================
+
+Result written: models/power/bench_mode_a_results/cell_0023.json
+
+============================================================
+CELL 23 COMPLETE
+Result:
+{
+    "cell_id": 23,
+    "model": "hgf_2level",
+    "n_per_group": 50,
+    "p_total": 300,
+    "mitigation_combo": "M1+Laplace+fp64",
+    "status": "CRASH",
+    "walltime_s": 776.41,
+    "rhat_max": null,
+    "ess_min": null,
+    "divergent_rate": null,
+    "fit_config_yaml": "configs/fit/m1_laplace_fp64_2level.yaml",
+    "job_id": "55529660_23",
+    "commit": "4a3b541",
+    "error": "RESOURCE_EXHAUSTED: Out of memory while trying to allocate 6.03GiB.",
+    "traceback": "Traceback (most recent call last):\n  File \"/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/14_benchmark_no_pooling.py\", line 261, in main\n    idata = fit_batch_hierarchical(sim_df, fit_config=fit_config)\n            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n  File \"/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py\", line 3857, in fit_batch_hierarchical\n    positions, sample_stats, n_chains_actual, adapted_params = _run_blackjax_nuts(\n                                                               ^^^^^^^^^^^^^^^^^^^\n  File \"/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py\", line 1867, in _run_blackjax_nuts\n    jax.block_until_ready(warmup_state.position)\n  File \"/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax/_src/api.py\", line 3135, in block_until_ready\n    xc.batched_block_until_ready(arrays)\njax.errors.JaxRuntimeError: RESOURCE_EXHAUSTED: Out of memory while trying to allocate 6.03GiB.\n"
+}
+
+End: Wed May 20 06:21:01 PM AEST 2026
+============================================================

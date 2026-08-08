@@ -1,0 +1,44 @@
+============================================================
+Commit: 4a3b541 [288 dirty] — chore(workflow): switch to Mutagen-based code sync, retire inline git push
+Run job:    55495570 array task 33 on m3g119
+============================================================
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/nvidia/cu13/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 13.0
+ptxas CUDA version:  13.2
+
+ERROR: ptxas CUDA version (13.2) > driver CUDA version (13.0)
+  XLA will disable parallel compilation, causing 2-5x slower JIT.
+  FIX: pip install -r cluster/requirements-gpu.txt
+WARNING: CUDA compatibility issue detected (non-fatal, continuing)
+
+============================================================
+Phase 31 Grid Sweep — Cell 33
+============================================================
+Job ID:    55495570_33
+Node:      m3g119
+GPU(s):    0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/shared
+Conda env: ds_env_v10
+Start:     Tue May 19 04:17:26 AM AEST 2026
+============================================================
+
+Running benchmark cell 33...
+
+============================================================
+Phase 31 Grid Sweep — Cell 0033
+============================================================
+  Model:       hgf_3level
+  n_per_group: 17
+  P_total:     102
+  Mitigation:  M1
+  Job ID:      55495570_33
+============================================================
+
+
+============================================================
+CELL 33 FAILED (exit code: 1)
+
+End: Tue May 19 04:17:30 AM AEST 2026
+============================================================

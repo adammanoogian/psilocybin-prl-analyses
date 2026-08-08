@@ -1,0 +1,153 @@
+{
+  "gpu_device": "cuda:0",
+  "gpu_table": [
+    {
+      "index": 0,
+      "name": "NVIDIA L40S",
+      "vram_total_mb": 46068,
+      "vram_used_mb": 445,
+      "vram_free_mb": 45014,
+      "gpu_util_pct": 0,
+      "temp_c": 42,
+      "pci_bus": "00000000:64:00.0"
+    }
+  ],
+  "ptxas_available": false,
+  "ptxas_version": "not found",
+  "xla_env": {
+    "JAX_COMPILATION_CACHE_DIR": "/scratch/fc37/aman0087/.jax_cache_gpu/shared",
+    "JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES": "0",
+    "JAX_LOG_COMPILES": "1",
+    "JAX_PLATFORMS": "(unset)",
+    "XLA_FLAGS": "--xla_gpu_dump_autotune_results_to=/scratch/fc37/aman0087/.xla_autotune_cache/results.pb --xla_gpu_load_autotune_results_from=/scratch/fc37/aman0087/.xla_autotune_cache/results.pb",
+    "XLA_PYTHON_CLIENT_PREALLOCATE": "false",
+    "XLA_PYTHON_CLIENT_MEM_FRACTION": "(unset)",
+    "CUDA_VISIBLE_DEVICES": "0",
+    "JAX_ENABLE_X64": "0"
+  },
+  "cache_before": {
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/shared",
+    "cache_exists": true,
+    "n_files": 2792,
+    "total_size_mb": 28.86
+  },
+  "jax_version": "0.9.2",
+  "jaxlib_version": "0.9.2",
+  "model_name": "hgf_2level",
+  "log_every": 0,
+  "kappa_frozen_at": 1.0,
+  "sim_vmap_s": 3.24,
+  "gpu_pre_cold_jit": [
+    {
+      "index": 0,
+      "name": "NVIDIA L40S",
+      "vram_total_mb": 46068,
+      "vram_used_mb": 451,
+      "vram_free_mb": 45008,
+      "gpu_util_pct": 7,
+      "temp_c": 44,
+      "pci_bus": "00000000:64:00.0"
+    }
+  ],
+  "jit_cold_s": 27.7,
+  "nuts_stats_cold": {
+    "n_draws_total": 20,
+    "integration_steps_mean": 34.2,
+    "integration_steps_p50": 31.0,
+    "integration_steps_p95": 63.0,
+    "integration_steps_max": 63,
+    "acceptance_mean": 0.5134397745132446,
+    "divergence_rate": 0.0,
+    "trajectory_expansions_max": 6,
+    "trajectory_expansions_mean": 5.1
+  },
+  "gpu_post_cold_jit": [
+    {
+      "index": 0,
+      "name": "NVIDIA L40S",
+      "vram_total_mb": 46068,
+      "vram_used_mb": 469,
+      "vram_free_mb": 44990,
+      "gpu_util_pct": 100,
+      "temp_c": 47,
+      "pci_bus": "00000000:64:00.0"
+    }
+  ],
+  "cache_after_cold": {
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/shared",
+    "cache_exists": true,
+    "n_files": 2792,
+    "total_size_mb": 28.86
+  },
+  "gpu_pre_warm_jit": [
+    {
+      "index": 0,
+      "name": "NVIDIA L40S",
+      "vram_total_mb": 46068,
+      "vram_used_mb": 469,
+      "vram_free_mb": 44990,
+      "gpu_util_pct": 8,
+      "temp_c": 46,
+      "pci_bus": "00000000:64:00.0"
+    }
+  ],
+  "jit_warm_s": 20.39,
+  "nuts_stats_warm1": {
+    "n_draws_total": 20,
+    "integration_steps_mean": 44.0,
+    "integration_steps_p50": 31.0,
+    "integration_steps_p95": 96.60000000000002,
+    "integration_steps_max": 127,
+    "acceptance_mean": 0.7225767970085144,
+    "divergence_rate": 0.0,
+    "trajectory_expansions_max": 7,
+    "trajectory_expansions_mean": 5.1
+  },
+  "jit_warm2_s": 24.23,
+  "nuts_stats_warm2": {
+    "n_draws_total": 20,
+    "integration_steps_mean": 48.4,
+    "integration_steps_p50": 31.0,
+    "integration_steps_p95": 96.60000000000002,
+    "integration_steps_max": 127,
+    "acceptance_mean": 0.6848419904708862,
+    "divergence_rate": 0.0,
+    "trajectory_expansions_max": 7,
+    "trajectory_expansions_mean": 5.25
+  },
+  "warm1_minus_warm2_s": -3.84,
+  "gpu_post_warm_jit": [
+    {
+      "index": 0,
+      "name": "NVIDIA L40S",
+      "vram_total_mb": 46068,
+      "vram_used_mb": 469,
+      "vram_free_mb": 44990,
+      "gpu_util_pct": 100,
+      "temp_c": 50,
+      "pci_bus": "00000000:64:00.0"
+    }
+  ],
+  "cache_after_warm": {
+    "cache_dir": "/scratch/fc37/aman0087/.jax_cache_gpu/shared",
+    "cache_exists": true,
+    "n_files": 2792,
+    "total_size_mb": 28.86
+  },
+  "cache_speedup": 1.36,
+  "gate_cold_jit_under_600s": true,
+  "gate_cache_speedup_over_3x": false,
+  "gate_warm_jit_under_120s": true,
+  "all_gates_pass": false,
+  "smoke_test_config": {
+    "n_per_group": 5,
+    "participant_sessions": 30,
+    "chains": 2,
+    "draws": 10,
+    "tune": 10,
+    "n_gpus": 1,
+    "chain_method": "vectorized",
+    "jax_enable_x64": false,
+    "env_overrides": {}
+  }
+}

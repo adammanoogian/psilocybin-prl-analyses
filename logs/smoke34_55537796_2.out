@@ -1,0 +1,59 @@
+============================================================
+Commit: 4a3b541
+Smoke test cell 2 on m3g111
+============================================================
+
+Running SMOKE cell 2 (n_draws=50, n_warmup=50)...
+
+============================================================
+Phase 34 Grid Sweep (Mode B) — Cell 0002
+============================================================
+  Model:       hgf_2level
+  n_per_group: 10
+  P_total:     60
+  Mitigation:  hier+M1+M2+Laplace
+  Has cov:     False
+  Cohort seed: 99000
+  MCMC seed:   99002
+  Job ID:      55538204_2
+============================================================
+
+Loaded FitConfig: configs/fit/hier_m1_m2_laplace_2level.yaml
+  n_draws=50, n_warmup=50, mass=dense, laplace=True, non_centered=('omega_2', 'log_beta', 'zeta'), pooling=hierarchical
+
+Wrote started marker: models/power/bench_mode_b_results/cell_0002_started.json
+
+Simulating hierarchical cohort (n_per_group=10)...
+  Simulation done in 16.5s (25200 trial rows)
+
+Fitting (cell 0002)...
+[fit_batch_hierarchical] entered: model=hgf_2level sampler=blackjax n_chains=4 n_tune=50 n_draws=50 target_accept=0.95 warmup_skipped=False sim_df_rows=25200
+[fit_batch_hierarchical t=0.3s] cohort assembled: P=60 n_trials=420 (BlackJAX path, Mode B)
+[fit_batch_hierarchical t=0.3s] building closure-based logdensity (warmup-only, no JIT yet)
+[fit_batch_hierarchical t=0.3s] logdensity built in 0.0s
+[fit_batch_hierarchical t=0.3s] dispatching to _run_blackjax_nuts
+[hierarchical] _run_blackjax_nuts entered: model=hgf_2level P=60 n_chains=4 n_tune=50 n_draws=50 warmup_skipped=False
+[hierarchical t=0.0s] computing Laplace warmup_params (multi-start, n_starts=4)...
+[laplace_warmup] running multi-start LBFGS (n_starts=4, n_flat=189, max_iter=200, tol=1e-05)...
+[laplace_warmup] start 1/4: neg_logp=25090.65 (93.8s)
+[laplace_warmup] start 2/4: neg_logp=24811.84 (133.6s)
+[laplace_warmup] start 3/4: neg_logp=21182.28 (169.2s)
+[laplace_warmup] start 4/4: neg_logp=22799.90 (82.4s)
+[laplace_warmup] best MAP: start index=2, neg_logp=21182.28 (4/4 starts converged)
+[laplace_warmup] computing Hessian diagonal (n=189 jvps)...
+[laplace_warmup] Hessian diag done in 4.6s, min=-7.861e+01 max=2.459e+03 non-positive=15 non-finite=0
+[laplace_warmup] MULTIMODAL WARNING: endpoints disagree by 24.9 SE on parameter dim 63 — falling back to standard window_adaptation. This posterior may be multimodal; Laplace warmup would lock onto one mode.
+[laplace_warmup] basin diagnostic: 4/4 starts converged, best_neg_logp=21182.28, max_deviation=24.90 (threshold=2.0, status=DISAGREE)
+[hierarchical t=486.4s] Laplace warmup failed; falling back to standard window_adaptation
+[hierarchical t=486.4s] starting window_adaptation (num_steps=50, target_accept=0.95)
+[hierarchical t=1541.3s] window_adaptation complete in 1055.0s
+[diag warmup] n_steps=50 n_chains=4 P=60 elapsed=1055.0s
+[diag warmup] tree_depth: mean=8.18 median=8 p95=10 max=10 saturated_frac=0.220
+[diag warmup] leapfrog_per_step: mean=458.6 median=255 p95=1023 max=1023 total=22932
+[diag warmup] derived: 46.01ms per leapfrog (across all chains)
+[diag warmup] accept_rate: mean=0.899 final50=0.899
+[diag warmup] divergent: count=3 rate=0.0600
+[diag warmup] energy: mean=26246.94 std=264.74 |dE|_mean=31.273 |dE|_max=748.83
+[diag warmup] adapted step_size: 0.1431
+[diag warmup] inverse_mass_matrix: size=21113 min=1.272e-06 max=2.308 cond=1.8e+06
+[hierarchical t=1541.4s] chain strategy: use_shard_map=False (automatic, n_devices=1, n_chains=4)

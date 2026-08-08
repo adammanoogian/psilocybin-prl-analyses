@@ -1,0 +1,379 @@
+Jax plugin configuration error: Exception when calling jax_plugins.xla_cuda12.initialize()
+Traceback (most recent call last):
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax_plugins/xla_cuda12/__init__.py", line 201, in _version_check
+    version = get_version()
+              ^^^^^^^^^^^^^
+RuntimeError: jaxlib/cuda/versions_helpers.cc:85: operation cusparseGetProperty(MAJOR_VERSION, &major) failed: The cuSPARSE library was not found.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax/_src/xla_bridge.py", line 487, in discover_pjrt_plugins
+    plugin_module.initialize()
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax_plugins/xla_cuda12/__init__.py", line 370, in initialize
+    _check_cuda_versions(raise_on_first_error = True)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax_plugins/xla_cuda12/__init__.py", line 266, in _check_cuda_versions
+    _version_check("cuSPARSE", cuda_versions.cusparse_get_version,
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax_plugins/xla_cuda12/__init__.py", line 205, in _version_check
+    raise RuntimeError(err_msg) from e
+RuntimeError: Unable to load cuSPARSE. Is it installed?
+An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not installed. Falling back to cpu.
+Finished tracing + transforming convert_element_type for pjit in 0.000308275 sec
+Jax plugin configuration error: Exception when calling jax_plugins.xla_cuda12.initialize()
+Traceback (most recent call last):
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax_plugins/xla_cuda12/__init__.py", line 201, in _version_check
+    version = get_version()
+              ^^^^^^^^^^^^^
+RuntimeError: jaxlib/cuda/versions_helpers.cc:85: operation cusparseGetProperty(MAJOR_VERSION, &major) failed: The cuSPARSE library was not found.
+
+The above exception was the direct cause of the following exception:
+
+Traceback (most recent call last):
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax/_src/xla_bridge.py", line 487, in discover_pjrt_plugins
+    plugin_module.initialize()
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax_plugins/xla_cuda12/__init__.py", line 370, in initialize
+    _check_cuda_versions(raise_on_first_error = True)
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax_plugins/xla_cuda12/__init__.py", line 266, in _check_cuda_versions
+    _version_check("cuSPARSE", cuda_versions.cusparse_get_version,
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax_plugins/xla_cuda12/__init__.py", line 205, in _version_check
+    raise RuntimeError(err_msg) from e
+RuntimeError: Unable to load cuSPARSE. Is it installed?
+An NVIDIA GPU may be present on this machine, but a CUDA-enabled jaxlib is not installed. Falling back to cpu.
+Compiling jit(convert_element_type) with global shapes and types (ShapedArray(int64[]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(convert_element_type) in 0.161514997 sec
+Finished XLA compilation of jit(convert_element_type) in 0.115644455 sec
+Finished tracing + transforming bitwise_and for pjit in 0.000416756 sec
+Finished tracing + transforming _threefry_seed for pjit in 0.001901388 sec
+Compiling jit(_threefry_seed) with global shapes and types (ShapedArray(int64[]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(_threefry_seed) in 0.010951042 sec
+Finished XLA compilation of jit(_threefry_seed) in 0.251515865 sec
+Finished tracing + transforming convert_element_type for pjit in 0.000273943 sec
+Compiling jit(convert_element_type) with global shapes and types (ShapedArray(float32[420,3]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(convert_element_type) in 0.002666473 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_convert_element_type' with key 'jit_convert_element_type-bb531b6a6ff2cf481e7b31a8ec1b5ef0e84d3dda2129e5fdd8e802082f64fcb1'
+Writing jit_convert_element_type to persistent compilation cache with key 'jit_convert_element_type-bb531b6a6ff2cf481e7b31a8ec1b5ef0e84d3dda2129e5fdd8e802082f64fcb1'
+Finished XLA compilation of jit(convert_element_type) in 0.006327391 sec
+Finished tracing + transforming convert_element_type for pjit in 0.000154734 sec
+Compiling jit(convert_element_type) with global shapes and types (ShapedArray(int32[]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(convert_element_type) in 0.002011299 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_convert_element_type' with key 'jit_convert_element_type-05ac3f36870a35422eaa905648570040a1a2cc46e179ee3a57ceefd030ba1bd6'
+Writing jit_convert_element_type to persistent compilation cache with key 'jit_convert_element_type-05ac3f36870a35422eaa905648570040a1a2cc46e179ee3a57ceefd030ba1bd6'
+Finished XLA compilation of jit(convert_element_type) in 0.004908800 sec
+Finished tracing + transforming bitwise_and for pjit in 0.000358343 sec
+Finished tracing + transforming _threefry_seed for pjit in 0.001639605 sec
+Compiling jit(_threefry_seed) with global shapes and types (ShapedArray(int32[]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(_threefry_seed) in 0.003022909 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit__threefry_seed' with key 'jit__threefry_seed-37f764eb0df33054853d5a59d144374f092881fbd4ab9ef0ef47cd949bdabe09'
+Writing jit__threefry_seed to persistent compilation cache with key 'jit__threefry_seed-37f764eb0df33054853d5a59d144374f092881fbd4ab9ef0ef47cd949bdabe09'
+Finished XLA compilation of jit(_threefry_seed) in 0.016449213 sec
+Finished tracing + transforming convert_element_type for pjit in 0.000215292 sec
+Compiling jit(convert_element_type) with global shapes and types (ShapedArray(float32[30]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(convert_element_type) in 0.002409935 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_convert_element_type' with key 'jit_convert_element_type-8dafb32b7cf3b98e14266838e14a884df7dfbfdcf075e763db91cf8c30d20b2d'
+Writing jit_convert_element_type to persistent compilation cache with key 'jit_convert_element_type-8dafb32b7cf3b98e14266838e14a884df7dfbfdcf075e763db91cf8c30d20b2d'
+Finished XLA compilation of jit(convert_element_type) in 0.005757570 sec
+Finished tracing + transforming broadcast_in_dim for pjit in 0.000196934 sec
+Compiling jit(broadcast_in_dim) with global shapes and types (ShapedArray(float32[420,3]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(broadcast_in_dim) in 0.002440453 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_broadcast_in_dim' with key 'jit_broadcast_in_dim-8c28c7d0f7e7513ce4f61378b3a2b27dd068b096356d2d06dc6353cd1bd5909f'
+Writing jit_broadcast_in_dim to persistent compilation cache with key 'jit_broadcast_in_dim-8c28c7d0f7e7513ce4f61378b3a2b27dd068b096356d2d06dc6353cd1bd5909f'
+Finished XLA compilation of jit(broadcast_in_dim) in 0.005369902 sec
+Finished tracing + transforming concatenate for pjit in 0.000300407 sec
+Compiling jit(concatenate) with global shapes and types (ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3])). Argument mapping: (UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue).
+Finished jaxpr to MLIR module conversion jit(concatenate) in 0.002596855 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_concatenate' with key 'jit_concatenate-7f36134b788cdf9b69ffb7a06742c0b2b1c61fcda9ee07c860ef454b60854bd3'
+Writing jit_concatenate to persistent compilation cache with key 'jit_concatenate-7f36134b788cdf9b69ffb7a06742c0b2b1c61fcda9ee07c860ef454b60854bd3'
+Finished XLA compilation of jit(concatenate) in 0.019402742 sec
+Finished tracing + transforming concatenate for pjit in 0.000249863 sec
+Compiling jit(concatenate) with global shapes and types (ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3]), ShapedArray(float32[1,420,3])). Argument mapping: (UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue).
+Finished jaxpr to MLIR module conversion jit(concatenate) in 0.002587795 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_concatenate' with key 'jit_concatenate-7af0ead56b48e660be79bd573768f19397b12e9828f4e0411e6bcb0468948a93'
+Writing jit_concatenate to persistent compilation cache with key 'jit_concatenate-7af0ead56b48e660be79bd573768f19397b12e9828f4e0411e6bcb0468948a93'
+Finished XLA compilation of jit(concatenate) in 0.009966373 sec
+Finished tracing + transforming concatenate for pjit in 0.000187635 sec
+Compiling jit(concatenate) with global shapes and types (ShapedArray(float32[16,420,3]), ShapedArray(float32[14,420,3])). Argument mapping: (UnspecifiedValue, UnspecifiedValue).
+Finished jaxpr to MLIR module conversion jit(concatenate) in 0.002466440 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_concatenate' with key 'jit_concatenate-fe10d26f4a083b0daa6f7dc5bbbbe0e401b141fc8f4b1e5612550a14281a08da'
+Writing jit_concatenate to persistent compilation cache with key 'jit_concatenate-fe10d26f4a083b0daa6f7dc5bbbbe0e401b141fc8f4b1e5612550a14281a08da'
+Finished XLA compilation of jit(concatenate) in 0.008015394 sec
+Finished tracing + transforming broadcast_in_dim for pjit in 0.000212669 sec
+Compiling jit(broadcast_in_dim) with global shapes and types (ShapedArray(uint32[2]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(broadcast_in_dim) in 0.002238274 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_broadcast_in_dim' with key 'jit_broadcast_in_dim-d50440879a96adbcd10d285d7accef349b1536f7a48bbb1e6ade3e649a2afd77'
+Writing jit_broadcast_in_dim to persistent compilation cache with key 'jit_broadcast_in_dim-d50440879a96adbcd10d285d7accef349b1536f7a48bbb1e6ade3e649a2afd77'
+Finished XLA compilation of jit(broadcast_in_dim) in 0.005768299 sec
+Finished tracing + transforming concatenate for pjit in 0.000236750 sec
+Compiling jit(concatenate) with global shapes and types (ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2])). Argument mapping: (UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue).
+Finished jaxpr to MLIR module conversion jit(concatenate) in 0.002522469 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_concatenate' with key 'jit_concatenate-96861959bbf748686d66402b2b989dfb3f06f346ada0b42223428aaaf6ba044d'
+Writing jit_concatenate to persistent compilation cache with key 'jit_concatenate-96861959bbf748686d66402b2b989dfb3f06f346ada0b42223428aaaf6ba044d'
+Finished XLA compilation of jit(concatenate) in 0.009824276 sec
+Finished tracing + transforming concatenate for pjit in 0.000325203 sec
+Compiling jit(concatenate) with global shapes and types (ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2]), ShapedArray(uint32[1,2])). Argument mapping: (UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue).
+Finished jaxpr to MLIR module conversion jit(concatenate) in 0.002494812 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_concatenate' with key 'jit_concatenate-e32b2fa83bf81edda49eac033e83d34a481c5aeff3ac5b88ec310d03a4ff924e'
+Writing jit_concatenate to persistent compilation cache with key 'jit_concatenate-e32b2fa83bf81edda49eac033e83d34a481c5aeff3ac5b88ec310d03a4ff924e'
+Finished XLA compilation of jit(concatenate) in 0.010170937 sec
+Finished tracing + transforming concatenate for pjit in 0.000184774 sec
+Compiling jit(concatenate) with global shapes and types (ShapedArray(uint32[16,2]), ShapedArray(uint32[14,2])). Argument mapping: (UnspecifiedValue, UnspecifiedValue).
+Finished jaxpr to MLIR module conversion jit(concatenate) in 0.002372265 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_concatenate' with key 'jit_concatenate-056782b1641067a9fac762a0bd123decb293b359feb7f8a29dbc3bab69b68cee'
+Writing jit_concatenate to persistent compilation cache with key 'jit_concatenate-056782b1641067a9fac762a0bd123decb293b359feb7f8a29dbc3bab69b68cee'
+Finished XLA compilation of jit(concatenate) in 0.013440609 sec
+Finished tracing + transforming convert_element_type for pjit in 0.000173569 sec
+Compiling jit(convert_element_type) with global shapes and types (ShapedArray(float32[1]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(convert_element_type) in 0.002183437 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_convert_element_type' with key 'jit_convert_element_type-1f131324952c3393c729368573936a1396ccaf8133972057ab06d60947bd582a'
+Writing jit_convert_element_type to persistent compilation cache with key 'jit_convert_element_type-1f131324952c3393c729368573936a1396ccaf8133972057ab06d60947bd582a'
+Finished XLA compilation of jit(convert_element_type) in 0.005650759 sec
+Finished tracing + transforming concatenate for pjit in 0.000167370 sec
+Compiling jit(concatenate) with global shapes and types (ShapedArray(float32[1]), ShapedArray(float32[1])). Argument mapping: (UnspecifiedValue, UnspecifiedValue).
+Finished jaxpr to MLIR module conversion jit(concatenate) in 0.002384663 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_concatenate' with key 'jit_concatenate-5b266f68b58d6f41d4f8ce67f31f140db0109b7d187c6cbbf92a70e3de8a78bc'
+Writing jit_concatenate to persistent compilation cache with key 'jit_concatenate-5b266f68b58d6f41d4f8ce67f31f140db0109b7d187c6cbbf92a70e3de8a78bc'
+Finished XLA compilation of jit(concatenate) in 0.012770653 sec
+Finished tracing + transforming concatenate for pjit in 0.000174522 sec
+Compiling jit(concatenate) with global shapes and types (ShapedArray(float32[2]), ShapedArray(float32[1])). Argument mapping: (UnspecifiedValue, UnspecifiedValue).
+Finished jaxpr to MLIR module conversion jit(concatenate) in 0.002402067 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_concatenate' with key 'jit_concatenate-4386d3b53197a2c365e1b9e6c68dc33549cca7bfa1c2bf0285a9a0a7eac2422e'
+Writing jit_concatenate to persistent compilation cache with key 'jit_concatenate-4386d3b53197a2c365e1b9e6c68dc33549cca7bfa1c2bf0285a9a0a7eac2422e'
+Finished XLA compilation of jit(concatenate) in 0.008047819 sec
+Finished tracing + transforming true_divide for pjit in 0.000308990 sec
+Finished tracing + transforming multiply for pjit in 0.000186920 sec
+Finished tracing + transforming multiply for pjit in 0.000815868 sec
+Finished tracing + transforming add for pjit in 0.000189781 sec
+Finished tracing + transforming predict_mean for pjit in 0.001922131 sec
+Finished tracing + transforming exp for pjit in 0.000142813 sec
+Finished tracing + transforming greater for pjit in 0.000179768 sec
+Finished tracing + transforming _broadcast_arrays for pjit in 0.000076056 sec
+Finished tracing + transforming _where for pjit in 0.000525475 sec
+Finished tracing + transforming true_divide for pjit in 0.000234365 sec
+Finished tracing + transforming multiply for pjit in 0.000119925 sec
+Finished tracing + transforming predict_precision for pjit in 0.002521753 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.006837606 sec
+Finished tracing + transforming predict_mean for pjit in 0.000308990 sec
+Finished tracing + transforming exp for pjit in 0.000143051 sec
+Finished tracing + transforming predict_precision for pjit in 0.001190186 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.003436804 sec
+Finished tracing + transforming predict_mean for pjit in 0.000300407 sec
+Finished tracing + transforming predict_precision for pjit in 0.000757217 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.002985954 sec
+Finished tracing + transforming predict_mean for pjit in 0.000296354 sec
+Finished tracing + transforming predict_precision for pjit in 0.000761747 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.002979994 sec
+Finished tracing + transforming sigmoid for pjit in 0.000143051 sec
+Finished tracing + transforming subtract for pjit in 0.000204802 sec
+Finished tracing + transforming binary_state_node_prediction for pjit in 0.001337051 sec
+Finished tracing + transforming binary_state_node_prediction for pjit in 0.000680208 sec
+Finished tracing + transforming binary_state_node_prediction for pjit in 0.000649929 sec
+Finished tracing + transforming _squeeze for pjit in 0.000105858 sec
+Finished tracing + transforming set_observation for pjit in 0.000437737 sec
+Finished tracing + transforming set_observation for pjit in 0.000904560 sec
+Finished tracing + transforming set_observation for pjit in 0.000428915 sec
+Finished tracing + transforming subtract for pjit in 0.000139236 sec
+Finished tracing + transforming multiply for pjit in 0.000192642 sec
+Finished tracing + transforming true_divide for pjit in 0.000128269 sec
+Finished tracing + transforming binary_state_node_prediction_error for pjit in 0.001471043 sec
+Finished tracing + transforming binary_state_node_prediction_error for pjit in 0.000552654 sec
+Finished tracing + transforming binary_state_node_prediction_error for pjit in 0.000591040 sec
+Finished tracing + transforming _reduce_any for pjit in 0.000349283 sec
+Finished tracing + transforming multiply for pjit in 0.000223875 sec
+Finished tracing + transforming subtract for pjit in 0.000162363 sec
+Finished tracing + transforming add for pjit in 0.000122547 sec
+Finished tracing + transforming precision_update for pjit in 0.001723528 sec
+Finished tracing + transforming precision_update_missing_values for pjit in 0.000627518 sec
+Finished tracing + transforming posterior_update_precision_continuous_node for pjit in 0.006092548 sec
+Finished tracing + transforming add for pjit in 0.000150681 sec
+Finished tracing + transforming posterior_update_mean_continuous_node for pjit in 0.000866890 sec
+Finished tracing + transforming continuous_node_posterior_update for pjit in 0.008766651 sec
+Finished tracing + transforming precision_update for pjit in 0.000790358 sec
+Finished tracing + transforming precision_update_missing_values for pjit in 0.000622272 sec
+Finished tracing + transforming posterior_update_precision_continuous_node for pjit in 0.004772663 sec
+Finished tracing + transforming posterior_update_mean_continuous_node for pjit in 0.000586271 sec
+Finished tracing + transforming continuous_node_posterior_update for pjit in 0.007113695 sec
+Finished tracing + transforming continuous_node_value_prediction_error for pjit in 0.000439882 sec
+Finished tracing + transforming true_divide for pjit in 0.000173092 sec
+Finished tracing + transforming continuous_node_volatility_prediction_error for pjit in 0.001090050 sec
+Finished tracing + transforming continuous_node_prediction_error for pjit in 0.003912449 sec
+Finished tracing + transforming continuous_node_value_prediction_error for pjit in 0.000447989 sec
+Finished tracing + transforming continuous_node_volatility_prediction_error for pjit in 0.000710726 sec
+Finished tracing + transforming continuous_node_prediction_error for pjit in 0.003996372 sec
+Finished tracing + transforming precision_update for pjit in 0.000753403 sec
+Finished tracing + transforming precision_update_missing_values for pjit in 0.001019478 sec
+Finished tracing + transforming posterior_update_precision_continuous_node for pjit in 0.004674673 sec
+Finished tracing + transforming posterior_update_mean_continuous_node for pjit in 0.000576019 sec
+Finished tracing + transforming continuous_node_posterior_update for pjit in 0.006974936 sec
+Finished tracing + transforming continuous_node_value_prediction_error for pjit in 0.000439644 sec
+Finished tracing + transforming continuous_node_volatility_prediction_error for pjit in 0.000699997 sec
+Finished tracing + transforming continuous_node_prediction_error for pjit in 0.003549814 sec
+Finished tracing + transforming multiply for pjit in 0.000244856 sec
+Finished tracing + transforming posterior_update_mean_continuous_node for pjit in 0.001869678 sec
+Finished tracing + transforming _reduce_any for pjit in 0.000396729 sec
+Finished tracing + transforming multiply for pjit in 0.000161409 sec
+Finished tracing + transforming precision_update for pjit in 0.002426863 sec
+Finished tracing + transforming precision_update_missing_values for pjit in 0.000486374 sec
+Finished tracing + transforming posterior_update_precision_continuous_node for pjit in 0.006682396 sec
+Finished tracing + transforming continuous_node_posterior_update_ehgf for pjit in 0.010374784 sec
+Finished tracing + transforming beliefs_propagation for pjit in 0.088674307 sec
+Finished tracing + transforming convert_element_type for pjit in 0.000139236 sec
+Compiling jit(convert_element_type) with global shapes and types (ShapedArray(float32[]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(convert_element_type) in 0.002662420 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_convert_element_type' with key 'jit_convert_element_type-46c08c036fe45119e1bd01d649e16b818ac5d90dd013bb6dbdc5d1af103676a9'
+Writing jit_convert_element_type to persistent compilation cache with key 'jit_convert_element_type-46c08c036fe45119e1bd01d649e16b818ac5d90dd013bb6dbdc5d1af103676a9'
+Finished XLA compilation of jit(convert_element_type) in 0.006431103 sec
+Finished tracing + transforming predict_mean for pjit in 0.000304461 sec
+Finished tracing + transforming predict_precision for pjit in 0.000638247 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.003383160 sec
+Finished tracing + transforming predict_mean for pjit in 0.000308037 sec
+Finished tracing + transforming predict_precision for pjit in 0.000758648 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.002982140 sec
+Finished tracing + transforming predict_mean for pjit in 0.000314951 sec
+Finished tracing + transforming predict_precision for pjit in 0.000754595 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.002984762 sec
+Finished tracing + transforming predict_mean for pjit in 0.000300407 sec
+Finished tracing + transforming predict_precision for pjit in 0.000760317 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.003036261 sec
+Finished tracing + transforming binary_state_node_prediction for pjit in 0.000690222 sec
+Finished tracing + transforming binary_state_node_prediction for pjit in 0.000673294 sec
+Finished tracing + transforming binary_state_node_prediction for pjit in 0.000661135 sec
+Finished tracing + transforming set_observation for pjit in 0.000465155 sec
+Finished tracing + transforming set_observation for pjit in 0.000890970 sec
+Finished tracing + transforming set_observation for pjit in 0.116626740 sec
+Finished tracing + transforming beliefs_propagation for pjit in 0.146984339 sec
+Finished tracing + transforming scan for pjit in 0.001389265 sec
+Compiling jit(scan) with global shapes and types (ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[]), ShapedArray(int32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[1]), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(int32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[1]), ShapedArray(float32[1]), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[]), ShapedArray(int32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[1]), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(int32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[1]), ShapedArray(float32[1]), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[]), ShapedArray(int32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[1]), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(int32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[1]), ShapedArray(float32[1]), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(int32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[], weak_type=True), ShapedArray(float32[3]), ShapedArray(float32[1,1]), ShapedArray(float32[1,1]), ShapedArray(float32[1,1]), ShapedArray(int32[1]), ShapedArray(int32[1]), ShapedArray(int32[1]), ShapedArray(float32[1])). Argument mapping: (UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue, UnspecifiedValue).
+Finished tracing + transforming less for pjit in 0.000276089 sec
+Finished tracing + transforming add for pjit in 0.000278711 sec
+Finished jaxpr to MLIR module conversion jit(scan) in 0.083519220 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_scan' with key 'jit_scan-a46abe8410b9853ab8457dd1f0207d876653981db03c99ec32a20a18ec6bcb33'
+Writing jit_scan to persistent compilation cache with key 'jit_scan-a46abe8410b9853ab8457dd1f0207d876653981db03c99ec32a20a18ec6bcb33'
+Finished XLA compilation of jit(scan) in 0.250557899 sec
+Finished tracing + transforming broadcast_in_dim for pjit in 0.000253916 sec
+Compiling jit(broadcast_in_dim) with global shapes and types (ShapedArray(float32[30]),). Argument mapping: (UnspecifiedValue,).
+Finished jaxpr to MLIR module conversion jit(broadcast_in_dim) in 0.002444744 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_broadcast_in_dim' with key 'jit_broadcast_in_dim-7bb3206c47eb16f1b04b1fcb53d7979365e349ae69b334d9b70d514a3652553a'
+Writing jit_broadcast_in_dim to persistent compilation cache with key 'jit_broadcast_in_dim-7bb3206c47eb16f1b04b1fcb53d7979365e349ae69b334d9b70d514a3652553a'
+Finished XLA compilation of jit(broadcast_in_dim) in 0.005942583 sec
+Finished tracing + transforming concatenate for pjit in 0.000211716 sec
+Compiling jit(concatenate) with global shapes and types (ShapedArray(float32[30,1]), ShapedArray(float32[30,1]), ShapedArray(float32[30,1])). Argument mapping: (UnspecifiedValue, UnspecifiedValue, UnspecifiedValue).
+Finished jaxpr to MLIR module conversion jit(concatenate) in 0.001894236 sec
+PERSISTENT COMPILATION CACHE MISS for 'jit_concatenate' with key 'jit_concatenate-3f110822d1fc436a51c944cdc32342f89c52f6b411bf48b99dd369f456f04c73'
+Writing jit_concatenate to persistent compilation cache with key 'jit_concatenate-3f110822d1fc436a51c944cdc32342f89c52f6b411bf48b99dd369f456f04c73'
+Finished XLA compilation of jit(concatenate) in 0.017426252 sec
+TRACING CACHE MISS at /fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/simulation/jax_session.py:292:45 (_run_session):
+  never seen function:
+    _sim_step id=140706690254304 defined at /fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/simulation/jax_session.py:192
+Finished tracing + transforming equal for pjit in 0.000220299 sec
+Finished tracing + transforming multiply for pjit in 0.000172615 sec
+Finished tracing + transforming add for pjit in 0.000177622 sec
+Finished tracing + transforming subtract for pjit in 0.000215769 sec
+Finished tracing + transforming subtract for pjit in 0.000157595 sec
+Finished tracing + transforming multiply for pjit in 0.000161171 sec
+Finished tracing + transforming add for pjit in 0.000160217 sec
+Finished tracing + transforming _uniform for pjit in 0.002164364 sec
+Finished tracing + transforming log for pjit in 0.000150442 sec
+Finished tracing + transforming negative for pjit in 0.000154972 sec
+Finished tracing + transforming _gumbel for pjit in 0.003201962 sec
+Finished tracing + transforming _argmax for pjit in 0.000139713 sec
+Finished tracing + transforming less for pjit in 0.000185013 sec
+Finished tracing + transforming add for pjit in 0.000167847 sec
+Finished tracing + transforming _uniform for pjit in 0.000836134 sec
+Finished tracing + transforming less for pjit in 0.000155926 sec
+Finished tracing + transforming _bernoulli for pjit in 0.001473188 sec
+Finished tracing + transforming equal for pjit in 0.000170708 sec
+Finished tracing + transforming _where for pjit in 0.000164986 sec
+Finished tracing + transforming predict_mean for pjit in 0.000362158 sec
+Finished tracing + transforming predict_precision for pjit in 0.000572920 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.002801657 sec
+Finished tracing + transforming predict_mean for pjit in 0.000360250 sec
+Finished tracing + transforming predict_precision for pjit in 0.000759602 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.003041744 sec
+Finished tracing + transforming predict_mean for pjit in 0.000323534 sec
+Finished tracing + transforming predict_precision for pjit in 0.001279116 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.003457308 sec
+Finished tracing + transforming predict_mean for pjit in 0.000313759 sec
+Finished tracing + transforming predict_precision for pjit in 0.000754356 sec
+Finished tracing + transforming continuous_node_prediction for pjit in 0.002944231 sec
+Finished tracing + transforming binary_state_node_prediction for pjit in 0.000698090 sec
+Finished tracing + transforming binary_state_node_prediction for pjit in 0.000676394 sec
+Finished tracing + transforming binary_state_node_prediction for pjit in 0.000687838 sec
+Finished tracing + transforming set_observation for pjit in 0.000456572 sec
+Finished tracing + transforming set_observation for pjit in 0.000455141 sec
+Finished tracing + transforming set_observation for pjit in 0.000440598 sec
+Finished tracing + transforming binary_state_node_prediction_error for pjit in 0.000619888 sec
+Finished tracing + transforming binary_state_node_prediction_error for pjit in 0.000612259 sec
+Finished tracing + transforming binary_state_node_prediction_error for pjit in 0.000613213 sec
+Finished tracing + transforming _reduce_any for pjit in 0.000358820 sec
+Finished tracing + transforming precision_update for pjit in 0.000777721 sec
+Finished tracing + transforming precision_update_missing_values for pjit in 0.000623465 sec
+Finished tracing + transforming posterior_update_precision_continuous_node for pjit in 0.005120277 sec
+Finished tracing + transforming posterior_update_mean_continuous_node for pjit in 0.000591516 sec
+Finished tracing + transforming continuous_node_posterior_update for pjit in 0.007449865 sec
+Finished tracing + transforming precision_update for pjit in 0.000763416 sec
+Finished tracing + transforming precision_update_missing_values for pjit in 0.000613928 sec
+Finished tracing + transforming posterior_update_precision_continuous_node for pjit in 0.004289389 sec
+Finished tracing + transforming posterior_update_mean_continuous_node for pjit in 0.000575781 sec
+Finished tracing + transforming continuous_node_posterior_update for pjit in 0.006684542 sec
+Finished tracing + transforming continuous_node_value_prediction_error for pjit in 0.000485897 sec
+Finished tracing + transforming continuous_node_volatility_prediction_error for pjit in 0.001078844 sec
+Finished tracing + transforming continuous_node_prediction_error for pjit in 0.003827095 sec
+Finished tracing + transforming continuous_node_value_prediction_error for pjit in 0.000494957 sec
+Finished tracing + transforming continuous_node_volatility_prediction_error for pjit in 0.000766516 sec
+Finished tracing + transforming continuous_node_prediction_error for pjit in 0.003494978 sec
+Finished tracing + transforming precision_update for pjit in 0.000754833 sec
+Finished tracing + transforming precision_update_missing_values for pjit in 0.000615358 sec
+Finished tracing + transforming posterior_update_precision_continuous_node for pjit in 0.004363298 sec
+Finished tracing + transforming posterior_update_mean_continuous_node for pjit in 0.000575304 sec
+Finished tracing + transforming continuous_node_posterior_update for pjit in 0.006742001 sec
+Finished tracing + transforming continuous_node_value_prediction_error for pjit in 0.000474215 sec
+Finished tracing + transforming continuous_node_volatility_prediction_error for pjit in 0.000779629 sec
+Finished tracing + transforming continuous_node_prediction_error for pjit in 0.003523111 sec
+Finished tracing + transforming posterior_update_mean_continuous_node for pjit in 0.001309395 sec
+Finished tracing + transforming precision_update for pjit in 0.002050161 sec
+Finished tracing + transforming precision_update_missing_values for pjit in 0.000500679 sec
+Finished tracing + transforming posterior_update_precision_continuous_node for pjit in 0.005696058 sec
+Finished tracing + transforming continuous_node_posterior_update_ehgf for pjit in 0.009150743 sec
+Finished tracing + transforming beliefs_propagation for pjit in 0.078715563 sec
+Finished tracing + transforming isfinite for pjit in 0.000164032 sec
+Finished tracing + transforming _reduce_all for pjit in 0.000884533 sec
+Finished tracing + transforming isfinite for pjit in 0.000139475 sec
+Finished tracing + transforming _reduce_all for pjit in 0.000263691 sec
+Finished tracing + transforming isfinite for pjit in 0.000195026 sec
+Finished tracing + transforming _reduce_all for pjit in 0.000261068 sec
+Finished tracing + transforming isfinite for pjit in 0.000182867 sec
+Finished tracing + transforming isfinite for pjit in 0.000145674 sec
+Finished tracing + transforming _reduce_all for pjit in 0.000255346 sec
+Finished tracing + transforming _reduce_all for pjit in 0.000271320 sec
+Finished tracing + transforming absolute for pjit in 0.000675678 sec
+Finished tracing + transforming abs for pjit in 0.000913382 sec
+Finished tracing + transforming less for pjit in 0.000218153 sec
+Finished tracing + transforming bitwise_and for pjit in 0.000169277 sec
+Finished tracing + transforming _where for pjit in 0.000215292 sec
+Finished tracing + transforming _broadcast_arrays for pjit in 0.000163078 sec
+Finished tracing + transforming _where for pjit in 0.000505447 sec
+Finished tracing + transforming _broadcast_arrays for pjit in 0.000074625 sec
+Finished tracing + transforming _where for pjit in 0.000403881 sec
+Finished tracing + transforming _broadcast_arrays for pjit in 0.000148535 sec
+Finished tracing + transforming _where for pjit in 0.000467777 sec
+Finished tracing + transforming _broadcast_arrays for pjit in 0.000089407 sec
+Finished tracing + transforming _where for pjit in 0.000451326 sec
+Traceback (most recent call last):
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/03_run_power_iteration.py", line 2095, in <module>
+    main()
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/03_run_power_iteration.py", line 2015, in main
+    _run_smoke_test(base_config, power_config, output_dir, args)
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/03_run_power_iteration.py", line 846, in _run_smoke_test
+    sim_smoke = simulate_batch(cfg_smoke)
+                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/simulation/batch.py", line 196, in simulate_batch
+    all_choices_batch, all_rewards_batch, all_diverged_batch = _vmapped(
+                                                               ^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/simulation/batch.py", line 190, in <lambda>
+    lambda o2, o3, k, b, z, cp, rk: _run_session(
+                                    ^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/simulation/jax_session.py", line 292, in _run_session
+    _, (choices, rewards, stability_flags) = lax.scan(
+                                             ^^^^^^^^^
+ValueError: not enough values to unpack (expected at least 3, got 2)
+--------------------
+For simplicity, JAX has removed its internal frames from the traceback of the following exception. Set JAX_TRACEBACK_FILTERING=off to include these.

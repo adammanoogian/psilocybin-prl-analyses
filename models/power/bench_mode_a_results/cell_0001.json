@@ -1,0 +1,8 @@
+{
+  "cell_id": 1,
+  "status": "CRASH",
+  "error": "cuSPARSE incompatible on node m3g108",
+  "walltime_s": 0,
+  "job_id": "55491033_1",
+  "node": "m3g108"
+}

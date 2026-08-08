@@ -1,0 +1,81 @@
+E0519 06:56:08.866021 1269587 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0519 06:56:08.866106 1269586 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0519 06:56:08.866134 1269585 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0519 06:56:21.998067 1269777 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0519 06:56:21.998193 1269776 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0519 06:56:21.998216 1269775 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+W0519 06:56:22.162494 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:22.216158 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:22.837394 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:23.403290 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:23.415418 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:23.870665 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:23.883165 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:24.843839 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:25.108442 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:28.616836 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:28.746437 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:28.966602 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:29.045681 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:45.583487 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:45.635329 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:46.004188 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:46.011378 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:46.748023 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:46.961627 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:47.001070 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:47.006150 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.038730 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.052374 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.096502 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.100693 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.104970 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.109028 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.113612 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.117643 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.122074 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.126182 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:49.130778 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:51.939656 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:52.471415 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:52.587239 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:53.017281 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:53.117509 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:53.780243 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:53.829605 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:53.834116 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:53.839627 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:53.881238 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 06:56:53.970760 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 07:51:04.401836 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+W0519 07:51:04.414991 1269589 pjrt_executable.cc:642] Assume version compatibility. PjRt-IFRT does not track XLA executable versions.
+Traceback (most recent call last):
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/05_sigma_identifiability.py", line 386, in <module>
+    main()
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/05_sigma_identifiability.py", line 360, in main
+    result = run_scenario(scenario, args.seed)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/05_sigma_identifiability.py", line 259, in run_scenario
+    result = fit_batch_hierarchical(sim_df, fit_config)
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py", line 3857, in fit_batch_hierarchical
+    positions, sample_stats, n_chains_actual, adapted_params = _run_blackjax_nuts(
+                                                               ^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py", line 2043, in _run_blackjax_nuts
+    positions, stats, n_actual = _run_vmap_chains(
+                                 ^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py", line 2110, in _run_vmap_chains
+    positions_dict = {
+                     ^
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/fitting/hierarchical.py", line 2111, in <dictcomp>
+    k: np.asarray(jnp.transpose(v, (1, 0, 2)))
+                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax/_src/numpy/lax_numpy.py", line 1165, in transpose
+    axes_ = [_canonicalize_axis(i, np.ndim(a)) for i in axes_]
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax/_src/numpy/lax_numpy.py", line 1165, in <listcomp>
+    axes_ = [_canonicalize_axis(i, np.ndim(a)) for i in axes_]
+             ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/jax/_src/util.py", line 578, in canonicalize_axis
+    raise ValueError(f"axis {axis} is out of bounds for array of dimension {num_dims}")
+ValueError: axis 2 is out of bounds for array of dimension 2

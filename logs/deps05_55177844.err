@@ -1,0 +1,22 @@
+E0506 06:33:16.355226 3941212 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:33:16.355573 3941213 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:33:16.355150 3941211 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:33:30.684437 3941262 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:33:30.684521 3941263 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0506 06:33:30.684615 3941264 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+Traceback (most recent call last):
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/ci/validate_deps05_lowrank.py", line 501, in <module>
+    main()
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/ci/validate_deps05_lowrank.py", line 483, in main
+    evidence = _run_validation(
+               ^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/ci/validate_deps05_lowrank.py", line 271, in _run_validation
+    ) = _build_cohort_data(_N_PER_GROUP)
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/ci/validate_deps05_lowrank.py", line 174, in _build_cohort_data
+    from prl_hgf.power.config import make_power_config
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/power/__init__.py", line 16, in <module>
+    from prl_hgf.power.config import PowerConfig, load_power_config, make_power_config
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/power/config.py", line 26, in <module>
+    import config as _cfg
+ModuleNotFoundError: No module named 'config'

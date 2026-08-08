@@ -1,0 +1,47 @@
+============================================================
+Commit: 4a3b541
+Smoke test cell 1 on m3g117
+============================================================
+
+Running SMOKE cell 1 (n_draws=50, n_warmup=50)...
+
+============================================================
+Phase 34 Grid Sweep (Mode B) — Cell 0001
+============================================================
+  Model:       hgf_2level
+  n_per_group: 10
+  P_total:     60
+  Mitigation:  hier+M1+M2
+  Has cov:     False
+  Cohort seed: 99000
+  MCMC seed:   99001
+  Job ID:      55538196_1
+============================================================
+
+Loaded FitConfig: configs/fit/hier_m1_m2_2level.yaml
+  n_draws=50, n_warmup=50, mass=dense, laplace=False, non_centered=('omega_2', 'log_beta', 'zeta'), pooling=hierarchical
+
+Wrote started marker: models/power/bench_mode_b_results/cell_0001_started.json
+
+Simulating hierarchical cohort (n_per_group=10)...
+  Simulation done in 16.7s (25200 trial rows)
+
+Fitting (cell 0001)...
+[fit_batch_hierarchical] entered: model=hgf_2level sampler=blackjax n_chains=4 n_tune=50 n_draws=50 target_accept=0.95 warmup_skipped=False sim_df_rows=25200
+[fit_batch_hierarchical t=0.3s] cohort assembled: P=60 n_trials=420 (BlackJAX path, Mode B)
+[fit_batch_hierarchical t=0.3s] building closure-based logdensity (warmup-only, no JIT yet)
+[fit_batch_hierarchical t=0.3s] logdensity built in 0.0s
+[fit_batch_hierarchical t=0.3s] dispatching to _run_blackjax_nuts
+[hierarchical] _run_blackjax_nuts entered: model=hgf_2level P=60 n_chains=4 n_tune=50 n_draws=50 warmup_skipped=False
+[hierarchical t=0.0s] starting window_adaptation (num_steps=50, target_accept=0.95)
+[hierarchical t=1052.2s] window_adaptation complete in 1052.1s
+[diag warmup] n_steps=50 n_chains=4 P=60 elapsed=1052.1s
+[diag warmup] tree_depth: mean=8.16 median=8 p95=10 max=10 saturated_frac=0.220
+[diag warmup] leapfrog_per_step: mean=456.1 median=255 p95=1023 max=1023 total=22804
+[diag warmup] derived: 46.14ms per leapfrog (across all chains)
+[diag warmup] accept_rate: mean=0.845 final50=0.845
+[diag warmup] divergent: count=3 rate=0.0600
+[diag warmup] energy: mean=26231.41 std=275.49 |dE|_mean=35.793 |dE|_max=748.83
+[diag warmup] adapted step_size: 0.01254
+[diag warmup] inverse_mass_matrix: size=20379 min=1.755e-06 max=2.252 cond=1.3e+06
+[hierarchical t=1052.2s] chain strategy: use_shard_map=False (automatic, n_devices=1, n_chains=4)

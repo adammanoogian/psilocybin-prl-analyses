@@ -1,0 +1,69 @@
+============================================================
+Commit: 4a3b541 [380 dirty] — chore(workflow): switch to Mutagen-based code sync, retire inline git push
+Run job:    55509346 array task 3 on m3t100
+============================================================
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/nvidia/cu13/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 13.0
+ptxas CUDA version:  13.2
+
+ERROR: ptxas CUDA version (13.2) > driver CUDA version (13.0)
+  XLA will disable parallel compilation, causing 2-5x slower JIT.
+  FIX: pip install -r cluster/requirements-gpu.txt
+WARNING: CUDA compatibility issue detected (non-fatal, continuing)
+
+============================================================
+Phase 31 Grid Sweep — Cell 3
+============================================================
+Job ID:    55509346_3
+Node:      m3t100
+GPU(s):    0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/shared
+Conda env: ds_env_v10
+Start:     Tue May 19 10:52:54 PM AEST 2026
+============================================================
+
+Running benchmark cell 3...
+
+============================================================
+Phase 31 Grid Sweep — Cell 0003
+============================================================
+  Model:       hgf_2level
+  n_per_group: 5
+  P_total:     30
+  Mitigation:  M1+Laplace+fp64
+  Job ID:      55509346_3
+============================================================
+
+Loaded FitConfig: configs/fit/m1_laplace_fp64_2level.yaml
+  n_draws=2000, mass=dense, laplace=True, fp64=True
+
+Wrote started marker: models/power/bench_mode_a_results/cell_0003_started.json
+
+Simulating cohort (n_per_group=5)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.1s. Running JAX vmap…
+JAX vmap completed in 1.6s.
+  Simulation done in 5.0s (12600 trial rows)
+
+Fitting (cell 0003)...
+[fit_batch_hierarchical] entered: model=hgf_2level sampler=blackjax n_chains=4 n_tune=1000 n_draws=2000 target_accept=0.95 warmup_skipped=False sim_df_rows=12600
+[fit_batch_hierarchical t=0.4s] cohort assembled: P=30 n_trials=420 (BlackJAX path, Mode A)
+[fit_batch_hierarchical t=0.4s] building closure-based logdensity (warmup-only, no JIT yet)
+[fit_batch_hierarchical t=0.4s] logdensity built in 0.0s
+[fit_batch_hierarchical t=0.4s] dispatching to _run_blackjax_nuts
+[hierarchical] _run_blackjax_nuts entered: model=hgf_2level P=30 n_chains=4 n_tune=1000 n_draws=2000 warmup_skipped=False
+[hierarchical t=0.0s] computing Laplace warmup_params (multi-start, n_starts=4)...
+[laplace_warmup] running multi-start LBFGS (n_starts=4, n_flat=90, max_iter=200, tol=1e-05)...
+[laplace_warmup] start 1/4: neg_logp=12339.58 (32.0s)
+[laplace_warmup] start 2/4: neg_logp=10347.05 (203.4s)
+[laplace_warmup] start 3/4: neg_logp=11667.77 (207.3s)
+[laplace_warmup] start 4/4: neg_logp=11319.88 (202.1s)
+[laplace_warmup] best MAP: start index=1, neg_logp=10347.05 (4/4 starts converged)
+[laplace_warmup] computing Hessian diagonal (n=90 jvps)...
+[laplace_warmup] Hessian diag done in 5.6s, min=-1.298e+03 max=5.407e+02 non-positive=7 non-finite=0
+[laplace_warmup] MULTIMODAL WARNING: endpoints disagree by 127.9 SE on parameter dim 45 — falling back to standard window_adaptation. This posterior may be multimodal; Laplace warmup would lock onto one mode.
+[laplace_warmup] basin diagnostic: 4/4 starts converged, best_neg_logp=10347.05, max_deviation=127.88 (threshold=2.0, status=DISAGREE)
+[hierarchical t=652.7s] Laplace warmup failed; falling back to standard window_adaptation
+[hierarchical t=652.7s] starting window_adaptation (num_steps=1000, target_accept=0.95)

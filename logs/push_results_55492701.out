@@ -1,0 +1,22 @@
+============================================================
+Auto-Push Results to Git
+============================================================
+Job ID: 55492701
+Node: m3k033
+Project: /fs04/fc37/adam/projects/hgf-analysis
+Remote: origin
+Strategy: branch: results/slurm-20260518-214932
+Parent jobs: afterany:55492697
+Start: Mon May 18 09:49:32 PM AEST 2026
+============================================================
+
+Checking git configuration...
+Testing push access to origin...
+  Remote accessible: git@github.com:adammanoogian/psilocybin-prl-analyses.git
+  Current branch: main
+  HEAD: 4a3b541
+
+Staging result files...
+
+No new or modified result files to commit.
+STATUS: NOTHING TO PUSH

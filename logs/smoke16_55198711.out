@@ -1,0 +1,80 @@
+============================================================
+Commit: 4a3b541 [17 dirty] — chore(workflow): switch to Mutagen-based code sync, retire inline git push
+Run job:    55198711 on m3g102
+============================================================
+Added ptxas to PATH: /scratch/fc37/aman0087/conda/envs/ds_env_v10/lib/python3.11/site-packages/nvidia/cuda_nvcc/bin
+
+=== CUDA Environment Check ===
+Driver CUDA version: 13.0
+ptxas CUDA version:  12.8
+OK: ptxas version <= driver version (XLA parallel compilation enabled)
+XLA autotune: loading cached results from /scratch/fc37/aman0087/.xla_autotune_cache/results.pb
+
+============================================================
+Phase 16/17 GPU Smoke Test (BlackJAX NUTS)
+============================================================
+Job ID:  55198711
+Node:    m3g102
+GPU(s):  0
+JAX cache: /scratch/fc37/aman0087/.jax_cache_gpu/shared
+Start:   Fri May  8 06:06:48 AM AEST 2026
+============================================================
+
+JAX devices: [CpuDevice(id=0)]
+ERROR: No GPU detected — smoke test results will not be meaningful!
+
+============================================================
+SMOKE TEST MODE (JIT compilation diagnostics)
+============================================================
+
+JAX devices (1 total, 0 GPU):
+  TFRT_CPU_0
+  WARNING: No GPU detected — running on CPU.
+
+  GPU   Name                    VRAM Used/Total   Util   Temp
+  ----- -------------------- ------------------ ------ ------
+  0     NVIDIA L40S               0/46068  MB    0%   36C
+
+  ptxas: Cuda compilation tools, release 12.8, V12.8.93
+
+  XLA/JAX environment:
+    JAX_COMPILATION_CACHE_DIR = /scratch/fc37/aman0087/.jax_cache_gpu/shared
+    JAX_PERSISTENT_CACHE_MIN_ENTRY_SIZE_BYTES = 0
+    JAX_LOG_COMPILES = 1
+    JAX_PLATFORMS = (unset)
+    XLA_FLAGS = --xla_gpu_dump_autotune_results_to=/scratch/fc37/aman0087/.xla_autotune_cache/results.pb --xla_gpu_load_autotune_results_from=/scratch/fc37/aman0087/.xla_autotune_cache/results.pb
+    XLA_PYTHON_CLIENT_PREALLOCATE = false
+    XLA_PYTHON_CLIENT_MEM_FRACTION = (unset)
+    CUDA_VISIBLE_DEVICES = 0
+    JAX_ENABLE_X64 = (unset)
+
+  JAX cache (before):
+    dir:    /scratch/fc37/aman0087/.jax_cache_gpu/shared
+    exists: True
+    files:  2419
+    size:   25.37 MB
+
+  JAX 0.9.2, jaxlib 0.9.2
+
+Smoke test config:
+  N per group:            5
+  Participant-sessions:   30
+  Chains:                 2
+  Draws/tune:             10/10
+  Model:                  hgf_2level
+  κ frozen at:            1.0 (geometry fix — see _KAPPA_FIXED)
+  log_every:              0 (0 = off)
+  GPUs available:         0
+  Chain method:           vectorized (jit_model_args=True)
+
+Step 1: Simulate cohort (N=5/group)...
+Collecting participant-session parameters and trial sequences…
+Collection done in 0.1s. Running JAX vmap…
+
+============================================================
+SMOKE TEST FAILED (exit code: 1)
+  Check: logs/smoke16_55198711.err
+  Most likely fix: pip install -r cluster/requirements-gpu.txt
+
+End: Fri May  8 06:07:17 AM AEST 2026
+============================================================

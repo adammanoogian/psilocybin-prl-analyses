@@ -1,0 +1,123 @@
+============================================================
+Commit: 4a3b541
+Smoke test cell 2 on m3g114
+============================================================
+
+Running SMOKE cell 2 (n_draws=50, n_warmup=50)...
+
+============================================================
+Phase 34 Grid Sweep (Mode B) — Cell 0002
+============================================================
+  Model:       hgf_2level
+  n_per_group: 10
+  P_total:     60
+  Mitigation:  hier+M1+M2+Laplace
+  Has cov:     False
+  Cohort seed: 99000
+  MCMC seed:   99002
+  Job ID:      55538942_2
+============================================================
+
+Loaded FitConfig: configs/fit/hier_m1_m2_laplace_2level.yaml
+  n_draws=50, n_warmup=50, mass=dense, laplace=True, non_centered=('omega_2', 'log_beta', 'zeta'), pooling=hierarchical
+
+Wrote started marker: models/power/bench_mode_b_results/cell_0002_started.json
+
+Simulating hierarchical cohort (n_per_group=10)...
+  Simulation done in 16.6s (25200 trial rows)
+
+Fitting (cell 0002)...
+[fit_batch_hierarchical] entered: model=hgf_2level sampler=blackjax n_chains=4 n_tune=50 n_draws=50 target_accept=0.95 warmup_skipped=False sim_df_rows=25200
+[fit_batch_hierarchical t=0.3s] cohort assembled: P=60 n_trials=420 (BlackJAX path, Mode B)
+[fit_batch_hierarchical t=0.3s] building closure-based logdensity (warmup-only, no JIT yet)
+[fit_batch_hierarchical t=0.3s] logdensity built in 0.0s
+[fit_batch_hierarchical t=0.3s] dispatching to _run_blackjax_nuts
+[hierarchical] _run_blackjax_nuts entered: model=hgf_2level P=60 n_chains=4 n_tune=50 n_draws=50 warmup_skipped=False
+[hierarchical t=0.0s] computing Laplace warmup_params (multi-start, n_starts=4)...
+[laplace_warmup] running multi-start LBFGS (n_starts=4, n_flat=189, max_iter=200, tol=1e-05)...
+[laplace_warmup] start 1/4: neg_logp=22939.64 (88.8s)
+[laplace_warmup] start 2/4: neg_logp=25715.07 (116.7s)
+[laplace_warmup] start 3/4: neg_logp=22405.10 (187.7s)
+[laplace_warmup] start 4/4: neg_logp=25826.67 (53.0s)
+[laplace_warmup] best MAP: start index=2, neg_logp=22405.10 (4/4 starts converged)
+[laplace_warmup] computing Hessian diagonal (n=189 jvps)...
+[laplace_warmup] Hessian diag done in 1.8s, min=-2.010e+06 max=2.621e+03 non-positive=20 non-finite=0
+[laplace_warmup] MULTIMODAL WARNING: endpoints disagree by 47.0 SE on parameter dim 172 — falling back to standard window_adaptation. This posterior may be multimodal; Laplace warmup would lock onto one mode.
+[laplace_warmup] basin diagnostic: 4/4 starts converged, best_neg_logp=22405.10, max_deviation=46.98 (threshold=2.0, status=DISAGREE)
+[hierarchical t=448.4s] Laplace warmup failed; falling back to standard window_adaptation
+[hierarchical t=448.4s] starting window_adaptation (num_steps=50, target_accept=0.95)
+[hierarchical t=1514.6s] window_adaptation complete in 1066.1s
+[diag warmup] n_steps=50 n_chains=4 P=60 elapsed=1066.1s
+[diag warmup] tree_depth: mean=8.18 median=8 p95=10 max=10 saturated_frac=0.220
+[diag warmup] leapfrog_per_step: mean=458.6 median=255 p95=1023 max=1023 total=22932
+[diag warmup] derived: 46.49ms per leapfrog (across all chains)
+[diag warmup] accept_rate: mean=0.899 final50=0.899
+[diag warmup] divergent: count=3 rate=0.0600
+[diag warmup] energy: mean=26246.94 std=264.74 |dE|_mean=31.273 |dE|_max=748.83
+[diag warmup] adapted step_size: 0.1431
+[diag warmup] inverse_mass_matrix: size=21113 min=1.272e-06 max=2.308 cond=1.8e+06
+[hierarchical t=1514.6s] chain strategy: use_shard_map=False (automatic, n_devices=1, n_chains=4)
+[fit_batch_hierarchical t=3827.5s] _run_blackjax_nuts returned in 3827.2s
+[fit_batch_hierarchical t=3827.7s] _samples_to_idata complete in 0.1s (BlackJAX path returning, total wall 3827.7s)
+
+============================================================
+RESULT: INVALID
+  Walltime:    3844.3s (fit: 3827.7s)
+  R-hat max:   1.9800
+  ESS min:     6.0
+  Div rate:    0.2200 (44/200)
+  r(mu) omega_2: 1.000
+  r(mu) log_beta: 1.000
+  r(mu) zeta: 1.000
+============================================================
+
+Result written: models/power/bench_mode_b_results/cell_0002.json
+
+============================================================
+SMOKE CELL 2 COMPLETE
+{
+    "cell_id": 2,
+    "model": "hgf_2level",
+    "n_per_group": 10,
+    "p_total": 60,
+    "mitigation_combo": "hier+M1+M2+Laplace",
+    "has_covariate": false,
+    "cohort_seed": 99000,
+    "mcmc_seed": 99002,
+    "status": "INVALID",
+    "walltime_s": 3844.3,
+    "fit_time_s": 3827.67,
+    "rhat_max": 1.98,
+    "ess_min": 6.0,
+    "divergent_rate": 0.22,
+    "n_divergent": 44,
+    "n_total_samples": 200,
+    "recovery_r_individual": {},
+    "recovery_r_mu": {
+        "omega_2": 0.9999999999999999,
+        "log_beta": 1.0,
+        "zeta": 0.9999999999999999
+    },
+    "recovery_sigma": {
+        "omega_2": {
+            "true": 0.5,
+            "posterior_mean": 0.5604118279592422,
+            "relative_error": 0.12082365591848432
+        },
+        "log_beta": {
+            "true": 0.5,
+            "posterior_mean": 0.5870825131273233,
+            "relative_error": 0.17416502625464658
+        },
+        "zeta": {
+            "true": 0.5,
+            "posterior_mean": 0.5033771133199466,
+            "relative_error": 0.006754226639893224
+        }
+    },
+    "fit_config_yaml": "configs/fit/hier_m1_m2_laplace_2level.yaml",
+    "job_id": "55538942_2",
+    "commit": "4a3b541"
+}
+End: Thu May 21 04:45:14 AM AEST 2026
+============================================================

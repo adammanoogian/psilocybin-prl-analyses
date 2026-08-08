@@ -1,0 +1,58 @@
+{
+  "cell_id": 3,
+  "model": "hgf_2level",
+  "n_per_group": 10,
+  "p_total": 60,
+  "mitigation_combo": "hier+M1+M2+Laplace+covariates",
+  "has_covariate": true,
+  "cohort_seed": 99000,
+  "mcmc_seed": 99003,
+  "status": "INVALID",
+  "walltime_s": 4950.19,
+  "fit_time_s": 4934.0,
+  "rhat_max": 3.11,
+  "ess_min": 5.0,
+  "divergent_rate": 0.0,
+  "n_divergent": 0,
+  "n_total_samples": 200,
+  "recovery_r_individual": {},
+  "recovery_r_mu": {
+    "omega_2": 0.9999999999999999,
+    "log_beta": 0.9999999999999999,
+    "zeta": 1.0
+  },
+  "recovery_sigma": {
+    "omega_2": {
+      "true": 0.5,
+      "posterior_mean": 0.1124237872982189,
+      "relative_error": 0.7751524254035622
+    },
+    "log_beta": {
+      "true": 0.5,
+      "posterior_mean": 0.5769753894991444,
+      "relative_error": 0.1539507789982888
+    },
+    "zeta": {
+      "true": 0.5,
+      "posterior_mean": 0.6210814552516166,
+      "relative_error": 0.24216291050323324
+    }
+  },
+  "fit_config_yaml": "configs/fit/hier_m1_m2_laplace_cov_2level.yaml",
+  "job_id": "55538744_3",
+  "commit": "4a3b541",
+  "recovery_beta": {
+    "omega_2": {
+      "true": 0.8,
+      "posterior_mean": 2.090251686050587
+    },
+    "log_beta": {
+      "true": 0.3,
+      "posterior_mean": -0.2630303794612132
+    },
+    "zeta": {
+      "true": 0.2,
+      "posterior_mean": 0.42671694546554606
+    }
+  }
+}

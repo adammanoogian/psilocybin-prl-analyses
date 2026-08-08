@@ -1,0 +1,15 @@
+E0519 04:22:16.091061 2839837 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0519 04:22:16.091262 2839836 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+E0519 04:22:16.091295 2839835 numa_hwloc.cc:121] Call to hwloc_set_cpubind() failed: Invalid argument [22]
+Traceback (most recent call last):
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/04_sampler_audit.py", line 723, in <module>
+    main()
+  File "/fs04/fc37/adam/projects/hgf-analysis/scripts/03_pre_analysis/04_sampler_audit.py", line 433, in main
+    from prl_hgf.env.task_config import load_config
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/env/__init__.py", line 9, in <module>
+    from prl_hgf.env.simulator import Trial, generate_reward, generate_session
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/env/simulator.py", line 26, in <module>
+    from prl_hgf.env.task_config import AnalysisConfig
+  File "/fs04/fc37/adam/projects/hgf-analysis/src/prl_hgf/env/task_config.py", line 25, in <module>
+    from config import CONFIGS_DIR
+ModuleNotFoundError: No module named 'config'

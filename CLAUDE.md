@@ -37,7 +37,9 @@ src/prl_hgf/
   analysis/        # Group-level analysis, BMS, trajectory export
   power/           # BFDA power analysis (pick_best_cue)
   simulation/      # JAX-native cohort simulation
-scripts/           # Toolbox utilities: demo_quickstart.py, ci/, _maintenance/
+scripts/           # Toolbox utilities: demo_quickstart.py, design_experiment.py,
+                   # ci/, _maintenance/, benchmarks/ (phase 14-34 method validation)
+cluster/archive/   # Historical SLURM jobs for the benchmarks (phase records)
 tests/             # Test suite (tiered)
   unit/            # Fast isolated tests (< 1s, no I/O)
   integration/     # Cross-module tests (< 60s, structure guards)

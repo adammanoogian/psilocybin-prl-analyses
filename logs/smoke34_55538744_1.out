@@ -1,0 +1,111 @@
+============================================================
+Commit: 4a3b541
+Smoke test cell 1 on m3g117
+============================================================
+
+Running SMOKE cell 1 (n_draws=50, n_warmup=50)...
+
+============================================================
+Phase 34 Grid Sweep (Mode B) — Cell 0001
+============================================================
+  Model:       hgf_2level
+  n_per_group: 10
+  P_total:     60
+  Mitigation:  hier+M1+M2
+  Has cov:     False
+  Cohort seed: 99000
+  MCMC seed:   99001
+  Job ID:      55538840_1
+============================================================
+
+Loaded FitConfig: configs/fit/hier_m1_m2_2level.yaml
+  n_draws=50, n_warmup=50, mass=dense, laplace=False, non_centered=('omega_2', 'log_beta', 'zeta'), pooling=hierarchical
+
+Wrote started marker: models/power/bench_mode_b_results/cell_0001_started.json
+
+Simulating hierarchical cohort (n_per_group=10)...
+  Simulation done in 16.7s (25200 trial rows)
+
+Fitting (cell 0001)...
+[fit_batch_hierarchical] entered: model=hgf_2level sampler=blackjax n_chains=4 n_tune=50 n_draws=50 target_accept=0.95 warmup_skipped=False sim_df_rows=25200
+[fit_batch_hierarchical t=0.3s] cohort assembled: P=60 n_trials=420 (BlackJAX path, Mode B)
+[fit_batch_hierarchical t=0.3s] building closure-based logdensity (warmup-only, no JIT yet)
+[fit_batch_hierarchical t=0.3s] logdensity built in 0.0s
+[fit_batch_hierarchical t=0.4s] dispatching to _run_blackjax_nuts
+[hierarchical] _run_blackjax_nuts entered: model=hgf_2level P=60 n_chains=4 n_tune=50 n_draws=50 warmup_skipped=False
+[hierarchical t=0.0s] starting window_adaptation (num_steps=50, target_accept=0.95)
+[hierarchical t=1059.2s] window_adaptation complete in 1059.2s
+[diag warmup] n_steps=50 n_chains=4 P=60 elapsed=1059.2s
+[diag warmup] tree_depth: mean=8.20 median=8 p95=10 max=10 saturated_frac=0.220
+[diag warmup] leapfrog_per_step: mean=461.2 median=255 p95=1023 max=1023 total=23060
+[diag warmup] derived: 45.93ms per leapfrog (across all chains)
+[diag warmup] accept_rate: mean=0.844 final50=0.844
+[diag warmup] divergent: count=3 rate=0.0600
+[diag warmup] energy: mean=26241.43 std=267.35 |dE|_mean=32.502 |dE|_max=748.83
+[diag warmup] adapted step_size: 0.01323
+[diag warmup] inverse_mass_matrix: size=20615 min=8.365e-06 max=2.31 cond=2.8e+05
+[hierarchical t=1059.3s] chain strategy: use_shard_map=False (automatic, n_devices=1, n_chains=4)
+[fit_batch_hierarchical t=3331.8s] _run_blackjax_nuts returned in 3331.5s
+[fit_batch_hierarchical t=3331.9s] _samples_to_idata complete in 0.1s (BlackJAX path returning, total wall 3331.9s)
+
+============================================================
+RESULT: INVALID
+  Walltime:    3348.6s (fit: 3331.9s)
+  R-hat max:   2.6800
+  ESS min:     5.0
+  Div rate:    0.0400 (8/200)
+  r(mu) omega_2: 1.000
+  r(mu) log_beta: 1.000
+  r(mu) zeta: -1.000
+============================================================
+
+Result written: models/power/bench_mode_b_results/cell_0001.json
+
+============================================================
+SMOKE CELL 1 COMPLETE
+{
+    "cell_id": 1,
+    "model": "hgf_2level",
+    "n_per_group": 10,
+    "p_total": 60,
+    "mitigation_combo": "hier+M1+M2",
+    "has_covariate": false,
+    "cohort_seed": 99000,
+    "mcmc_seed": 99001,
+    "status": "INVALID",
+    "walltime_s": 3348.59,
+    "fit_time_s": 3331.93,
+    "rhat_max": 2.68,
+    "ess_min": 5.0,
+    "divergent_rate": 0.04,
+    "n_divergent": 8,
+    "n_total_samples": 200,
+    "recovery_r_individual": {},
+    "recovery_r_mu": {
+        "omega_2": 0.9999999999999998,
+        "log_beta": 0.9999999999999999,
+        "zeta": -0.9999999999999998
+    },
+    "recovery_sigma": {
+        "omega_2": {
+            "true": 0.5,
+            "posterior_mean": 1.1492527793569305,
+            "relative_error": 1.298505558713861
+        },
+        "log_beta": {
+            "true": 0.5,
+            "posterior_mean": 0.5993624506054818,
+            "relative_error": 0.19872490121096353
+        },
+        "zeta": {
+            "true": 0.5,
+            "posterior_mean": 0.5591192059712657,
+            "relative_error": 0.11823841194253149
+        }
+    },
+    "fit_config_yaml": "configs/fit/hier_m1_m2_2level.yaml",
+    "job_id": "55538840_1",
+    "commit": "4a3b541"
+}
+End: Thu May 21 04:25:17 AM AEST 2026
+============================================================

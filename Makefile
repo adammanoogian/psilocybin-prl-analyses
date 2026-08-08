@@ -1,4 +1,4 @@
-.PHONY: install install-dev test lint format demo clean help
+.PHONY: install install-dev test lint format demo design clean help
 
 PYTHON ?= python
 CONDA_ENV ?= ds_env
@@ -29,6 +29,9 @@ format:  ## Auto-format with ruff
 
 demo:  ## Run quickstart demo (simulate + fit + recover, ~2 min on CPU)
 	$(PYTHON) scripts/demo_quickstart.py
+
+design:  ## Run experiment design helper (power analysis, ~5 min quick mode)
+	$(PYTHON) scripts/design_experiment.py --quick
 
 clean:  ## Remove build artifacts and caches
 	rm -rf build/ dist/ *.egg-info .mypy_cache .ruff_cache .pytest_cache

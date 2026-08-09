@@ -73,6 +73,22 @@ class TestPadAndStack:
         np.testing.assert_array_equal(ch_arr, np.stack(choices))
         np.testing.assert_array_equal(mask, np.ones((3, _T_SHORT), dtype=np.float32))
 
+    def test_fixed_target_padding(self) -> None:
+        """An explicit n_trials_target pins the trial dimension."""
+        sessions = [_make_session(n, seed=n) for n in (_T_SHORT, 14)]
+        inputs, observed, choices = (list(x) for x in zip(*sessions))
+
+        target = 20
+        in_arr, obs_arr, ch_arr, mask = _pad_and_stack(
+            inputs, observed, choices, n_trials_target=target
+        )
+        assert in_arr.shape == (2, target, 3)
+        assert mask.shape == (2, target)
+        np.testing.assert_array_equal(mask[0, _T_SHORT:], 0.0)
+
+        with pytest.raises(ValueError, match="expected >= 14, got 13"):
+            _pad_and_stack(inputs, observed, choices, n_trials_target=13)
+
     def test_ragged_shapes_and_mask(self) -> None:
         """Ragged counts pad to T_max with a prefix-of-ones mask and zero pads."""
         counts = [_T_SHORT, _T_LONG, 14]

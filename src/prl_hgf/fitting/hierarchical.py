@@ -3516,6 +3516,7 @@ def _pad_and_stack(
     input_data_list: list[np.ndarray],
     observed_list: list[np.ndarray],
     choices_list: list[np.ndarray],
+    n_trials_target: int | None = None,
 ) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
     """Pad per-participant arrays to the cohort maximum and stack.
 
@@ -3540,6 +3541,11 @@ def _pad_and_stack(
         Per-participant binary observed masks, each ``(n_trials_p, 3)``.
     choices_list : list[numpy.ndarray]
         Per-participant chosen-cue indices, each ``(n_trials_p,)``.
+    n_trials_target : int or None, optional
+        Fixed padding width.  ``None`` (default) pads to the cohort
+        maximum; an explicit value pins the trial dimension so different
+        cohorts share one XLA trace shape.  Must be >= the longest
+        session.
 
     Returns
     -------
@@ -3554,6 +3560,14 @@ def _pad_and_stack(
     """
     trial_counts = [arr.shape[0] for arr in input_data_list]
     n_trials_max = max(trial_counts)
+    if n_trials_target is not None:
+        if n_trials_target < n_trials_max:
+            msg = (
+                f"n_trials_target must cover the longest session: "
+                f"expected >= {n_trials_max}, got {n_trials_target}"
+            )
+            raise ValueError(msg)
+        n_trials_max = n_trials_target
     n_participants = len(input_data_list)
 
     trial_mask_arr = np.zeros((n_participants, n_trials_max), dtype=np.float32)
@@ -3609,6 +3623,7 @@ def fit_batch_hierarchical(
     prior_spec: HGFPriorSpec | None = None,
     warmup_params: dict | None = None,
     x_covariate: np.ndarray | None = None,
+    pad_to_n_trials: int | None = None,
 ) -> az.InferenceData | tuple[az.InferenceData, dict]:
     """Fit an entire cohort via BlackJAX NUTS (default) or NumPyro MCMC.
 
@@ -3670,6 +3685,13 @@ def fit_batch_hierarchical(
         order from the groupby.  Mean-centered internally before passing
         to model functions.  Only used when
         ``fit_config.covariate.pooling == "hierarchical"``.
+    pad_to_n_trials : int or None, optional
+        Fixed padding target for the trial dimension.  When set, every
+        session is right-padded to this width (instead of the cohort
+        maximum), so repeated calls with different cohorts share one XLA
+        trace shape and hit the persistent compilation cache.  Pass the
+        task's design ceiling (e.g. ``n_sets * max_trials_per_set``) in
+        power sweeps.  Must be >= the longest session in ``sim_df``.
 
     Returns
     -------
@@ -3796,14 +3818,26 @@ def fit_batch_hierarchical(
     # carry a per-trial validity mask; rectangular input gets an all-ones
     # mask and no padding (bit-identical to the pre-ragged behaviour).
     trial_counts = [arr.shape[0] for arr in input_data_list]
-    n_trials = max(trial_counts)
+    n_trials_max = max(trial_counts)
+    if pad_to_n_trials is not None and pad_to_n_trials < n_trials_max:
+        msg = (
+            f"pad_to_n_trials must cover the longest session: "
+            f"expected >= {n_trials_max}, got {pad_to_n_trials}"
+        )
+        raise ValueError(msg)
+    n_trials = pad_to_n_trials if pad_to_n_trials is not None else n_trials_max
     n_participants = len(input_data_list)
-    is_ragged = len(set(trial_counts)) > 1
+    is_ragged = len(set(trial_counts)) > 1 or n_trials != n_trials_max
     if is_ragged:
+        target_desc = (
+            f"fixed target {n_trials}"
+            if pad_to_n_trials is not None
+            else f"T_max={n_trials}"
+        )
         print(
             f"[fit_batch_hierarchical] ragged cohort detected: trial counts "
-            f"in [{min(trial_counts)}, {n_trials}] — padding to T_max="
-            f"{n_trials} with validity mask",
+            f"in [{min(trial_counts)}, {n_trials_max}] — padding to "
+            f"{target_desc} with validity mask",
             flush=True,
         )
 
@@ -3838,7 +3872,10 @@ def fit_batch_hierarchical(
     validate_fit_config(fit_config, prior_spec, n_participants)
 
     input_data_arr, observed_arr, choices_arr, trial_mask_arr = _pad_and_stack(
-        input_data_list, observed_list, choices_list
+        input_data_list,
+        observed_list,
+        choices_list,
+        n_trials_target=pad_to_n_trials,
     )
 
     # ------------------------------------------------------------------

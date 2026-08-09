@@ -1048,6 +1048,16 @@ def run_sbf_iteration(
             fit_batch_hierarchical,
         )
 
+        # Criterion-based schedules produce ragged cohorts whose maximum
+        # length varies with the seed.  Pad every iteration to the fixed
+        # design ceiling so all iterations share one XLA trace shape and
+        # hit the persistent compilation cache.
+        pad_to = (
+            cfg.task.n_sets * cfg.task.max_trials_per_set
+            if cfg.is_criterion_based
+            else None
+        )
+
         # Step 3 (batched): Fit 3-level model — single NUTS call.
         # BlackJAX path returns (idata, adapted_params) on first call (no
         # warmup_params provided); NumPyro path returns bare idata. Unpack
@@ -1057,6 +1067,7 @@ def run_sbf_iteration(
             sim_df,
             fit_config_3,
             prior_spec=_prior_spec_3,
+            pad_to_n_trials=pad_to,
         )
         idata_3 = _fit_3[0] if isinstance(_fit_3, tuple) else _fit_3
 
@@ -1065,6 +1076,7 @@ def run_sbf_iteration(
             sim_df,
             fit_config_2,
             prior_spec=_prior_spec_2,
+            pad_to_n_trials=pad_to,
         )
         idata_2 = _fit_2[0] if isinstance(_fit_2, tuple) else _fit_2
 

@@ -16,10 +16,12 @@ are:
    is reverted to the previous trial's values and the trial contributes
    ``0`` to the log-likelihood via a stability mask.
 
-2. **trial_mask plumbing** — an optional ``(P, n_trials)`` binary array
-   that zeros out logp contributions for padded trials, enabling future
-   variable-length cohorts to reuse the compiled XLA kernel without
-   recompilation.
+2. **trial_mask plumbing** — a ``(P, n_trials)`` binary array that zeros
+   out logp contributions for padded trials and freezes the belief state
+   across them, enabling variable-length (ragged) cohorts:
+   :func:`fit_batch_hierarchical` right-pads sessions to the cohort
+   maximum and builds the mask automatically, so differing trial counts
+   share one compiled XLA kernel without recompilation.
 
 3. **vmap reduction** — ``jax.vmap`` maps the per-participant logp across
    the participant dimension; the Op forward pass returns
@@ -134,6 +136,7 @@ def _clamped_scan(
     scan_fn,  # noqa: ANN001
     attrs: dict,
     scan_inputs: tuple,
+    trial_mask: jnp.ndarray | None = None,
 ) -> tuple[dict, tuple[dict, jnp.ndarray]]:
     """Run ``lax.scan`` with Layer 2 NaN-clamping wrapper.
 
@@ -144,6 +147,12 @@ def _clamped_scan(
     previous trial's values.  The per-step stability flag is collected into
     a ``(n_trials,)`` boolean mask so that unstable trials contribute 0 to
     the log-likelihood downstream.
+
+    When ``trial_mask`` is provided, the belief state is additionally
+    frozen on padded trials (``mask == 0``): the update is computed but
+    discarded via ``jnp.where``, so padded observations can never corrupt
+    the trajectory.  With an all-true mask the behaviour is bit-identical
+    to the unmasked path.
 
     All branching uses ``jnp.where`` / ``jax.tree_util.tree_map`` — no
     Python ``if`` on traced values — so the function stays compatible with
@@ -157,6 +166,10 @@ def _clamped_scan(
         Initial (parameter-injected) attributes pytree.
     scan_inputs : tuple
         ``(values, observed_cols, time_steps, None)``.
+    trial_mask : jnp.ndarray or None, shape (n_trials,), optional
+        Validity mask for variable-length sessions.  Nonzero for real
+        trials, zero for padding.  ``None`` (default) treats every trial
+        as valid.
 
     Returns
     -------
@@ -171,8 +184,9 @@ def _clamped_scan(
 
     def _clamped_step(
         carry: dict,
-        x: tuple,
+        step_input: tuple,
     ) -> tuple[dict, tuple[dict, jnp.ndarray]]:
+        x, mask_t = step_input
         prev_attrs = carry
         new_attrs, new_node = scan_fn(prev_attrs, x)
 
@@ -194,9 +208,12 @@ def _clamped_scan(
 
         is_stable = all_finite & mu_2_ok
 
-        # Revert belief state on instability
+        # Revert belief state on instability; freeze it on padded trials
+        # so inert pad values can never propagate into the carry.
+        keep_update = is_stable & mask_t
+
         safe_attrs = jax.tree_util.tree_map(
-            lambda n, o: jnp.where(is_stable, n, o),
+            lambda n, o: jnp.where(keep_update, n, o),
             new_attrs,
             prev_attrs,
         )
@@ -205,8 +222,14 @@ def _clamped_scan(
         # zero out the logp contribution of unstable trials downstream.
         return safe_attrs, (new_node, is_stable)
 
+    n_steps = scan_inputs[2].shape[0]
+    if trial_mask is None:
+        mask_bool = jnp.ones(n_steps, dtype=bool)
+    else:
+        mask_bool = trial_mask.astype(bool)
+
     final_attrs, (node_traj, stability_mask) = lax.scan(
-        _clamped_step, attrs, scan_inputs
+        _clamped_step, attrs, (scan_inputs, mask_bool)
     )
 
     return final_attrs, (node_traj, stability_mask)
@@ -434,7 +457,9 @@ def build_logp_ops_batched(
             attrs[idx] = node
 
         # Clamped scan
-        _, (node_traj, stability_mask) = _clamped_scan(scan_fn, attrs, scan_inputs)
+        _, (node_traj, stability_mask) = _clamped_scan(
+            scan_fn, attrs, scan_inputs, trial_mask=mask
+        )
 
         return _compute_logp(
             node_traj,
@@ -465,7 +490,9 @@ def build_logp_ops_batched(
             attrs[idx] = node
 
         # Clamped scan
-        _, (node_traj, stability_mask) = _clamped_scan(scan_fn, attrs, scan_inputs)
+        _, (node_traj, stability_mask) = _clamped_scan(
+            scan_fn, attrs, scan_inputs, trial_mask=mask
+        )
 
         return _compute_logp(
             node_traj,
@@ -671,7 +698,9 @@ def build_logp_fn_batched(
             node = dict(attrs[idx])
             node["volatility_coupling_parents"] = jnp.array([kappa])
             attrs[idx] = node
-        _, (node_traj, stability_mask) = _clamped_scan(scan_fn, attrs, scan_inputs)
+        _, (node_traj, stability_mask) = _clamped_scan(
+            scan_fn, attrs, scan_inputs, trial_mask=mask
+        )
         return _compute_logp(
             node_traj,
             choices.astype(jnp.int32),
@@ -697,7 +726,9 @@ def build_logp_fn_batched(
             node = dict(attrs[idx])
             node["tonic_volatility"] = omega_2
             attrs[idx] = node
-        _, (node_traj, stability_mask) = _clamped_scan(scan_fn, attrs, scan_inputs)
+        _, (node_traj, stability_mask) = _clamped_scan(
+            scan_fn, attrs, scan_inputs, trial_mask=mask
+        )
         return _compute_logp(
             node_traj,
             choices.astype(jnp.int32),
@@ -3481,6 +3512,97 @@ def _build_arrays_single(
     return input_data_arr, observed_arr, choices
 
 
+def _pad_and_stack(
+    input_data_list: list[np.ndarray],
+    observed_list: list[np.ndarray],
+    choices_list: list[np.ndarray],
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """Pad per-participant arrays to the cohort maximum and stack.
+
+    Supports variable-length (ragged) cohorts: each participant's arrays
+    are right-padded to ``T_max = max(n_trials)`` with inert values
+    (reward ``0.0``, observed ``0``, choice ``0``) and a boolean validity
+    mask marks the real-trial prefix.  Inert pad values keep every
+    arithmetic path NaN-free; the mask (not the pad values) is what
+    excludes padded trials from the likelihood and freezes the belief
+    state (see :func:`_clamped_scan` and :func:`_compute_logp`).
+
+    For a rectangular cohort (all trial counts equal) no padding occurs
+    and the mask is all-ones, so the stacked arrays are bit-identical to
+    a plain ``np.stack``.
+
+    Parameters
+    ----------
+    input_data_list : list[numpy.ndarray]
+        Per-participant reward-value arrays, each of shape
+        ``(n_trials_p, 3)``.
+    observed_list : list[numpy.ndarray]
+        Per-participant binary observed masks, each ``(n_trials_p, 3)``.
+    choices_list : list[numpy.ndarray]
+        Per-participant chosen-cue indices, each ``(n_trials_p,)``.
+
+    Returns
+    -------
+    input_data_arr : numpy.ndarray, shape (P, T_max, 3)
+        Stacked, right-padded reward-value arrays.
+    observed_arr : numpy.ndarray, shape (P, T_max, 3)
+        Stacked, right-padded observed masks (padding rows all-zero).
+    choices_arr : numpy.ndarray, shape (P, T_max)
+        Stacked, right-padded choice indices (padding entries ``0``).
+    trial_mask_arr : numpy.ndarray, shape (P, T_max)
+        Float validity mask: ``1.0`` for real trials, ``0.0`` for padding.
+    """
+    trial_counts = [arr.shape[0] for arr in input_data_list]
+    n_trials_max = max(trial_counts)
+    n_participants = len(input_data_list)
+
+    trial_mask_arr = np.zeros((n_participants, n_trials_max), dtype=np.float32)
+
+    padded_inputs: list[np.ndarray] = []
+    padded_observed: list[np.ndarray] = []
+    padded_choices: list[np.ndarray] = []
+    for i, n_trials_p in enumerate(trial_counts):
+        trial_mask_arr[i, :n_trials_p] = 1.0
+        n_pad = n_trials_max - n_trials_p
+        if n_pad == 0:
+            padded_inputs.append(input_data_list[i])
+            padded_observed.append(observed_list[i])
+            padded_choices.append(choices_list[i])
+        else:
+            padded_inputs.append(
+                np.concatenate(
+                    [
+                        input_data_list[i],
+                        np.zeros((n_pad, 3), dtype=input_data_list[i].dtype),
+                    ],
+                    axis=0,
+                )
+            )
+            padded_observed.append(
+                np.concatenate(
+                    [
+                        observed_list[i],
+                        np.zeros((n_pad, 3), dtype=observed_list[i].dtype),
+                    ],
+                    axis=0,
+                )
+            )
+            padded_choices.append(
+                np.concatenate(
+                    [
+                        choices_list[i],
+                        np.zeros((n_pad,), dtype=choices_list[i].dtype),
+                    ],
+                    axis=0,
+                )
+            )
+
+    input_data_arr = np.stack(padded_inputs, axis=0)
+    observed_arr = np.stack(padded_observed, axis=0)
+    choices_arr = np.stack(padded_choices, axis=0)
+    return input_data_arr, observed_arr, choices_arr, trial_mask_arr
+
+
 def fit_batch_hierarchical(
     sim_df: pd.DataFrame,
     fit_config: FitConfig,
@@ -3493,6 +3615,12 @@ def fit_batch_hierarchical(
     Groups ``sim_df`` by ``(participant_id, group, session)``, builds the
     stacked ``(P, n_trials, 3)`` arrays, constructs a pure JAX logp via
     :func:`build_logp_fn_batched`, and runs NUTS for the full cohort.
+    Variable-length (ragged) cohorts are supported: sessions with
+    differing trial counts are right-padded to the cohort maximum
+    ``T_max`` with inert values, and a ``(P, T_max)`` validity mask
+    ensures padded trials contribute exactly 0 to the likelihood and
+    never update the HGF belief state.  Raggedness is inferred from
+    ``sim_df`` — no signature change.
     Returns an ``InferenceData`` with a ``participant`` dimension on every
     parameter so downstream analysis can map posterior slices back to
     individual participants.
@@ -3554,8 +3682,7 @@ def fit_batch_hierarchical(
     Raises
     ------
     ValueError
-        If ``sim_df`` is missing required columns or participants have
-        different trial counts.
+        If ``sim_df`` is missing required columns.
     """
     from prl_hgf.fitting.preflight import validate_fit_config
 
@@ -3664,17 +3791,21 @@ def fit_batch_hierarchical(
         participant_groups.append(str(grp))
         participant_sessions.append(str(sess))
 
-    # Trial-count guard: all participants must have the same n_trials
+    # Variable-length (ragged) support: sessions may have differing trial
+    # counts (criterion-based reversals).  Pad to the cohort maximum and
+    # carry a per-trial validity mask; rectangular input gets an all-ones
+    # mask and no padding (bit-identical to the pre-ragged behaviour).
     trial_counts = [arr.shape[0] for arr in input_data_list]
-    if len(set(trial_counts)) != 1:
-        msg = (
-            f"All participants must have the same number of trials. "
-            f"Got trial counts: {trial_counts}"
-        )
-        raise ValueError(msg)
-
-    n_trials = trial_counts[0]
+    n_trials = max(trial_counts)
     n_participants = len(input_data_list)
+    is_ragged = len(set(trial_counts)) > 1
+    if is_ragged:
+        print(
+            f"[fit_batch_hierarchical] ragged cohort detected: trial counts "
+            f"in [{min(trial_counts)}, {n_trials}] — padding to T_max="
+            f"{n_trials} with validity mask",
+            flush=True,
+        )
 
     # ------------------------------------------------------------------
     # Extract group_idx and mean-center covariate (Mode B only)
@@ -3706,9 +3837,9 @@ def fit_batch_hierarchical(
     # Pre-flight validation (memory guard for dense mass matrix)
     validate_fit_config(fit_config, prior_spec, n_participants)
 
-    input_data_arr = np.stack(input_data_list, axis=0)
-    observed_arr = np.stack(observed_list, axis=0)
-    choices_arr = np.stack(choices_list, axis=0)
+    input_data_arr, observed_arr, choices_arr, trial_mask_arr = _pad_and_stack(
+        input_data_list, observed_list, choices_list
+    )
 
     # ------------------------------------------------------------------
     # Build the pure JAX logp function (no data closure)
@@ -3721,10 +3852,7 @@ def fit_batch_hierarchical(
     jax_input_data = jnp.array(input_data_arr, dtype=jnp.float32)
     jax_observed = jnp.array(observed_arr, dtype=jnp.int32)
     jax_choices = jnp.array(choices_arr, dtype=jnp.int32)
-    jax_trial_mask = jnp.ones(
-        (n_participants, n_trials),
-        dtype=jnp.float32,
-    )
+    jax_trial_mask = jnp.array(trial_mask_arr, dtype=jnp.float32)
 
     rng_key = jax.random.PRNGKey(random_seed)
 
